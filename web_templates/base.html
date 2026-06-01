@@ -128,43 +128,40 @@ textarea { min-height: 58px; resize: vertical; }
 .select-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .select-row select { flex: 1; min-width: 88px; }
 
-/* Calendar / clock inputs — match platform typography (WebKit + Firefox) */
+/* Date (DD/MM/AAAA) and clock inputs */
 input.input-datetime {
   min-height: 38px;
   min-width: 168px;
+}
+input.input-date-br {
+  max-width: 200px;
+  font-variant-numeric: tabular-nums;
+}
+input[type="time"].input-datetime {
   color-scheme: light;
   cursor: pointer;
 }
-input.input-datetime::-webkit-datetime-edit,
-input.input-datetime::-webkit-datetime-edit-fields-wrapper,
-input.input-datetime::-webkit-datetime-edit-text,
-input.input-datetime::-webkit-datetime-edit-month-field,
-input.input-datetime::-webkit-datetime-edit-day-field,
-input.input-datetime::-webkit-datetime-edit-year-field,
-input.input-datetime::-webkit-datetime-edit-hour-field,
-input.input-datetime::-webkit-datetime-edit-minute-field,
-input.input-datetime::-webkit-datetime-edit-ampm-field {
+input[type="time"].input-datetime::-webkit-datetime-edit,
+input[type="time"].input-datetime::-webkit-datetime-edit-fields-wrapper,
+input[type="time"].input-datetime::-webkit-datetime-edit-text,
+input[type="time"].input-datetime::-webkit-datetime-edit-hour-field,
+input[type="time"].input-datetime::-webkit-datetime-edit-minute-field,
+input[type="time"].input-datetime::-webkit-datetime-edit-ampm-field {
   font-family: var(--font);
   font-size: 13px;
   font-weight: 400;
   color: var(--text);
   padding: 0;
 }
-input.input-datetime::-webkit-calendar-picker-indicator {
+input[type="time"].input-datetime::-webkit-calendar-picker-indicator {
   cursor: pointer;
   opacity: 0.55;
-  filter: none;
   margin-left: 4px;
 }
-input.input-datetime:hover::-webkit-calendar-picker-indicator {
+input[type="time"].input-datetime:hover::-webkit-calendar-picker-indicator {
   opacity: 0.85;
 }
-input.input-datetime::-webkit-date-and-time-value {
-  font-family: var(--font);
-  font-size: 13px;
-  color: var(--text);
-}
-input.input-datetime::-moz-focus-inner {
+input[type="time"].input-datetime::-moz-focus-inner {
   border: 0;
 }
 
@@ -430,6 +427,24 @@ body.nav-open .nav-backdrop { display: block; }
       link.addEventListener('click', function () { setNav(false); });
     });
   }
+})();
+
+(function () {
+  function formatDateBrInput(el) {
+    var digits = (el.value || '').replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 2) {
+      el.value = digits;
+    } else if (digits.length <= 4) {
+      el.value = digits.slice(0, 2) + '/' + digits.slice(2);
+    } else {
+      el.value = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
+    }
+  }
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains('input-date-br')) {
+      formatDateBrInput(e.target);
+    }
+  });
 })();
 </script>
 {% block scripts %}{% endblock %}
