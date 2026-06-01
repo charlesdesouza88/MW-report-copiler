@@ -33,8 +33,8 @@ from extra_sessions import (EXTRA_SESSION_FIELD_LABELS, EXTRA_SESSION_FIELDS,
                             display_status, is_status_ok, parse_import_csv,
                             row_from_form)
 from form_ui import (NIVEL_CHOICES, WEEKDAY_CHOICES, date_from_form,
-                     format_class_schedule, is_valid_nivel, storage_date_to_iso,
-                     storage_time_to_input, time_from_form)
+                     format_class_schedule, format_date_for_input, is_valid_nivel,
+                     storage_date_to_iso, storage_time_to_input, time_from_form)
 from teacher_classes import (add_class as register_teacher_class,
                              count_students_in_turma, find_class,
                              list_for_teacher, load_registry,
@@ -225,6 +225,7 @@ app.config.update(
 
 app.jinja_env.globals.update(
     storage_date_to_iso=storage_date_to_iso,
+    format_date_for_input=format_date_for_input,
     storage_time_to_input=storage_time_to_input,
     is_status_ok=is_status_ok,
     display_status=display_status,

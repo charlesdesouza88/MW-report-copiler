@@ -9,37 +9,64 @@ _STORAGE_DATE = re.compile(r'^(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?$')
 _TIME = re.compile(r'^(\d{1,2}):(\d{2})')
 
 
-def storage_date_to_iso(value):
-    """Convert stored DD/MM or DD/MM/YYYY to YYYY-MM-DD for <input type=\"date\">."""
+def parse_storage_date(value):
+    """
+    Normalize a date to DD/MM/YYYY (Brazilian day-first).
+    Accepts DD/MM, DD/MM/YYYY, DD.MM.YYYY, or YYYY-MM-DD. Returns '' if invalid.
+    """
     raw = (value or '').strip().replace('.', '/')
     if not raw:
         return ''
+
+    iso_match = _ISO_DATE.match(raw)
+    if iso_match:
+        year, month, day = iso_match.group(1), iso_match.group(2), iso_match.group(3)
+        return f'{int(day):02d}/{int(month):02d}/{year}'
 
     match = _STORAGE_DATE.match(raw)
     if not match:
         return ''
 
-    day, month, year = match.group(1), match.group(2), match.group(3) or ''
-    if year and len(year) == 2:
-        year = f'20{year}'
-    if not year:
-        year = str(datetime.now().year)
+    day_s, month_s, year_s = match.group(1), match.group(2), match.group(3) or ''
+    try:
+        day, month = int(day_s), int(month_s)
+    except ValueError:
+        return ''
+    if not (1 <= day <= 31 and 1 <= month <= 12):
+        return ''
 
+    if year_s:
+        year = int(year_s)
+        if len(year_s) == 2:
+            year = 2000 + year if year < 100 else year
+    else:
+        year = datetime.now().year
+
+    return f'{day:02d}/{month:02d}/{year:04d}'
+
+
+def format_date_for_input(value):
+    """Display value for Brazilian date fields (DD/MM/YYYY)."""
+    return parse_storage_date(value)
+
+
+def storage_date_to_iso(value):
+    """Convert stored DD/MM or DD/MM/YYYY to YYYY-MM-DD (internal use)."""
+    parsed = parse_storage_date(value)
+    if not parsed:
+        return ''
+
+    match = _STORAGE_DATE.match(parsed)
+    if not match:
+        return ''
+
+    day, month, year = match.group(1), match.group(2), match.group(3)
     return f'{int(year):04d}-{int(month):02d}-{int(day):02d}'
 
 
 def iso_date_to_storage(iso_value):
-    """Convert YYYY-MM-DD from calendar input to DD/MM/YYYY for CSV storage."""
-    raw = (iso_value or '').strip()
-    if not raw:
-        return ''
-
-    match = _ISO_DATE.match(raw)
-    if not match:
-        return raw
-
-    year, month, day = match.group(1), match.group(2), match.group(3)
-    return f'{int(day):02d}/{int(month):02d}/{year}'
+    """Convert YYYY-MM-DD to DD/MM/YYYY for CSV storage."""
+    return parse_storage_date(iso_value) or (iso_value or '').strip()
 
 
 def storage_time_to_input(value):
@@ -69,15 +96,19 @@ def time_input_to_storage(input_value):
 
 
 def date_from_form(form, picker_field='date_picker'):
-    """Read calendar field and return storage date string (DD/MM/YYYY)."""
+    """Read date field and return storage string DD/MM/YYYY (day before month)."""
     picker = (form.get(picker_field) or '').strip()
     if picker:
-        return iso_date_to_storage(picker)
+        parsed = parse_storage_date(picker)
+        if parsed:
+            return parsed
 
     if picker_field == 'date_picker':
         legacy = (form.get('date') or '').strip()
-        if legacy and _ISO_DATE.match(legacy):
-            return iso_date_to_storage(legacy)
+        if legacy:
+            parsed = parse_storage_date(legacy)
+            if parsed:
+                return parsed
 
     return ''
 

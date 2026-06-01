@@ -1,11 +1,18 @@
 {% macro date_picker(value, label, field_name='date_picker') %}
 <div class="form-group">
   <label>{{ label }}</label>
-  <input type="date"
+  <input type="text"
          name="{{ field_name }}"
-         class="input-datetime"
-         value="{{ storage_date_to_iso(value) }}"
-         aria-label="{{ label }}">
+         class="input-datetime input-date-br"
+         value="{{ format_date_for_input(value) }}"
+         placeholder="DD/MM/AAAA"
+         pattern="(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/[0-9]{4}"
+         title="Use o formato dia/mês/ano, por exemplo 05/03/2026"
+         inputmode="numeric"
+         lang="pt-BR"
+         autocomplete="off"
+         aria-label="{{ label }} (dia/mês/ano)">
+  <p class="font-sm text-gray" style="margin-top:4px;">Formato brasileiro: dia/mês/ano</p>
 </div>
 {% endmacro %}
 
