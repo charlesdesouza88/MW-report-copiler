@@ -844,6 +844,25 @@ def _lesson_from_form():
     return row
 
 
+def _list_turma_param():
+    """Turma filter to preserve on list pages (query string or form hidden field)."""
+    return (request.args.get('turma') or request.form.get('return_turma') or '').strip()
+
+
+def _redirect_students():
+    turma = _list_turma_param()
+    if turma:
+        return redirect(url_for('students', turma=turma))
+    return redirect(url_for('students'))
+
+
+def _redirect_lessons():
+    turma = _list_turma_param()
+    if turma:
+        return redirect(url_for('lessons', turma=turma))
+    return redirect(url_for('lessons'))
+
+
 def _sort_lessons(rows):
     def sort_key(row):
         turma = row.get('turma', '')
@@ -1447,7 +1466,7 @@ def student_edit(idx):
         visible[idx] = updated
         all_rows[global_idx] = updated
         _save_students(all_rows)
-        return redirect(url_for('students'))
+        return _redirect_students()
     return render_template(
         'student_edit.html',
         **_student_form_context(all_rows, user, False, visible[idx], idx),
@@ -1475,7 +1494,7 @@ def student_new():
             )
         all_rows.append(new_row)
         _save_students(all_rows)
-        return redirect(url_for('students'))
+        return _redirect_students()
     defaults = dict(visible[0]) if visible else dict(all_rows[0]) if all_rows else {}
     defaults['student_name'] = ''
     defaults['turma'] = ''
@@ -1501,7 +1520,7 @@ def student_delete(idx):
             if global_idx is not None:
                 all_rows.pop(global_idx)
         _save_students(all_rows)
-    return redirect(url_for('students'))
+    return _redirect_students()
 
 
 # ── Lessons (class details) ───────────────────────────────────────────────────────────
@@ -1542,7 +1561,7 @@ def lesson_edit(idx):
             abort(404)
         all_rows[global_idx] = updated
         _save_lessons(_sort_lessons(all_rows))
-        return redirect(url_for('lessons'))
+        return _redirect_lessons()
 
     return render_template(
         'lesson_edit.html',
@@ -1570,7 +1589,7 @@ def lesson_new():
             abort(403)
         all_rows.append(new_row)
         _save_lessons(_sort_lessons(all_rows))
-        return redirect(url_for('lessons'))
+        return _redirect_lessons()
 
     defaults = dict(visible[-1]) if visible else {}
     for field in LESSON_FIELDS:
@@ -1751,7 +1770,7 @@ def lesson_delete(idx):
         if global_idx is not None:
             all_rows.pop(global_idx)
             _save_lessons(all_rows)
-    return redirect(url_for('lessons'))
+    return _redirect_lessons()
 
 
 # ── Upload ────────────────────────────────────────────────────────────────────────────

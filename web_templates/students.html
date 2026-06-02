@@ -1,4 +1,6 @@
 {% extends 'base.html' %}
+{% from '_macros/turma_filter_script.html' import turma_filter_script %}
+{% set return_turma = request.args.get('turma', '') %}
 {% block title %}Alunos{% endblock %}
 {% block page_title %}Alunos{% endblock %}
 
@@ -6,7 +8,7 @@
   {% if current_user and current_user.role == 'teacher' %}
   <a href="{{ url_for('dashboard') }}#criar-turma" class="btn btn-outline">+ Nova turma</a>
   {% endif %}
-  <a href="{{ url_for('student_new') }}" class="btn btn-primary">+ Novo aluno</a>
+  <a href="{{ url_for('student_new', turma=return_turma) if return_turma else url_for('student_new') }}" class="btn btn-primary">+ Novo aluno</a>
 {% endblock %}
 
 {% block content %}
@@ -43,8 +45,8 @@
       {% endif %}
     </div>
     <div class="student-card-actions">
-      <a href="{{ url_for('student_edit', idx=loop.index0) }}" class="btn btn-ghost btn-sm">Editar</a>
-      <form method="post" action="{{ url_for('student_delete', idx=loop.index0) }}"
+      <a href="{{ url_for('student_edit', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_edit', idx=loop.index0) }}" class="btn btn-ghost btn-sm">Editar</a>
+      <form method="post" action="{{ url_for('student_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_delete', idx=loop.index0) }}"
             onsubmit="return confirm({{ ('Excluir ' ~ s.student_name ~ '?')|tojson }})">
         <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
       </form>
@@ -93,8 +95,8 @@
         </td>
         <td>
           <div class="flex gap-8">
-            <a href="{{ url_for('student_edit', idx=loop.index0) }}" class="btn btn-ghost btn-xs">Editar</a>
-            <form method="post" action="{{ url_for('student_delete', idx=loop.index0) }}"
+            <a href="{{ url_for('student_edit', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_edit', idx=loop.index0) }}" class="btn btn-ghost btn-xs">Editar</a>
+            <form method="post" action="{{ url_for('student_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_delete', idx=loop.index0) }}"
                   onsubmit="return confirm({{ ('Excluir ' ~ s.student_name ~ '?')|tojson }})">
               <button type="submit" class="btn btn-danger btn-xs">✕</button>
             </form>
@@ -119,18 +121,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-document.querySelectorAll('.filter-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const turma = btn.dataset.turma;
-    document.querySelectorAll('.filter-btn').forEach(b => {
-      b.className = 'btn btn-sm btn-ghost filter-btn';
-    });
-    btn.className = 'btn btn-sm btn-primary filter-btn';
-    document.querySelectorAll('.student-row, .student-card-item').forEach(row => {
-      row.style.display = (!turma || row.dataset.turma === turma) ? '' : 'none';
-    });
-  });
-});
-</script>
+{{ turma_filter_script('.student-row, .student-card-item', 'students') }}
 {% endblock %}
