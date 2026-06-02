@@ -1,9 +1,11 @@
 {% extends 'base.html' %}
+{% from '_macros/turma_filter_script.html' import turma_filter_script %}
+{% set return_turma = request.args.get('turma', '') %}
 {% block title %}Aulas{% endblock %}
 {% block page_title %}Detalhes das aulas{% endblock %}
 
 {% block topbar_actions %}
-  <a href="{{ url_for('lesson_new') }}" class="btn btn-primary">+ Nova aula</a>
+  <a href="{{ url_for('lesson_new', turma=return_turma) if return_turma else url_for('lesson_new') }}" class="btn btn-primary">+ Nova aula</a>
 {% endblock %}
 
 {% block content %}
@@ -40,8 +42,8 @@
     <p class="font-sm text-gray">Habilidades: {{ lesson.habilidades }}</p>
     {% endif %}
     <div class="student-card-actions" style="margin-top:14px;">
-      <a href="{{ url_for('lesson_edit', idx=loop.index0) }}" class="btn btn-ghost btn-sm">Editar</a>
-      <form method="post" action="{{ url_for('lesson_delete', idx=loop.index0) }}"
+      <a href="{{ url_for('lesson_edit', idx=loop.index0, turma=return_turma) if return_turma else url_for('lesson_edit', idx=loop.index0) }}" class="btn btn-ghost btn-sm">Editar</a>
+      <form method="post" action="{{ url_for('lesson_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('lesson_delete', idx=loop.index0) }}"
             onsubmit="return confirm({{ ('Excluir aula ' ~ lesson.aula_num ~ ' da turma ' ~ lesson.turma ~ '?')|tojson }})">
         <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
       </form>
@@ -76,8 +78,8 @@
         <td class="font-sm text-gray">{{ lesson.habilidades or '—' }}</td>
         <td>
           <div class="flex gap-8">
-            <a href="{{ url_for('lesson_edit', idx=loop.index0) }}" class="btn btn-ghost btn-xs">Editar</a>
-            <form method="post" action="{{ url_for('lesson_delete', idx=loop.index0) }}"
+            <a href="{{ url_for('lesson_edit', idx=loop.index0, turma=return_turma) if return_turma else url_for('lesson_edit', idx=loop.index0) }}" class="btn btn-ghost btn-xs">Editar</a>
+            <form method="post" action="{{ url_for('lesson_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('lesson_delete', idx=loop.index0) }}"
                   onsubmit="return confirm('Excluir esta aula?')">
               <button type="submit" class="btn btn-danger btn-xs">✕</button>
             </form>
@@ -101,25 +103,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-const params = new URLSearchParams(window.location.search);
-const initialTurma = params.get('turma');
-if (initialTurma) {
-  const preset = document.querySelector('.filter-btn[data-turma="' + initialTurma + '"]');
-  if (preset) preset.click();
-}
-
-document.querySelectorAll('.filter-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const turma = btn.dataset.turma;
-    document.querySelectorAll('.filter-btn').forEach(b => {
-      b.className = 'btn btn-sm btn-ghost filter-btn';
-    });
-    btn.className = 'btn btn-sm btn-primary filter-btn';
-    document.querySelectorAll('.lesson-row, .lesson-card-item').forEach(row => {
-      row.style.display = (!turma || row.dataset.turma === turma) ? '' : 'none';
-    });
-  });
-});
-</script>
+{{ turma_filter_script('.lesson-row, .lesson-card-item', 'lessons') }}
 {% endblock %}

@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
+{% set return_turma = request.args.get('turma', '') %}
 {% block title %}{{ 'Novo aluno' if is_new else student.student_name }}{% endblock %}
 {% block page_title %}{{ 'Novo aluno' if is_new else 'Editar: ' + student.student_name }}{% endblock %}
 
 {% block topbar_actions %}
-  <a href="{{ url_for('students') }}" class="btn btn-ghost">← Voltar</a>
+  <a href="{{ url_for('students', turma=return_turma) if return_turma else url_for('students') }}" class="btn btn-ghost">← Voltar</a>
 {% endblock %}
 
 {% block content %}
@@ -16,6 +17,9 @@
 </div>
 {% endif %}
 <form method="post" style="max-width: 860px;"{% if no_teacher_classes %} class="disabled-form"{% endif %}>
+  {% if return_turma %}
+  <input type="hidden" name="return_turma" value="{{ return_turma }}">
+  {% endif %}
 
   <!-- Info básica -->
   <div class="form-section">
@@ -212,7 +216,7 @@
     {% if not no_teacher_classes %}
     <button type="submit" class="btn btn-primary">✓ &nbsp;{{ 'Criar aluno' if is_new else 'Salvar alterações' }}</button>
     {% endif %}
-    <a href="{{ url_for('students') }}" class="btn btn-ghost">Cancelar</a>
+    <a href="{{ url_for('students', turma=return_turma) if return_turma else url_for('students') }}" class="btn btn-ghost">Cancelar</a>
   </div>
 
 </form>

@@ -721,6 +721,45 @@ def test_teacher_adds_student_to_dashboard_turma(monkeypatch, tmp_path):
     assert "KIDS_2_CLASS" in csv_text
 
 
+def test_student_edit_redirect_preserves_turma_filter(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_teacher_store(monkeypatch, data_dir, teacher_name="Chuck")
+
+    client = web_app.app.test_client()
+    _login(client, email="teacher@test.local", password="teachpass")
+    response = client.post(
+        "/students/0/edit?turma=MASTER",
+        data={
+            "return_turma": "MASTER",
+            "teacher": "Chuck",
+            "class_choice": "MASTER",
+            "nivel": "TEENS 4",
+            "student_name": "Jane Doe",
+            "participacao": "3",
+            "comportamento": "3",
+            "speaking": "3",
+            "listening": "3",
+            "foco": "3",
+            "writing": "3",
+            "reading": "3",
+            "gramatica": "3",
+            "trabalho_equipe": "3",
+            "organizacao": "3",
+            "pontualidade": "3",
+            "respeito_regras": "3",
+            "faltas": "0",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert "turma=MASTER" in (response.headers.get("Location") or "")
+
+
 def test_teacher_edits_csv_student_with_turma_dropdown(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
