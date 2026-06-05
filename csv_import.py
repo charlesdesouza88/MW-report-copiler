@@ -7,6 +7,7 @@ import unicodedata
 from pathlib import Path
 
 from extra_sessions import EXTRA_SESSION_FIELDS, parse_import_csv
+from form_ui import normalize_habilidades
 
 STUDENT_FIELDS = [
     'teacher', 'turma', 'turma_display', 'nivel', 'horario', 'student_name',
@@ -168,6 +169,7 @@ def parse_lessons_csv(text):
         for raw in reader:
             row = {field: _norm_cell(raw.get(field, '')) for field in LESSON_FIELDS}
             if row.get('turma') and row.get('aula_num'):
+                row['habilidades'] = normalize_habilidades(row.get('habilidades', ''))
                 rows.append(row)
         if not rows:
             return [], ['CSV sem linhas de dados.']
@@ -179,6 +181,7 @@ def parse_lessons_csv(text):
             continue
         row = _map_row(raw, LESSON_HEADER_MAP, LESSON_FIELDS)
         if row and row.get('turma') and row.get('aula_num'):
+            row['habilidades'] = normalize_habilidades(row.get('habilidades', ''))
             rows.append(row)
 
     if not rows:
@@ -227,7 +230,7 @@ def parse_lesson_plan_csv(text):
             'date': date,
             'licao_conteudo': _norm_cell(row[3] if len(row) > 3 else ''),
             'atividade_extra': _norm_cell(row[4] if len(row) > 4 else ''),
-            'habilidades': _norm_cell(row[5] if len(row) > 5 else ''),
+            'habilidades': normalize_habilidades(_norm_cell(row[5] if len(row) > 5 else '')),
         })
 
     if not rows:
