@@ -219,6 +219,6 @@ function openPrint(e, url) {
 }
 </script>
 {% if report_rows %}
-{{ list_filter_script('.report-row', 'reports', '#filter-reports', ['month']) }}
+{{ list_filter_script('.report-row', 'reports', '#filter-reports', ['month'], {'month': selected_month} if selected_month else none) }}
 {% endif %}
 {% endblock %}

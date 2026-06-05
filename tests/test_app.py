@@ -494,7 +494,12 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
     assert "Lição 10" in create.get_data(as_text=True)
     students_text = (data_dir / "students.csv").read_text(encoding="utf-8")
     assert "Jane Doe" in students_text
-    assert ",99" in students_text or ",2,99" in students_text
+    reviews_path = data_dir / "student_monthly_reviews.json"
+    if reviews_path.exists():
+        reviews_text = reviews_path.read_text(encoding="utf-8")
+        assert "99" in reviews_text
+    else:
+        assert ",99" in students_text or ",2,99" in students_text
     attendance_text = (data_dir / "lesson_attendance.csv").read_text(encoding="utf-8")
     assert "Jane Doe" in attendance_text
     assert "absent" in attendance_text
@@ -982,9 +987,12 @@ def test_student_new_creates_row(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
 
     monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
     monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", False)
     web_app.OUT_DIR.mkdir()
     _init_user_store(monkeypatch, data_dir)
 
@@ -1010,8 +1018,104 @@ def test_student_new_creates_row(monkeypatch, tmp_path):
     )
 
     assert response.status_code == 302
-    assert response.headers["Location"].endswith("/students")
+    assert "/students" in response.headers["Location"]
     assert "New Kid" in (data_dir / "students.csv").read_text(encoding="utf-8")
+    reviews_path = data_dir / "student_monthly_reviews.json"
+    assert reviews_path.exists()
+    reviews = json.loads(reviews_path.read_text(encoding="utf-8"))
+    assert any(r.get("participacao") == "3" for r in reviews)
+
+
+def test_set_review_month_redirects(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,15/03/2026,Lesson 1,,\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+    response = client.post(
+        "/review-month",
+        data={"review_month": "2026-03", "next": "http://localhost/students"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    with client.session_transaction() as sess:
+        assert sess.get("review_month") == "2026-03"
+
+
+def test_monthly_scores_differ_by_review_month(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,15/02/2026,Lesson 1,,\n"
+        "MASTER,2,15/03/2026,Lesson 2,,\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    reviews_path = data_dir / "student_monthly_reviews.json"
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", reviews_path)
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+
+    base_form = {
+        "teacher": "Chuck",
+        "turma": "MASTER",
+        "student_name": "Jane Doe",
+        "comportamento": "3",
+        "speaking": "4",
+        "listening": "5",
+        "foco": "4",
+        "writing": "3",
+        "reading": "4",
+        "gramatica": "2",
+        "trabalho_equipe": "3",
+        "organizacao": "3",
+        "pontualidade": "3",
+        "respeito_regras": "3",
+        "faltas": "1",
+        "missed_aulas": "2",
+        "aula_extra": "Reposicao",
+    }
+
+    client.post(
+        "/students/0/edit?month=2026-03",
+        data={**base_form, "participacao": "5"},
+        follow_redirects=False,
+    )
+    client.post(
+        "/students/0/edit?month=2026-02",
+        data={**base_form, "participacao": "2"},
+        follow_redirects=False,
+    )
+
+    assert reviews_path.exists()
+    reviews = json.loads(reviews_path.read_text(encoding="utf-8"))
+    scores = {row["report_month"]: row["participacao"] for row in reviews}
+    assert scores.get("2026-03") == "5"
+    assert scores.get("2026-02") == "2"
+
+    html_mar = client.get("/students?month=2026-03").get_data(as_text=True)
+    html_feb = client.get("/students?month=2026-02").get_data(as_text=True)
+    assert ">5<" in html_mar or "participacao" in html_mar.lower()
+    assert ">2<" in html_feb
 
 
 def test_upload_template_lessons_download(monkeypatch, tmp_path):

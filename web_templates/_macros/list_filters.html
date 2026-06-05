@@ -83,7 +83,7 @@
 </div>
 {% endmacro %}
 
-{% macro list_filter_script(row_selector, storage_key, panel_selector='[data-filter-panel]', url_keys=['turma']) %}
+{% macro list_filter_script(row_selector, storage_key, panel_selector='[data-filter-panel]', url_keys=['turma'], defaults=None) %}
 <script>
 (function () {
   if (!window.__mwListFiltersEngine) {
@@ -93,7 +93,7 @@
       return (filterKey || '').replace(/_/g, '-');
     }
 
-    function parseState(storageKey, urlKeys) {
+    function parseState(storageKey, urlKeys, defaults) {
       var state = { search: '' };
       var params = new URLSearchParams(window.location.search);
       urlKeys.forEach(function (k) {
@@ -109,6 +109,11 @@
           }
         });
       } catch (e) {}
+      Object.keys(defaults || {}).forEach(function (k) {
+        if (state[k] === undefined || state[k] === '') {
+          state[k] = defaults[k] || '';
+        }
+      });
       return state;
     }
 
@@ -119,8 +124,9 @@
 
         var storageKey = 'mw_list_filters_' + opts.storageKey;
         var urlKeys = opts.urlKeys || ['turma'];
+        var defaults = opts.defaults || {};
         var rowSelector = opts.rowSelector;
-        var state = parseState(storageKey, urlKeys);
+        var state = parseState(storageKey, urlKeys, defaults);
         var searchInput = panel.querySelector('[data-filter-search]');
         var countEl = panel.querySelector('[data-filter-count]');
         var emptyEl = document.querySelector('[data-filter-empty]');
@@ -288,7 +294,8 @@
     panelSelector: {{ panel_selector|tojson }},
     rowSelector: {{ row_selector|tojson }},
     storageKey: {{ storage_key|tojson }},
-    urlKeys: {{ url_keys|tojson }}
+    urlKeys: {{ url_keys|tojson }},
+    defaults: {{ (defaults or {})|tojson }}
   });
 })();
 </script>

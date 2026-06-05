@@ -177,6 +177,119 @@ def composite_donut_chart(current, prior=None, size=96, stroke=10):
     )
 
 
+def column_bar_chart(items, bar_w=26, gap=10, max_h=72, label_h=16):
+    """Vertical column chart for scores 1–5. items: list of {label, score}."""
+    n = len(items)
+    width = max(n * (bar_w + gap) + gap, bar_w + gap * 2)
+    height = max_h + label_h + 10
+    cols = []
+    for i, item in enumerate(items):
+        score = int(item['score'])
+        h = round((score / 5.0) * max_h, 1)
+        x = gap + i * (bar_w + gap)
+        cols.append(dict(
+            label=item['label'],
+            score=score,
+            x=x,
+            y=max_h - h,
+            w=bar_w,
+            h=h,
+            text_x=round(x + bar_w / 2, 1),
+            label_x=round(x + bar_w / 2, 1),
+        ))
+    return dict(width=width, height=height, max_h=max_h, cols=cols, label_y=max_h + label_h)
+
+
+def composite_sparkline(snapshots, turma, student_name, report_month, current_composite, max_points=4):
+    """SVG sparkline of composite scores across recent months (needs ≥2 points)."""
+    from report_periods import _snapshot_key, month_label, previous_calendar_month, student_snapshot_id
+
+    if not report_month:
+        return None
+    sid = student_snapshot_id(turma, student_name)
+    points = [dict(
+        month=report_month,
+        label=month_label(report_month)[:3],
+        score=int(current_composite),
+    )]
+    month = report_month
+    for _ in range(max_points - 1):
+        month = previous_calendar_month(month)
+        if not month:
+            break
+        snap = (snapshots or {}).get(_snapshot_key(turma, sid, month))
+        if not snap or snap.get('composite_score') is None:
+            break
+        points.insert(0, dict(
+            month=month,
+            label=month_label(month)[:3],
+            score=int(snap['composite_score']),
+        ))
+    if len(points) < 2:
+        return None
+
+    w, h, pad_x, pad_y = 132, 40, 6, 4
+    step = (w - 2 * pad_x) / max(len(points) - 1, 1)
+    plotted = []
+    for i, p in enumerate(points):
+        x = round(pad_x + i * step, 1)
+        y = round(h - pad_y - (p['score'] / 5.0) * (h - 2 * pad_y), 1)
+        plotted.append(dict(x=x, y=y, **p))
+    path = 'M ' + ' L '.join(f"{pt['x']},{pt['y']}" for pt in plotted)
+    return dict(width=w, height=h, path=path, points=plotted)
+
+
+def class_summary_charts(student_data):
+    """Class-level averages bar chart and attendance tier distribution."""
+    from report_periods import student_composite_score
+
+    if not student_data:
+        return None
+    labels = ['Presença', 'Desenv.', 'Particip.', 'Comport.']
+    keys = ['pres_score', 'dev_overall', 'part_overall', 'comp_overall']
+    avgs = [
+        round(sum(sd[k] for sd in student_data) / len(student_data), 1)
+        for k in keys
+    ]
+    bars = comparison_bar_chart(
+        [dict(label=l, current=max(1, min(5, int(round(a)))), prior=None) for l, a in zip(labels, avgs)],
+        bar_max_w=200,
+        bar_h=12,
+        row_gap=4,
+    )
+    total = len(student_data)
+    present = sum(1 for sd in student_data if sd['pct'] >= 80)
+    partial = sum(1 for sd in student_data if 50 <= sd['pct'] < 80)
+    low = total - present - partial
+    slices = [
+        dict(label='≥80%', count=present, color='#5B2D8E'),
+        dict(label='50–79%', count=partial, color='#9B7BB8'),
+        dict(label='<50%', count=low, color='#BBBBBB'),
+    ]
+    bar_w = 220
+    x = 0
+    for sl in slices:
+        sl['w'] = round((sl['count'] / total) * bar_w, 1) if total else 0
+        sl['x'] = x
+        x += sl['w']
+    return dict(
+        student_count=total,
+        averages=avgs,
+        bars=bars,
+        attendance_bar=dict(width=bar_w, height=14, slices=slices),
+        composite_avg=round(
+            sum(student_composite_score(sd) for sd in student_data) / total, 1,
+        ),
+        composite_donut=composite_donut_chart(
+            max(1, min(5, int(round(
+                sum(student_composite_score(sd) for sd in student_data) / total,
+            )))),
+            size=88,
+            stroke=9,
+        ),
+    )
+
+
 def expanded_radar_scores(dev_scores, part_overall, pres_score):
     """7-axis scores for an extended skills radar (dev + participação + presença)."""
     return list(dev_scores) + [part_overall, pres_score]
@@ -405,6 +518,7 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
     comp_overall = avg_score(comp_scores)
 
     expanded_scores = expanded_radar_scores(dev_scores, part_overall, pres_score)
+    part_labels = ['Oral', 'Foco', 'Equipe']
     ctx = dict(
         student=s,
         report_month=report_month,
@@ -425,6 +539,12 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
         grid=pentagon_grid(),
         axes=axis_endpoints(),
         skill_columns=skill_column_charts(dev_scores),
+        dev_column_chart=column_bar_chart([
+            dict(label=dev_labels[i], score=dev_scores[i]) for i in range(len(dev_scores))
+        ]),
+        part_column_chart=column_bar_chart([
+            dict(label=part_labels[i], score=part_scores[i]) for i in range(len(part_scores))
+        ]),
         comp_scores=comp_scores,
         comp_overall=comp_overall,
         expanded_radar=heptagon_polygon(expanded_scores),
@@ -432,6 +552,7 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
         expanded_axes=heptagon_axes(n=len(expanded_scores)),
         expanded_labels=EXPANDED_RADAR_LABELS,
         comparison=None,
+        composite_sparkline=None,
     )
     if report_month:
         ctx['comparison'] = build_month_comparison(
@@ -439,6 +560,11 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
         )
         for dim in ctx['comparison']['dims']:
             ctx[f"{dim['key']}_delta"] = dim['delta']
+        from report_periods import student_composite_score
+        ctx['composite_sparkline'] = composite_sparkline(
+            snapshots, turma, s.get('student_name', ''), report_month,
+            student_composite_score(ctx),
+        )
     return ctx
 
 
@@ -474,6 +600,7 @@ def build_class_ctx(turma, students, all_lessons, report_month=None, snapshots=N
         report_month_label=month_label(report_month) if report_month else '',
         lessons=turma_lessons,
         students=student_data,
+        class_summary=class_summary_charts(student_data),
         grid=pentagon_grid(),
         axes=axis_endpoints(),
     )

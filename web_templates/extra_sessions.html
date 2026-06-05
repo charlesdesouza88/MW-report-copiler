@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros/list_filters.html' import filter_panel, filter_group, list_filter_script %}
+{% from '_macros/list_filters.html' import filter_panel, filter_group, filter_month_group, list_filter_script %}
 {% from '_macros/page_toolbar.html' import page_toolbar %}
 {% block title %}Reforço e Reposições{% endblock %}
 {% block page_title %}Atendimentos — reforço, reposição e aulas extras{% endblock %}
@@ -62,6 +62,9 @@
   {% if session_types %}
   {{ filter_group('Tipo', session_types, 'type', 'Todos') }}
   {% endif %}
+  {% if available_review_months %}
+  {{ filter_month_group(available_review_months, 'Todos') }}
+  {% endif %}
 {% endcall %}
 
 <div class="table-wrap students-table-view">
@@ -87,6 +90,7 @@
           style="--filter-i: {{ loop.index0 % 12 }}"
           data-teacher="{{ row.teacher }}"
           data-type="{{ row.session_type }}"
+          data-month="{{ parse_lesson_month(row.date) or '' }}"
           data-search="{{ (row.student_name ~ ' ' ~ (row.turma or '') ~ ' ' ~ (row.session_type or '') ~ ' ' ~ (row.teacher or '') ~ ' ' ~ (row.assuntos or '') ~ ' ' ~ (row.observacao or ''))|lower }}">
         <td>
           <strong>{{ row.student_name }}</strong>
@@ -149,6 +153,6 @@
 
 {% block scripts %}
 {% if sessions %}
-{{ list_filter_script('.session-row', 'extra_sessions', '#filter-extra-sessions', []) }}
+{{ list_filter_script('.session-row', 'extra_sessions', '#filter-extra-sessions', ['month'], {'month': review_month} if review_month else none) }}
 {% endif %}
 {% endblock %}

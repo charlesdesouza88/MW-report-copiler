@@ -18,8 +18,9 @@
   --sidebar-width: 220px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { max-width: 100%; overflow-x: clip; }
-body { font-family: var(--font); background: #F4F2F8; color: var(--text); min-height: 100vh; max-width: 100%; overflow-x: clip; }
+html { max-width: 100%; overflow-x: clip; -webkit-text-size-adjust: 100%; }
+body { font-family: var(--font); background: #F4F2F8; color: var(--text); min-height: 100vh; max-width: 100%; overflow-x: clip; overflow-wrap: anywhere; word-break: break-word; }
+img, svg, video { max-width: 100%; height: auto; }
 
 /* ── Sidebar ── */
 .sidebar {
@@ -85,6 +86,24 @@ body { font-family: var(--font); background: #F4F2F8; color: var(--text); min-he
 }
 .topbar-actions:empty { display: none; }
 .topbar-actions form { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0; }
+.review-month-form {
+  display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-left: auto; min-width: 0;
+}
+.review-month-form label {
+  font-size: 10px; font-weight: 800; color: var(--gray); text-transform: uppercase;
+  letter-spacing: 0.5px; white-space: nowrap;
+}
+.review-month-form select {
+  min-width: 140px; max-width: 100%; padding: 6px 10px; font-size: 12px;
+}
+.review-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 10px 14px; margin-bottom: 16px;
+  background: var(--purple-lt); border: 1px solid #D8C8EB; border-radius: var(--radius);
+  font-size: 13px; color: var(--purple-dk);
+}
+.review-banner strong { font-weight: 900; }
 .content {
   padding: 24px 28px;
   padding-bottom: max(40px, env(safe-area-inset-bottom));
@@ -124,8 +143,12 @@ body { font-family: var(--font); background: #F4F2F8; color: var(--text); min-he
 .btn-xs { padding: 3px 8px; font-size: 10px; border-radius: 4px; }
 
 /* ── Table ── */
-.table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table-wrap {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius); border: 1px solid var(--border);
+  max-width: 100%;
+}
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 0; }
 th {
   background: var(--purple); color: var(--white);
   padding: 10px 13px; text-align: left;
@@ -286,6 +309,7 @@ table td.col-actions { width: 1%; white-space: nowrap; text-align: right; vertic
 .report-card-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .report-card-actions .btn { justify-content: center; width: 100%; }
 .form-actions-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+.content form[style*="max-width"] { width: 100%; max-width: 100% !important; }
 
 /* ── List filters ── */
 .filter-panel { padding: 16px 18px; animation: filterPanelIn 0.4s ease backwards; }
@@ -438,6 +462,9 @@ body.nav-open .nav-backdrop { display: block; }
   .page-title { color: #fff; flex: 1; min-width: 0; }
   .page-header-body { flex-direction: column; align-items: stretch; }
   .topbar-actions { width: 100%; margin-left: 0; justify-content: flex-end; }
+  .review-month-form { width: 100%; margin-left: 0; justify-content: flex-start; }
+  .review-month-form label { color: rgba(255,255,255,0.75); }
+  .review-month-form select { flex: 1; min-width: 0; }
   .content {
     padding: 16px;
     padding-left: max(16px, env(safe-area-inset-left));
@@ -447,7 +474,27 @@ body.nav-open .nav-backdrop { display: block; }
 }
 
 @media (max-width: 767px) {
+  .stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-value { font-size: clamp(28px, 8vw, 38px); }
+  .stat-card { padding: 14px 16px; }
+  .card { padding: 16px; }
+  .filter-panel { padding: 14px; }
+  .filter-search-wrap { min-width: 0; max-width: 100%; flex: 1 1 100%; }
+  .filter-panel-top { flex-direction: column; align-items: stretch; }
+  .filter-meta { justify-content: space-between; width: 100%; }
+  .review-banner { padding: 10px 12px; font-size: 12px; }
+  .page-toolbar { padding: 12px; flex-direction: column; align-items: stretch; }
+  .page-toolbar-label { width: 100%; }
+}
+
+@media (max-width: 479px) {
   .stat-grid { grid-template-columns: 1fr; }
+  .stat-value { font-size: 34px; }
+  .page-title { font-size: 15px; line-height: 1.25; }
+  .brand-wiz { font-size: 24px; }
+  .student-card-header { flex-direction: column; align-items: flex-start; }
+  .filter-group { align-items: flex-start; }
+  .filter-group-label { min-width: 0; width: 100%; margin-bottom: 2px; }
 }
 
 @media (max-width: 639px) {
@@ -480,6 +527,18 @@ body.nav-open .nav-backdrop { display: block; }
 @media (min-width: 640px) and (max-width: 1023px) {
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
   .layout-2col { grid-template-columns: 1fr; }
+  .content { padding: 20px; }
+  .card { padding: 18px; }
+  .filter-search-wrap { min-width: 160px; max-width: 100%; }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .students-table-view { display: block !important; }
+  .students-cards-view { display: none !important; }
+  .reports-table-view { display: block !important; }
+  .reports-cards-view { display: none !important; }
+  .table-wrap { margin-bottom: 4px; }
+  th, td { padding: 8px 10px; }
 }
 
 @media (min-width: 768px) {
@@ -500,19 +559,19 @@ body.nav-open .nav-backdrop { display: block; }
     <div class="brand-wiz">W<span class="star">✦</span>Z</div>
     <div class="brand-sub">{% if current_user and current_user.role == 'teacher' %}Professor{% else %}Admin{% endif %}</div>
   </div>
-  <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+  <a href="{{ url_with_month('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
     <span class="nav-icon">▦</span> Dashboard
   </a>
-  <a href="{{ url_for('students') }}" class="nav-link {% if 'student' in request.endpoint %}active{% endif %}">
+  <a href="{{ url_with_month('students') }}" class="nav-link {% if 'student' in request.endpoint %}active{% endif %}">
     <span class="nav-icon">◉</span> Alunos
   </a>
-  <a href="{{ url_for('lessons') }}" class="nav-link {% if 'lesson' in request.endpoint %}active{% endif %}">
+  <a href="{{ url_with_month('lessons') }}" class="nav-link {% if 'lesson' in request.endpoint %}active{% endif %}">
     <span class="nav-icon">▤</span> Aulas
   </a>
-  <a href="{{ url_for('extra_sessions') }}" class="nav-link {% if 'extra_session' in request.endpoint %}active{% endif %}">
+  <a href="{{ url_with_month('extra_sessions') }}" class="nav-link {% if 'extra_session' in request.endpoint %}active{% endif %}">
     <span class="nav-icon">◷</span> Reforço / Reposição
   </a>
-  <a href="{{ url_for('upload') }}" class="nav-link {% if request.endpoint in ('upload', 'delete_csv') %}active{% endif %}">
+  <a href="{{ url_with_month('upload') }}" class="nav-link {% if request.endpoint in ('upload', 'delete_csv') %}active{% endif %}">
     <span class="nav-icon">↑</span> Upload CSV
   </a>
   {% if can_manage_teachers %}
@@ -520,7 +579,7 @@ body.nav-open .nav-backdrop { display: block; }
     <span class="nav-icon">◎</span> Usuários
   </a>
   {% endif %}
-  <a href="{{ url_for('reports') }}" class="nav-link {% if request.endpoint in ('reports','preview') %}active{% endif %}">
+  <a href="{{ url_with_month('reports') }}" class="nav-link {% if request.endpoint in ('reports','preview') %}active{% endif %}">
     <span class="nav-icon">◈</span> Relatórios
   </a>
   <div class="nav-spacer"></div>
@@ -540,10 +599,27 @@ body.nav-open .nav-backdrop { display: block; }
     <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Abrir menu" aria-expanded="false">☰</button>
     <div class="page-header-body">
       <h1 class="page-title">{{ self.page_title() }}</h1>
+      {% if current_user and available_review_months %}
+      <form class="review-month-form" method="post" action="{{ url_for('set_review_month') }}">
+        <label for="review-month-select">Mês em revisão</label>
+        <select id="review-month-select" name="review_month" aria-label="Mês em revisão" onchange="this.form.submit()">
+          {% for m in available_review_months %}
+          <option value="{{ m }}" {% if m == review_month %}selected{% endif %}>{{ month_label(m) }}</option>
+          {% endfor %}
+        </select>
+        <input type="hidden" name="next" value="{{ request.url }}">
+      </form>
+      {% endif %}
       <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
     </div>
   </header>
   <div class="content content-animate">
+    {% if current_user and review_month and request.endpoint in ('students', 'lessons', 'extra_sessions', 'reports') %}
+    <div class="review-banner" role="status">
+      Revisão mensal: <strong>{{ review_month_label }}</strong>
+      <span class="font-sm text-gray">— notas e feedback deste mês</span>
+    </div>
+    {% endif %}
     {% block content %}{% endblock %}
   </div>
 </div>
