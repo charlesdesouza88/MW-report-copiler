@@ -27,11 +27,13 @@ from auth import (ROLE_ADMIN, ROLE_LABELS, ROLE_SUPERADMIN, ROLE_TEACHER,
                   has_full_data_access, normalize_teacher_name, teacher_turmas,
                   user_public_dict)
 from csv_import import parse_upload_csv
-from extra_sessions import (EXTRA_SESSION_FIELD_LABELS, EXTRA_SESSION_FIELDS,
-                            build_atendimentos_template_csv,
-                            SESSION_TYPE_CHOICES, coerce_session_status_fields,
-                            display_status, is_status_ok, parse_import_csv,
-                            row_from_form)
+from extra_sessions import (AUTO_AULA_EXTRA_MARKER, EXTRA_SESSION_FIELD_LABELS,
+                            EXTRA_SESSION_FIELDS, build_atendimentos_template_csv,
+                            SESSION_TYPE_CHOICES, clear_aula_extra_after_completed_session,
+                            coerce_session_status_fields, display_status, is_status_ok,
+                            normalize_aula_extra, parse_import_csv,
+                            reconcile_flagged_students, row_from_form,
+                            sync_student_extra_sessions)
 from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
                                ATTENDANCE_LABELS, apply_attendance_to_students,
                                attendance_map_for_lesson, normalize_attendance_status,
@@ -740,7 +742,9 @@ def _teacher_may_use_student_turma(turma, all_students, user, nivel=''):
 
 def _student_row_from_form():
     row = {field: (request.form.get(field, '') or '').strip() for field in STUDENT_FIELDS}
-    return _resolve_teacher_class_choice(row)
+    row = _resolve_teacher_class_choice(row)
+    row['aula_extra'] = normalize_aula_extra(row.get('aula_extra'))
+    return row
 
 
 def _resolve_teacher_class_choice(row):
@@ -1057,6 +1061,21 @@ def _save_extra_sessions(rows):
         writer = csv.DictWriter(f, fieldnames=EXTRA_SESSION_FIELDS, extrasaction='ignore')
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _sync_student_aula_extra_sessions(student):
+    all_rows = _load_extra_sessions()
+    updated = sync_student_extra_sessions(all_rows, student)
+    if updated != all_rows:
+        _save_extra_sessions(updated)
+
+
+def _reconcile_flagged_extra_sessions(students):
+    all_rows = _load_extra_sessions()
+    updated = reconcile_flagged_students(all_rows, students)
+    if updated != all_rows:
+        _save_extra_sessions(updated)
+    return updated
 
 
 def _load_lesson_attendance():
@@ -1582,6 +1601,7 @@ def student_edit(idx):
         visible[idx] = updated
         all_rows[global_idx] = updated
         _save_students(all_rows)
+        _sync_student_aula_extra_sessions(updated)
         return _redirect_students()
     return render_template(
         'student_edit.html',
@@ -1610,6 +1630,7 @@ def student_new():
             )
         all_rows.append(new_row)
         _save_students(all_rows)
+        _sync_student_aula_extra_sessions(new_row)
         return _redirect_students()
     defaults = dict(visible[0]) if visible else dict(all_rows[0]) if all_rows else {}
     defaults['student_name'] = ''
@@ -1647,10 +1668,12 @@ def lessons():
     all_students, _ = _scoped_students()
     _, rows = _scoped_lessons(all_students)
     turmas = sorted({r.get('turma', '').strip() for r in rows if r.get('turma', '').strip()})
+    habilidades = sorted({r.get('habilidades', '').strip() for r in rows if r.get('habilidades', '').strip()})
     return render_template(
         'lessons.html',
         lessons=rows,
         turmas=turmas,
+        habilidades=habilidades,
         lesson_field_labels=LESSON_FIELD_LABELS,
     )
 
@@ -1741,6 +1764,10 @@ def lesson_new():
 @app.route('/extra-sessions')
 @login_required
 def extra_sessions():
+    user = _current_user()
+    all_students, visible_students = _scoped_students()
+    scope_students = all_students if has_full_data_access(user['role']) else visible_students
+    _reconcile_flagged_extra_sessions(scope_students)
     _, rows = _scoped_extra_sessions()
     teachers = sorted({r.get('teacher', '').strip() for r in rows if r.get('teacher', '').strip()})
     types = sorted({r.get('session_type', '').strip() for r in rows if r.get('session_type', '').strip()})
@@ -1752,6 +1779,7 @@ def extra_sessions():
         teachers=teachers,
         session_types=types or list(SESSION_TYPE_CHOICES),
         field_labels=EXTRA_SESSION_FIELD_LABELS,
+        auto_aula_extra_marker=AUTO_AULA_EXTRA_MARKER,
         message=message,
         error=error,
     )
@@ -1806,6 +1834,11 @@ def extra_session_edit(idx):
             abort(404)
         all_rows[global_idx] = updated
         _save_extra_sessions(all_rows)
+        if is_status_ok(updated.get('realizado')):
+            students = _load_students()
+            cleared = clear_aula_extra_after_completed_session(students, updated)
+            if cleared is not students:
+                _save_students(cleared)
         return redirect(url_for('extra_sessions'))
 
     return render_template(

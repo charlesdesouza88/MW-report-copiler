@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_macros/list_filters.html' import filter_panel, filter_group_extra, list_filter_script %}
 {% block title %}Relatórios{% endblock %}
 {% block page_title %}Relatórios gerados{% endblock %}
 
@@ -54,6 +55,13 @@
 </div>
 {% else %}
 
+{% call filter_panel('filter-reports', 'Buscar aluno ou tipo de relatório...') %}
+  {{ filter_group_extra('Tipo', [
+    {'value': 'individual', 'label': 'Individual'},
+    {'value': 'diagnostic', 'label': 'Diagnóstico de turma'},
+  ], 'report_kind', 'Todos') }}
+{% endcall %}
+
 {% if individual %}
 <div class="section-title mb-16">Relatórios individuais ({{ individual|length }})</div>
 <div class="table-wrap mb-24">
@@ -70,7 +78,10 @@
       {% for f in individual %}
       {% set trend = (report_trends|default({})).get(f.name) %}
       {% set file_month = (report_months|default({})).get(f.name) %}
-      <tr>
+      <tr class="report-row filter-row-item"
+          style="--filter-i: {{ loop.index0 % 12 }}"
+          data-report-kind="individual"
+          data-search="{{ (f.stem.replace('_', ' ') ~ ' ' ~ (month_label(file_month) if file_month else ''))|lower }}">
         <td><strong>{{ f.stem.replace('_', ' ') }}</strong></td>
         <td>
           {% if file_month %}
@@ -118,7 +129,10 @@
     <tbody>
       {% for f in diagnostics %}
       {% set month = report_month_from_filename(f.name) %}
-      <tr>
+      <tr class="report-row filter-row-item"
+          style="--filter-i: {{ loop.index0 % 12 }}"
+          data-report-kind="diagnostic"
+          data-search="{{ ('diagnostico turma ' ~ (month_label(month) if month else ''))|lower }}">
         <td><strong>Diagnóstico de turma</strong></td>
         <td>
           {% if month %}
@@ -169,4 +183,7 @@ function openPrint(e, url) {
   w.addEventListener('load', () => w.print());
 }
 </script>
+{% if individual or diagnostics %}
+{{ list_filter_script('.report-row', 'reports', '#filter-reports', []) }}
+{% endif %}
 {% endblock %}
