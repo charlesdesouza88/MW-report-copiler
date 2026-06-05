@@ -325,6 +325,18 @@ table td.col-actions { width: 1%; white-space: nowrap; text-align: right; vertic
 .report-card-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .report-card-actions .btn { justify-content: center; width: 100%; }
 .form-actions-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+.attendance-list-wrap { width: 100%; max-width: 100%; }
+.attendance-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.attendance-row {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: #FAFAFC;
+}
+.attendance-row-name {
+  flex: 1 1 160px; min-width: 0; font-weight: 700; font-size: 13px; line-height: 1.35;
+}
+.attendance-row-status { flex: 1 1 140px; min-width: 0; max-width: 100%; }
+.attendance-row-status select { width: 100%; min-height: 44px; }
 .content form[style*="max-width"] { width: 100%; max-width: 100% !important; }
 
 /* ── List filters ── */
@@ -559,6 +571,9 @@ body.nav-open .nav-backdrop { display: block; }
   .row-actions form { display: flex; flex: 1 1 auto; min-width: 0; }
   .row-actions .btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
   .form-actions-bar .btn { flex: 1 1 100%; justify-content: center; min-height: 44px; }
+  .attendance-row { flex-direction: column; align-items: stretch; }
+  .attendance-row-name { flex: 1 1 100%; }
+  .attendance-row-status { flex: 1 1 100%; width: 100%; }
   .btn { min-height: 44px; }
   .btn-sm, .btn-xs { min-height: 44px; padding: 8px 12px; }
   input[type=text], input[type=password], input[type=number], select, textarea { font-size: 16px; }
