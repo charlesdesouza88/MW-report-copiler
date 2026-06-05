@@ -93,32 +93,24 @@
     <div id="attendance-empty" class="font-sm text-gray" {% if turma_students %}style="display:none;"{% endif %}>
       Nenhum aluno cadastrado nesta turma.
     </div>
-    <div id="attendance-table-wrap" {% if not turma_students %}style="display:none;"{% endif %}>
-      <table class="data-table" style="width:100%; margin-bottom:0;">
-        <thead>
-          <tr>
-            <th>Aluno</th>
-            <th>Presença</th>
-          </tr>
-        </thead>
-        <tbody id="attendance-rows">
-          {% for student in turma_students %}
-          <tr>
-            <td>{{ student.student_name }}</td>
-            <td>
-              <select name="attendance_status_{{ loop.index0 }}">
-                {% for choice in attendance_choices %}
-                <option value="{{ choice }}" {% if attendance_map.get(student.student_name, 'present') == choice %}selected{% endif %}>
-                  {{ attendance_labels[choice] }}
-                </option>
-                {% endfor %}
-              </select>
-              <input type="hidden" name="attendance_student_{{ loop.index0 }}" value="{{ student.student_name }}">
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div id="attendance-table-wrap" class="attendance-list-wrap" {% if not turma_students %}style="display:none;"{% endif %}>
+      <div class="attendance-list" id="attendance-rows">
+        {% for student in turma_students %}
+        <div class="attendance-row">
+          <div class="attendance-row-name">{{ student.student_name }}</div>
+          <div class="attendance-row-status">
+            <select name="attendance_status_{{ loop.index0 }}" aria-label="Presença de {{ student.student_name }}">
+              {% for choice in attendance_choices %}
+              <option value="{{ choice }}" {% if attendance_map.get(student.student_name, 'present') == choice %}selected{% endif %}>
+                {{ attendance_labels[choice] }}
+              </option>
+              {% endfor %}
+            </select>
+            <input type="hidden" name="attendance_student_{{ loop.index0 }}" value="{{ student.student_name }}">
+          </div>
+        </div>
+        {% endfor %}
+      </div>
       <input type="hidden" name="attendance_count" id="attendance-count" value="{{ turma_students|length }}">
     </div>
   </div>
@@ -154,12 +146,16 @@
     var students = studentsByTurma[key] || [];
     rowsEl.innerHTML = '';
     students.forEach(function (student, index) {
-      var row = document.createElement('tr');
-      var nameCell = document.createElement('td');
+      var row = document.createElement('div');
+      row.className = 'attendance-row';
+      var nameCell = document.createElement('div');
+      nameCell.className = 'attendance-row-name';
       nameCell.textContent = student.student_name;
-      var selectCell = document.createElement('td');
+      var selectCell = document.createElement('div');
+      selectCell.className = 'attendance-row-status';
       var select = document.createElement('select');
       select.name = 'attendance_status_' + index;
+      select.setAttribute('aria-label', 'Presença de ' + student.student_name);
       attendanceChoices.forEach(function (choice) {
         var option = document.createElement('option');
         option.value = choice;
