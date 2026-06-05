@@ -108,7 +108,7 @@
           <span class="text-gray font-sm">—</span>
           {% endif %}
         </td>
-        <td>
+        <td class="col-actions">
           <div class="row-actions">
             <a href="{{ url_with_month('student_edit', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_edit', idx=loop.index0, month=return_month) }}" class="btn btn-ghost btn-xs">Editar</a>
             <form method="post" action="{{ url_with_month('student_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_delete', idx=loop.index0, month=return_month) }}"

@@ -15,7 +15,7 @@
 <div class="alert alert-error" style="background:#FADBD8;border:1px solid #F1948A;color:#C0392B;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;">{{ err }}</div>
 {% endfor %}
 
-<div class="layout-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;">
+<div class="layout-2col mb-24">
   <div class="card">
     <h2 style="font-size:15px;font-weight:900;margin-bottom:14px;">Novo professor</h2>
     <form method="post">
@@ -89,7 +89,7 @@
           <th style="padding:10px 8px;">Papel</th>
           <th style="padding:10px 8px;">Professor (dados)</th>
           <th style="padding:10px 8px;">Ativo</th>
-          <th style="padding:10px 8px;">Ações</th>
+          <th class="col-actions">Ações</th>
         </tr>
       </thead>
       <tbody>
@@ -102,7 +102,7 @@
           <td style="padding:12px 8px;">{{ role_labels.get(u.role, u.role) }}</td>
           <td style="padding:12px 8px;">{{ u.teacher_name or '—' }}</td>
           <td style="padding:12px 8px;">{% if u.active %}Sim{% else %}Não{% endif %}</td>
-          <td style="padding:12px 8px;">
+          <td class="col-actions">
             <details>
               <summary style="cursor:pointer;font-weight:700;color:#5B2D8E;">Editar</summary>
               <form method="post" style="margin-top:10px;padding:12px;background:#F9F7FC;border-radius:8px;">

@@ -126,11 +126,11 @@
         </label>
         <button type="submit" class="btn btn-primary btn-sm" style="width:100%; justify-content:center; margin-bottom:12px;">↑ Fazer upload</button>
       </form>
-      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
+      <div class="inline-actions" style="margin-bottom:16px;">
         <a href="{{ url_for('download_template', name='students') }}" class="btn btn-outline btn-sm" style="justify-content:center;">⇩ Baixar template</a>
         {% if students_exists %}
         <a href="{{ url_for('download_csv', name='students') }}" class="btn btn-ghost btn-sm">↓ Baixar atual</a>
-        <form method="post" action="{{ url_for('delete_csv', name='students') }}" style="display:inline; margin:0;"
+        <form method="post" action="{{ url_for('delete_csv', name='students') }}"
               onsubmit="return confirm('{% if can_upload_all_csv %}Remover students.csv e todos os alunos? Esta ação não pode ser desfeita.{% else %}Remover todos os seus alunos importados? Outros professores não serão afetados.{% endif %}');">
           <button type="submit" class="btn btn-danger btn-sm">{% if can_upload_all_csv %}✕ Remover dados{% else %}✕ Remover meus alunos{% endif %}</button>
         </form>
@@ -220,11 +220,11 @@
         </label>
         <button type="submit" class="btn btn-primary btn-sm" style="width:100%; justify-content:center; margin-bottom:12px;">↑ Fazer upload</button>
       </form>
-      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
+      <div class="inline-actions" style="margin-bottom:16px;">
         <a href="{{ url_for('download_template', name='lessons') }}" class="btn btn-outline btn-sm" style="justify-content:center;">⇩ Baixar template</a>
         {% if lessons_exists %}
         <a href="{{ url_for('download_csv', name='lessons') }}" class="btn btn-ghost btn-sm">↓ Baixar atual</a>
-        <form method="post" action="{{ url_for('delete_csv', name='lessons') }}" style="display:inline; margin:0;"
+        <form method="post" action="{{ url_for('delete_csv', name='lessons') }}"
               onsubmit="return confirm('{% if can_upload_all_csv %}Remover lessons.csv e todas as aulas? Esta ação não pode ser desfeita.{% else %}Remover todas as aulas das suas turmas? Outras turmas não serão afetadas.{% endif %}');">
           <button type="submit" class="btn btn-danger btn-sm">{% if can_upload_all_csv %}✕ Remover dados{% else %}✕ Remover minhas aulas{% endif %}</button>
         </form>

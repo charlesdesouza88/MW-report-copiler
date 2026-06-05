@@ -304,11 +304,10 @@ body {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  /* Column bars stay untransformed on narrow viewports so score labels paint on top (WebKit). */
   .anim-col-bar {
-    transform-box: fill-box;
-    transform-origin: bottom center;
-    transform: scaleY(0);
-    animation: barGrowUp 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    transform: none;
+    opacity: 1;
   }
   .anim-h-bar, .anim-compare-bar {
     transform-box: fill-box;
@@ -360,6 +359,12 @@ body {
   .criteria-grid { grid-template-columns: 1fr 1fr; }
   .dates-grid { grid-template-columns: repeat(3, 1fr); }
   .class-summary { grid-template-columns: auto 1fr auto; }
+  .anim-col-bar {
+    transform-box: fill-box;
+    transform-origin: bottom center;
+    transform: scaleY(0);
+    animation: barGrowUp 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
 }
 @media screen and (min-width: 900px) {
   body { padding: 18px 24px 32px; font-size: 13px; }
@@ -471,9 +476,11 @@ body {
       <rect x="{{ col.x }}" y="{{ col.track_y }}" width="{{ col.w }}" height="{{ col.track_h }}" fill="#E8E8E8" rx="4"/>
       <rect class="anim-col-bar" style="animation-delay: {{ loop.index0 * 0.12 }}s" x="{{ col.x }}" y="{{ col.y }}" width="{{ col.w }}" height="{{ col.h }}" fill="#5B2D8E" rx="4"/>
       {% endfor %}
+      <g class="chart-score-labels">
       {% for col in class_summary.column_chart.cols %}
       <text x="{{ col.text_x }}" y="{{ col.score_text_y }}" text-anchor="middle" font-size="11" font-weight="bold" fill="{% if col.score_inside %}#fff{% else %}#5B2D8E{% endif %}" dominant-baseline="middle">{{ col.score }}</text>
       {% endfor %}
+      </g>
       {% for col in class_summary.column_chart.cols %}
       <text x="{{ col.label_x }}" y="{{ class_summary.column_chart.label_y }}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="#444">{{ col.label }}</text>
       {% endfor %}

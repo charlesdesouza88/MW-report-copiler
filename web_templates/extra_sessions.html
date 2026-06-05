@@ -67,6 +67,48 @@
   {% endif %}
 {% endcall %}
 
+<div class="students-cards-view">
+  {% for row in sessions %}
+  <div class="student-card session-card-item filter-row-item"
+       style="--filter-i: {{ loop.index0 % 12 }}"
+       data-filter-id="{{ loop.index0 }}"
+       data-teacher="{{ row.teacher }}"
+       data-type="{{ row.session_type }}"
+       data-month="{{ parse_lesson_month(row.date) or '' }}"
+       data-search="{{ (row.student_name ~ ' ' ~ (row.turma or '') ~ ' ' ~ (row.session_type or '') ~ ' ' ~ (row.teacher or '') ~ ' ' ~ (row.assuntos or '') ~ ' ' ~ (row.observacao or ''))|lower }}">
+    <div class="student-card-header">
+      <div>
+        <strong style="font-size:15px;">{{ row.student_name }}</strong>
+        <div class="font-sm text-gray" style="margin-top:4px;">{{ row.date or '—' }}{% if row.horario %} · {{ row.horario }}{% endif %}</div>
+      </div>
+      <span class="tag {% if row.session_type == 'Reposição' %}tag-orange{% endif %}">{{ row.session_type or 'Reforço' }}</span>
+    </div>
+    <div class="font-sm text-gray" style="margin-bottom:8px;">
+      {% if row.turma %}<span class="tag">{{ row.turma }}</span>{% endif %}
+      {% if row.teacher %}<span style="margin-left:6px;">Prof. {{ row.teacher }}</span>{% endif %}
+    </div>
+    {% if row.assuntos and row.observacao != auto_aula_extra_marker %}
+    <p class="font-sm" style="margin-bottom:6px;"><strong>{{ row.assuntos }}</strong></p>
+    {% endif %}
+    {% if row.observacao and row.observacao != auto_aula_extra_marker %}
+    <p class="font-sm text-gray" style="margin-bottom:10px;">{{ row.observacao }}</p>
+    {% endif %}
+    <div class="font-sm text-gray" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+      <span>Contatado: {% if is_status_ok(row.contatado) %}<span class="tag tag-green">OK</span>{% else %}{{ display_status(row.contatado) or '—' }}{% endif %}</span>
+      <span>Marcado: {% if is_status_ok(row.marcado) %}<span class="tag tag-green">OK</span>{% else %}{{ display_status(row.marcado) or '—' }}{% endif %}</span>
+      <span>Realizado: {% if is_status_ok(row.realizado) %}<span class="tag tag-green">OK</span>{% elif row.realizado == 'NÃO' %}<span class="tag tag-orange">NÃO</span>{% else %}{{ display_status(row.realizado) or '—' }}{% endif %}</span>
+    </div>
+    <div class="student-card-actions">
+      <a href="{{ url_for('extra_session_edit', idx=loop.index0) }}" class="btn btn-ghost btn-sm">Editar</a>
+      <form method="post" action="{{ url_for('extra_session_delete', idx=loop.index0) }}"
+            onsubmit="return confirm('Excluir este atendimento?')">
+        <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
 <div class="table-wrap students-table-view">
   <table>
     <thead>
@@ -153,6 +195,6 @@
 
 {% block scripts %}
 {% if sessions %}
-{{ list_filter_script('.session-row', 'extra_sessions', '#filter-extra-sessions', ['month'], {'month': review_month} if review_month else none) }}
+{{ list_filter_script('.session-row, .session-card-item', 'extra_sessions', '#filter-extra-sessions', ['month'], {'month': review_month} if review_month else none) }}
 {% endif %}
 {% endblock %}
