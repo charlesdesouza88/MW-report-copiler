@@ -32,9 +32,18 @@ from extra_sessions import (EXTRA_SESSION_FIELD_LABELS, EXTRA_SESSION_FIELDS,
                             SESSION_TYPE_CHOICES, coerce_session_status_fields,
                             display_status, is_status_ok, parse_import_csv,
                             row_from_form)
-from form_ui import (NIVEL_CHOICES, WEEKDAY_CHOICES, date_from_form,
-                     format_class_schedule, format_date_for_input, is_valid_nivel,
-                     storage_date_to_iso, storage_time_to_input, time_from_form)
+from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
+                               ATTENDANCE_LABELS, apply_attendance_to_students,
+                               attendance_map_for_lesson, normalize_attendance_status,
+                               parse_attendance_form, replace_lesson_attendance,
+                               students_by_turma, students_for_turma)
+from form_ui import (HABILIDADES_CHOICES, LICAO_CONTEUDO_CHOICES,
+                     LICAO_ESPECIAL_CHOICES, NIVEL_CHOICES, WEEKDAY_CHOICES,
+                     date_from_form, format_class_schedule, format_date_for_input,
+                     is_valid_nivel, licao_choice_for_value, next_aula_num,
+                     normalize_habilidades, storage_date_to_iso,
+                     storage_time_to_input, suggest_licao_conteudo,
+                     time_from_form, turma_next_aula_map)
 from teacher_classes import (add_class as register_teacher_class,
                              count_students_in_turma, find_class,
                              list_for_teacher, load_registry,
@@ -356,9 +365,9 @@ TEMPLATE_ROWS = {
         'turma': 'MASTER',
         'aula_num': '1',
         'date': '10/02/2026',
-        'licao_conteudo': 'Lesson 1: Introductions & syllabus',
+        'licao_conteudo': 'Lição 1',
         'atividade_extra': 'Syllabus / class rules',
-        'habilidades': 'Speaking, Listening',
+        'habilidades': 'Inteligência emocional',
     },
 }
 
@@ -368,17 +377,17 @@ LESSON_TEMPLATE_ROWS = [
         'turma': 'MASTER',
         'aula_num': '2',
         'date': '12/02/2026',
-        'licao_conteudo': 'Lesson 2: Daily routines',
+        'licao_conteudo': 'Lição 2',
         'atividade_extra': 'Pair work — connection words',
-        'habilidades': 'Speaking, Writing',
+        'habilidades': 'Empreendedorismo',
     },
     {
         'turma': 'MASTER',
         'aula_num': '3',
         'date': '19/02/2026',
-        'licao_conteudo': 'Lesson 3: Past tense review',
+        'licao_conteudo': 'Lição 3',
         'atividade_extra': 'Group presentation',
-        'habilidades': 'Grammar, Speaking',
+        'habilidades': 'Inteligência Artificial',
     },
 ]
 
@@ -656,11 +665,11 @@ def _scoped_lessons(all_students=None):
 
 
 def _load_teacher_class_registry():
-    return load_registry(TEACHER_CLASSES_PATH)
+    return load_registry(DATA_DIR / 'teacher_classes.json')
 
 
 def _save_teacher_class_registry(data):
-    save_registry(TEACHER_CLASSES_PATH, data)
+    save_registry(DATA_DIR / 'teacher_classes.json', data)
 
 
 def _sync_teacher_registry(user, all_students):
@@ -841,7 +850,97 @@ def _student_form_context(all_rows, user, is_new, student, idx, form_error=None)
 def _lesson_from_form():
     row = {field: (request.form.get(field) or '').strip() for field in LESSON_FIELDS}
     row['date'] = date_from_form(request.form)
+    row['habilidades'] = normalize_habilidades(row.get('habilidades', ''))
     return row
+
+
+def _persist_lesson_attendance(lesson, all_students):
+    """Save attendance picks for this aula and sync student faltas/missed_aulas."""
+    entries = parse_attendance_form(request.form)
+    if not entries:
+        return all_students
+    turma = lesson.get('turma', '')
+    aula_num = lesson.get('aula_num', '')
+    attendance_rows = replace_lesson_attendance(
+        _load_lesson_attendance(),
+        turma,
+        aula_num,
+        entries,
+    )
+    _save_lesson_attendance(attendance_rows)
+    attendance_by_name = {
+        entry['student_name']: normalize_attendance_status(entry['status'])
+        for entry in entries
+    }
+    return apply_attendance_to_students(all_students, turma, aula_num, attendance_by_name)
+
+
+def _lesson_edit_context(lesson, all_rows, all_students, allowed_turmas, is_new,
+                         attendance_rows):
+    """Template context for lesson create/edit with dropdown choices and auto aula_num."""
+    lesson = dict(lesson)
+    turmas = list(allowed_turmas or [])
+    turma_next = turma_next_aula_map(all_rows, turmas)
+
+    if is_new:
+        if turmas:
+            turma = next(
+                (code for code in turmas if students_for_turma(all_students, code)),
+                turmas[0],
+            )
+        else:
+            turma = lesson.get('turma') or ''
+        lesson['turma'] = turma
+        if not lesson.get('aula_num'):
+            lesson['aula_num'] = next_aula_num(all_rows, turma)
+        if not lesson.get('licao_conteudo'):
+            lesson['licao_conteudo'] = suggest_licao_conteudo(lesson.get('aula_num'))
+    else:
+        turma = lesson.get('turma') or ''
+
+    lesson['habilidades'] = normalize_habilidades(lesson.get('habilidades', ''))
+    licao_selected = licao_choice_for_value(lesson.get('licao_conteudo', ''))
+    licao_legacy = (
+        licao_selected
+        if licao_selected and licao_selected not in LICAO_CONTEUDO_CHOICES
+        else ''
+    )
+    if licao_legacy:
+        lesson['licao_conteudo'] = licao_legacy
+    elif licao_selected:
+        lesson['licao_conteudo'] = licao_selected
+
+    habilidades_legacy = (
+        lesson.get('habilidades', '')
+        if lesson.get('habilidades') and lesson['habilidades'] not in HABILIDADES_CHOICES
+        else ''
+    )
+
+    turma_students = students_for_turma(all_students, turma)
+    attendance_map = attendance_map_for_lesson(
+        attendance_rows,
+        turma,
+        lesson.get('aula_num'),
+    )
+    for student in turma_students:
+        name = (student.get('student_name') or '').strip()
+        if name and name not in attendance_map:
+            attendance_map[name] = 'present'
+
+    return dict(
+        lesson=lesson,
+        habilidades_choices=HABILIDADES_CHOICES,
+        habilidades_legacy=habilidades_legacy,
+        licao_especial_choices=LICAO_ESPECIAL_CHOICES,
+        licao_choices=tuple(f'Lição {n}' for n in range(1, 101)),
+        licao_legacy=licao_legacy,
+        turma_next_aula=turma_next,
+        turma_students=turma_students,
+        students_by_turma=students_by_turma(all_students, turmas),
+        attendance_map=attendance_map,
+        attendance_choices=ATTENDANCE_CHOICES,
+        attendance_labels=ATTENDANCE_LABELS,
+    )
 
 
 def _list_turma_param():
@@ -956,6 +1055,23 @@ def _save_extra_sessions(rows):
         return
     with open(DATA_DIR / 'extra_sessions.csv', 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=EXTRA_SESSION_FIELDS, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _load_lesson_attendance():
+    if db_store:
+        return db_store.load_lesson_attendance()
+    path = DATA_DIR / 'lesson_attendance.csv'
+    return load_csv(path) if path.exists() else []
+
+
+def _save_lesson_attendance(rows):
+    if db_store:
+        db_store.save_lesson_attendance(rows)
+        return
+    with open(DATA_DIR / 'lesson_attendance.csv', 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=ATTENDANCE_FIELDS, extrasaction='ignore')
         writer.writeheader()
         writer.writerows(rows)
 
@@ -1561,15 +1677,22 @@ def lesson_edit(idx):
             abort(404)
         all_rows[global_idx] = updated
         _save_lessons(_sort_lessons(all_rows))
+        updated_students = _persist_lesson_attendance(updated, _load_students())
+        _save_students(updated_students)
         return _redirect_lessons()
 
+    attendance_rows = _load_lesson_attendance()
+    ctx = _lesson_edit_context(
+        visible[idx], all_rows, all_students, allowed_turmas, is_new=False,
+        attendance_rows=attendance_rows,
+    )
     return render_template(
         'lesson_edit.html',
-        lesson=visible[idx],
         idx=idx,
         is_new=False,
         allowed_turmas=allowed_turmas,
         lesson_field_labels=LESSON_FIELD_LABELS,
+        **ctx,
     )
 
 
@@ -1589,20 +1712,27 @@ def lesson_new():
             abort(403)
         all_rows.append(new_row)
         _save_lessons(_sort_lessons(all_rows))
+        updated_students = _persist_lesson_attendance(new_row, _load_students())
+        _save_students(updated_students)
         return _redirect_lessons()
 
-    defaults = dict(visible[-1]) if visible else {}
+    defaults = {}
     for field in LESSON_FIELDS:
-        defaults.setdefault(field, '')
+        defaults[field] = ''
     if allowed_turmas:
         defaults['turma'] = allowed_turmas[0]
+    attendance_rows = _load_lesson_attendance()
+    ctx = _lesson_edit_context(
+        defaults, all_rows, all_students, allowed_turmas, is_new=True,
+        attendance_rows=attendance_rows,
+    )
     return render_template(
         'lesson_edit.html',
-        lesson=defaults,
         idx=None,
         is_new=True,
         allowed_turmas=allowed_turmas,
         lesson_field_labels=LESSON_FIELD_LABELS,
+        **ctx,
     )
 
 

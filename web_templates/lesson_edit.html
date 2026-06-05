@@ -20,26 +20,29 @@
       <div class="form-group">
         <label>{{ lesson_field_labels.turma }} *</label>
         {% if allowed_turmas and current_user and current_user.role == 'teacher' %}
-        <select name="turma" required>
+        <select name="turma" id="turma-select" required>
           {% for t in allowed_turmas %}
           <option value="{{ t }}" {% if lesson.turma == t %}selected{% endif %}>{{ t }}</option>
           {% endfor %}
         </select>
         {% elif allowed_turmas %}
-        <input type="text" name="turma" list="turma-list" value="{{ lesson.turma or '' }}" required placeholder="ex: MASTER">
+        <input type="text" name="turma" id="turma-select" list="turma-list" value="{{ lesson.turma or '' }}" required placeholder="ex: MASTER">
         <datalist id="turma-list">
           {% for t in allowed_turmas %}
           <option value="{{ t }}">
           {% endfor %}
         </datalist>
         {% else %}
-        <input type="text" name="turma" value="{{ lesson.turma or '' }}" required placeholder="ex: MASTER">
+        <input type="text" name="turma" id="turma-select" value="{{ lesson.turma or '' }}" required placeholder="ex: MASTER">
         <p class="font-sm text-gray" style="margin-top:6px;">Cadastre alunos primeiro para vincular turmas.</p>
         {% endif %}
       </div>
       <div class="form-group">
         <label>{{ lesson_field_labels.aula_num }} *</label>
-        <input type="text" name="aula_num" value="{{ lesson.aula_num or '' }}" required placeholder="1">
+        <input type="text" name="aula_num" id="aula-num-input" value="{{ lesson.aula_num or '' }}" required placeholder="1">
+        {% if is_new %}
+        <p class="font-sm text-gray" style="margin-top:6px;">Preenchido automaticamente; pode ajustar se necessário.</p>
+        {% endif %}
       </div>
       {{ date_picker(lesson.date, lesson_field_labels.date) }}
     </div>
@@ -49,7 +52,22 @@
     <div class="form-section-title">Conteúdo</div>
     <div class="form-group" style="margin-bottom:14px;">
       <label>{{ lesson_field_labels.licao_conteudo }}</label>
-      <input type="text" name="licao_conteudo" value="{{ lesson.licao_conteudo or '' }}" placeholder="Lesson 1: Introductions">
+      <select name="licao_conteudo">
+        <option value="">— Selecionar —</option>
+        {% if licao_legacy %}
+        <option value="{{ licao_legacy }}" selected>{{ licao_legacy }} (valor anterior)</option>
+        {% endif %}
+        <optgroup label="Especiais">
+          {% for choice in licao_especial_choices %}
+          <option value="{{ choice }}" {% if lesson.licao_conteudo == choice %}selected{% endif %}>{{ choice }}</option>
+          {% endfor %}
+        </optgroup>
+        <optgroup label="Lições">
+          {% for choice in licao_choices %}
+          <option value="{{ choice }}" {% if lesson.licao_conteudo == choice %}selected{% endif %}>{{ choice }}</option>
+          {% endfor %}
+        </optgroup>
+      </select>
     </div>
     <div class="form-group" style="margin-bottom:14px;">
       <label>{{ lesson_field_labels.atividade_extra }}</label>
@@ -57,7 +75,51 @@
     </div>
     <div class="form-group">
       <label>{{ lesson_field_labels.habilidades }}</label>
-      <input type="text" name="habilidades" value="{{ lesson.habilidades or '' }}" placeholder="Speaking, Listening">
+      <select name="habilidades" {% if is_new %}required{% endif %}>
+        <option value="">— Selecionar —</option>
+        {% if habilidades_legacy %}
+        <option value="{{ habilidades_legacy }}" selected>{{ habilidades_legacy }} (valor anterior)</option>
+        {% endif %}
+        {% for choice in habilidades_choices %}
+        <option value="{{ choice }}" {% if lesson.habilidades == choice %}selected{% endif %}>{{ choice }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Presença (chamada)</div>
+    <p class="font-sm text-gray" style="margin-bottom:12px;">Marque a presença de cada aluno nesta aula.</p>
+    <div id="attendance-empty" class="font-sm text-gray" {% if turma_students %}style="display:none;"{% endif %}>
+      Nenhum aluno cadastrado nesta turma.
+    </div>
+    <div id="attendance-table-wrap" {% if not turma_students %}style="display:none;"{% endif %}>
+      <table class="data-table" style="width:100%; margin-bottom:0;">
+        <thead>
+          <tr>
+            <th>Aluno</th>
+            <th>Presença</th>
+          </tr>
+        </thead>
+        <tbody id="attendance-rows">
+          {% for student in turma_students %}
+          <tr>
+            <td>{{ student.student_name }}</td>
+            <td>
+              <select name="attendance_status_{{ loop.index0 }}">
+                {% for choice in attendance_choices %}
+                <option value="{{ choice }}" {% if attendance_map.get(student.student_name, 'present') == choice %}selected{% endif %}>
+                  {{ attendance_labels[choice] }}
+                </option>
+                {% endfor %}
+              </select>
+              <input type="hidden" name="attendance_student_{{ loop.index0 }}" value="{{ student.student_name }}">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <input type="hidden" name="attendance_count" id="attendance-count" value="{{ turma_students|length }}">
     </div>
   </div>
 
@@ -66,4 +128,80 @@
     <a href="{{ url_for('lessons', turma=return_turma) if return_turma else url_for('lessons') }}" class="btn btn-ghost">Cancelar</a>
   </div>
 </form>
+
+{% if is_new and turma_next_aula %}
+<script>
+(function () {
+  var turmaNext = {{ turma_next_aula | tojson }};
+  var studentsByTurma = {{ students_by_turma | tojson }};
+  var attendanceChoices = {{ attendance_choices | tojson }};
+  var attendanceLabels = {{ attendance_labels | tojson }};
+  var turmaEl = document.getElementById('turma-select');
+  var aulaEl = document.getElementById('aula-num-input');
+  var rowsEl = document.getElementById('attendance-rows');
+  var countEl = document.getElementById('attendance-count');
+  var emptyEl = document.getElementById('attendance-empty');
+  var wrapEl = document.getElementById('attendance-table-wrap');
+
+  function turmaKey(value) {
+    return (value || '').trim().toUpperCase();
+  }
+
+  function rebuildAttendanceRows() {
+    if (!rowsEl || !countEl) return;
+    var turma = turmaEl ? turmaEl.value : '';
+    var key = turmaKey(turma);
+    var students = studentsByTurma[key] || [];
+    rowsEl.innerHTML = '';
+    students.forEach(function (student, index) {
+      var row = document.createElement('tr');
+      var nameCell = document.createElement('td');
+      nameCell.textContent = student.student_name;
+      var selectCell = document.createElement('td');
+      var select = document.createElement('select');
+      select.name = 'attendance_status_' + index;
+      attendanceChoices.forEach(function (choice) {
+        var option = document.createElement('option');
+        option.value = choice;
+        option.textContent = attendanceLabels[choice] || choice;
+        if (choice === 'present') option.selected = true;
+        select.appendChild(option);
+      });
+      var hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = 'attendance_student_' + index;
+      hidden.value = student.student_name;
+      selectCell.appendChild(select);
+      selectCell.appendChild(hidden);
+      row.appendChild(nameCell);
+      row.appendChild(selectCell);
+      rowsEl.appendChild(row);
+    });
+    countEl.value = String(students.length);
+    if (emptyEl && wrapEl) {
+      var hasStudents = students.length > 0;
+      emptyEl.style.display = hasStudents ? 'none' : '';
+      wrapEl.style.display = hasStudents ? '' : 'none';
+    }
+  }
+
+  function updateAulaNum() {
+    if (!turmaEl || !aulaEl) return;
+    var turma = turmaKey(turmaEl.value);
+    var next = turmaNext[turma] || turmaNext[turmaEl.value] || '1';
+    aulaEl.value = next;
+  }
+
+  function onTurmaChange() {
+    updateAulaNum();
+    rebuildAttendanceRows();
+  }
+
+  if (turmaEl) {
+    turmaEl.addEventListener('change', onTurmaChange);
+    turmaEl.addEventListener('input', onTurmaChange);
+  }
+})();
+</script>
+{% endif %}
 {% endblock %}

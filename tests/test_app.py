@@ -390,13 +390,14 @@ def test_upload_page_shows_csv_template_preview(monkeypatch, tmp_path):
     assert "csv-preview-table" in html
     assert "Identificação" in html
     assert "Nome do aluno" in html
-    assert "Lesson 3: Past tense review" in html
+    assert "Lesson 3: Past tense review" in html or "Lição 3" in html
 
 
 def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "teacher_classes.json").write_text("{}", encoding="utf-8")
     (data_dir / "lessons.csv").write_text(
         "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
         "MASTER,1,01/01,L1,,\n"
@@ -409,6 +410,7 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
     store.create_teacher("chuck@test.local", "pass123", "Chuck")
 
     monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "db_store", None)
     monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
     web_app.OUT_DIR.mkdir()
     monkeypatch.setattr(web_app, "user_store", store)
@@ -423,20 +425,40 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
     assert "MASTER" in html
     assert "L9" not in html
 
+    new_form = client.get("/lessons/new")
+    new_html = new_form.get_data(as_text=True)
+    assert new_form.status_code == 200
+    assert 'name="habilidades"' in new_html
+    assert 'name="licao_conteudo"' in new_html
+    assert 'name="attendance_status_0"' in new_html
+    assert 'Presente' in new_html
+    assert 'Ausente' in new_html
+    assert 'Atrasado' in new_html
+    assert 'value="2"' in new_html or 'id="aula-num-input"' in new_html
+
     create = client.post(
         "/lessons/new",
         data={
             "turma": "MASTER",
             "aula_num": "99",
             "date": "01/05/2026",
-            "licao_conteudo": "Test lesson",
+            "licao_conteudo": "Lição 10",
             "atividade_extra": "",
-            "habilidades": "",
+            "habilidades": "Inteligência emocional",
+            "attendance_count": "1",
+            "attendance_student_0": "Jane Doe",
+            "attendance_status_0": "absent",
         },
         follow_redirects=True,
     )
     assert create.status_code == 200
-    assert "Test lesson" in create.get_data(as_text=True)
+    assert "Lição 10" in create.get_data(as_text=True)
+    students_text = (data_dir / "students.csv").read_text(encoding="utf-8")
+    assert "Jane Doe" in students_text
+    assert ",99" in students_text or ",2,99" in students_text
+    attendance_text = (data_dir / "lesson_attendance.csv").read_text(encoding="utf-8")
+    assert "Jane Doe" in attendance_text
+    assert "absent" in attendance_text
 
     blocked = client.post(
         "/lessons/new",

@@ -221,3 +221,118 @@ def is_valid_nivel(nivel):
 def turma_code_from_nivel(nivel):
     """Stable turma id for a standard level (e.g. KIDS 1 → KIDS_1)."""
     return (nivel or '').strip().replace(' ', '_')
+
+
+HABILIDADES_CHOICES = (
+    'Liderança',
+    'Empreendedorismo',
+    'Educação financeira',
+    'Inteligência emocional',
+    'Inteligência Artificial',
+)
+
+LICAO_ESPECIAL_CHOICES = (
+    'Aula Dinâmica',
+    'Revisão',
+)
+
+LICAO_CONTEUDO_CHOICES = LICAO_ESPECIAL_CHOICES + tuple(
+    f'Lição {n}' for n in range(1, 101)
+)
+
+_LICAO_NUMBER = re.compile(
+    r'^(?:lesson|licao|lição|liçao)\s*(\d+)$',
+    re.IGNORECASE,
+)
+
+
+def _fold_text(value):
+    text = unicodedata.normalize('NFKD', (value or '').strip())
+    return ''.join(ch for ch in text if not unicodedata.combining(ch)).casefold()
+
+
+_HABILIDADES_ALIASES = {
+    'ia': 'Inteligência Artificial',
+    'inteligencia artificial': 'Inteligência Artificial',
+    'empreendedorismo': 'Empreendedorismo',
+    'inteligencia emocional': 'Inteligência emocional',
+    'educacao financeira': 'Educação financeira',
+    'financas': 'Educação financeira',
+    'lideranca': 'Liderança',
+}
+
+
+def normalize_habilidades(value):
+    """Map known aliases to canonical HABILIDADES_CHOICES; preserve unknown legacy text."""
+    raw = (value or '').strip()
+    if not raw:
+        return ''
+    if raw in HABILIDADES_CHOICES:
+        return raw
+    folded = _fold_text(raw)
+    if folded in _HABILIDADES_ALIASES:
+        return _HABILIDADES_ALIASES[folded]
+    for choice in HABILIDADES_CHOICES:
+        if _fold_text(choice) == folded:
+            return choice
+    return raw
+
+
+def licao_choice_for_value(value):
+    """Match stored licao_conteudo to a dropdown choice when possible; else return raw legacy value."""
+    raw = (value or '').strip()
+    if not raw:
+        return ''
+    if raw in LICAO_CONTEUDO_CHOICES:
+        return raw
+    folded = _fold_text(raw)
+    if folded in ('revisao', 'review'):
+        return 'Revisão'
+    if folded in ('aula dinamica',):
+        return 'Aula Dinâmica'
+    if raw.isdigit():
+        num = int(raw)
+        if 1 <= num <= 100:
+            return f'Lição {num}'
+    match = _LICAO_NUMBER.match(raw)
+    if match:
+        num = int(match.group(1))
+        if 1 <= num <= 100:
+            return f'Lição {num}'
+    return raw
+
+
+def _parse_aula_num(value):
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def next_aula_num(lessons, turma):
+    """Return str(max numeric aula_num for turma) + 1, or '1' if none."""
+    turma_key = (turma or '').strip().upper()
+    max_num = 0
+    for row in lessons:
+        if (row.get('turma') or '').strip().upper() != turma_key:
+            continue
+        num = _parse_aula_num(row.get('aula_num'))
+        if num is not None and num > max_num:
+            max_num = num
+    return str(max_num + 1) if max_num else '1'
+
+
+def suggest_licao_conteudo(aula_num):
+    """Default lição label for a new aula number (Lição N when 1–100)."""
+    num = _parse_aula_num(aula_num)
+    if num is not None and 1 <= num <= 100:
+        return f'Lição {num}'
+    return ''
+
+
+def turma_next_aula_map(lessons, turmas):
+    """Map each turma code to its suggested next aula_num (for form JS). Keys are uppercase."""
+    return {
+        (t or '').strip().upper(): next_aula_num(lessons, t)
+        for t in turmas if t
+    }
