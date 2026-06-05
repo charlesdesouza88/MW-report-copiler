@@ -1,11 +1,10 @@
 {% extends 'base.html' %}
 {% from '_macros/list_filters.html' import filter_panel, filter_group, list_filter_script %}
+{% from '_macros/page_toolbar.html' import page_toolbar %}
 {% block title %}Reforço e Reposições{% endblock %}
 {% block page_title %}Atendimentos — reforço, reposição e aulas extras{% endblock %}
 
-{% block topbar_actions %}
-  <a href="{{ url_for('extra_session_new') }}" class="btn btn-primary">+ Novo atendimento</a>
-{% endblock %}
+{% block topbar_actions %}{% endblock %}
 
 {% block content %}
 
@@ -53,6 +52,9 @@
 {% endif %}
 
 {% if sessions %}
+{% call page_toolbar('Ações') %}
+  <a href="{{ url_for('extra_session_new') }}" class="btn btn-primary">+ Novo atendimento</a>
+{% endcall %}
 {% call filter_panel('filter-extra-sessions', 'Buscar aluno, turma, assunto ou professor...') %}
   {% if teachers %}
   {{ filter_group('Professor', teachers, 'teacher', 'Todos') }}
@@ -76,7 +78,7 @@
         <th>Marcado</th>
         <th>Realizado</th>
         <th>Professor</th>
-        <th></th>
+        <th class="col-actions">Ações</th>
       </tr>
     </thead>
     <tbody>
@@ -119,8 +121,8 @@
           {% else %}{{ display_status(row.realizado) or '—' }}{% endif %}
         </td>
         <td class="font-sm">{{ row.teacher or '—' }}</td>
-        <td>
-          <div class="flex gap-8">
+        <td class="col-actions">
+          <div class="row-actions">
             <a href="{{ url_for('extra_session_edit', idx=loop.index0) }}" class="btn btn-ghost btn-xs">Editar</a>
             <form method="post" action="{{ url_for('extra_session_delete', idx=loop.index0) }}"
                   onsubmit="return confirm('Excluir este atendimento?')">

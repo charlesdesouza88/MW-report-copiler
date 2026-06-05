@@ -1,12 +1,11 @@
 {% extends 'base.html' %}
 {% from '_macros/list_filters.html' import filter_panel, filter_group, list_filter_script %}
+{% from '_macros/page_toolbar.html' import page_toolbar %}
 {% set return_turma = request.args.get('turma', '') %}
 {% block title %}Aulas{% endblock %}
 {% block page_title %}Detalhes das aulas{% endblock %}
 
-{% block topbar_actions %}
-  <a href="{{ url_for('lesson_new', turma=return_turma) if return_turma else url_for('lesson_new') }}" class="btn btn-primary">+ Nova aula</a>
-{% endblock %}
+{% block topbar_actions %}{% endblock %}
 
 {% block content %}
 
@@ -15,6 +14,9 @@
 </p>
 
 {% if lessons %}
+{% call page_toolbar('Ações') %}
+  <a href="{{ url_for('lesson_new', turma=return_turma) if return_turma else url_for('lesson_new') }}" class="btn btn-primary">+ Nova aula</a>
+{% endcall %}
 {% call filter_panel('filter-lessons', 'Buscar por turma, conteúdo ou habilidades...') %}
   {% if turmas %}
   {{ filter_group('Turma', turmas, 'turma', 'Todas') }}
@@ -68,7 +70,7 @@
         <th>Conteúdo</th>
         <th>Atividade extra</th>
         <th>Habilidades</th>
-        <th></th>
+        <th class="col-actions">Ações</th>
       </tr>
     </thead>
     <tbody>
@@ -86,8 +88,8 @@
         <td class="font-sm">{{ lesson.licao_conteudo or '—' }}</td>
         <td class="font-sm text-gray">{{ lesson.atividade_extra or '—' }}</td>
         <td class="font-sm text-gray">{{ lesson.habilidades or '—' }}</td>
-        <td>
-          <div class="flex gap-8">
+        <td class="col-actions">
+          <div class="row-actions">
             <a href="{{ url_for('lesson_edit', idx=loop.index0, turma=return_turma) if return_turma else url_for('lesson_edit', idx=loop.index0) }}" class="btn btn-ghost btn-xs">Editar</a>
             <form method="post" action="{{ url_for('lesson_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('lesson_delete', idx=loop.index0) }}"
                   onsubmit="return confirm('Excluir esta aula?')">
