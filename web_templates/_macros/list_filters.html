@@ -71,6 +71,18 @@
 </div>
 {% endmacro %}
 
+{% macro filter_month_group(month_keys, all_label='Todos') %}
+<div class="filter-group">
+  <span class="filter-group-label">Mês</span>
+  <div class="filter-scroll filter-chips">
+    <button type="button" class="btn btn-sm btn-primary filter-chip is-active" data-filter-key="month" data-filter-value="">{{ all_label }}</button>
+    {% for m in month_keys %}
+    <button type="button" class="btn btn-sm btn-ghost filter-chip" data-filter-key="month" data-filter-value="{{ m }}">{{ month_label(m) }}</button>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
 {% macro list_filter_script(row_selector, storage_key, panel_selector='[data-filter-panel]', url_keys=['turma']) %}
 <script>
 (function () {

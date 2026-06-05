@@ -1,5 +1,6 @@
 output/*.html
 data/users.json
+data/student_snapshots.json
 __pycache__/
 *.pyc
 .env

@@ -98,6 +98,166 @@ def skill_column_charts(dev_scores):
     ]
 
 
+COMPARISON_DIMS = [
+    ('Presença', 'pres_score'),
+    ('Desenvolvimento', 'dev_overall'),
+    ('Participação', 'part_overall'),
+    ('Comportamento', 'comp_overall'),
+]
+
+
+def score_delta_badge(current, prior):
+    """Return delta badge metadata for month-over-month score changes."""
+    if prior is None:
+        return None
+    delta = int(current) - int(prior)
+    if delta > 0:
+        return dict(delta=delta, text=f'+{delta}', css='delta-up', symbol='▲')
+    if delta < 0:
+        return dict(delta=delta, text=str(delta), css='delta-down', symbol='▼')
+    return dict(delta=0, text='→', css='delta-stable', symbol='→')
+
+
+def comparison_bar_chart(rows, bar_max_w=140, bar_h=10, row_gap=6, label_w=88):
+    """SVG layout for grouped current vs prior horizontal bars (scores 1–5)."""
+    chart_rows = []
+    y = 0
+    for row in rows:
+        current = int(row['current'])
+        prior = row.get('prior')
+        chart_rows.append(dict(
+            label=row['label'],
+            current=current,
+            prior=prior,
+            current_w=round((current / 5.0) * bar_max_w, 1),
+            prior_w=round((int(prior) / 5.0) * bar_max_w, 1) if prior is not None else 0,
+            y=y,
+            label_x=0,
+            bar_x=label_w,
+            current_y=y,
+            prior_y=y + bar_h + 3,
+            delta=score_delta_badge(current, prior),
+        ))
+        y += bar_h * 2 + row_gap + 14
+    return dict(
+        rows=chart_rows,
+        width=label_w + bar_max_w + 36,
+        height=max(y, 1),
+        bar_max_w=bar_max_w,
+        bar_h=bar_h,
+        label_w=label_w,
+    )
+
+
+def composite_donut_chart(current, prior=None, size=96, stroke=10):
+    """Progress ring for composite score (1–5 scale). Optional ghost ring for prior month."""
+    cx = cy = size / 2
+    r = (size - stroke) / 2
+    circ = 2 * math.pi * r
+    cur_pct = max(0, min(1, float(current) / 5.0))
+    cur_len = round(cur_pct * circ, 2)
+    cur_gap = round(circ - cur_len, 2)
+    prior_pct = None
+    prior_len = prior_gap = None
+    if prior is not None:
+        prior_pct = max(0, min(1, float(prior) / 5.0))
+        prior_len = round(prior_pct * circ, 2)
+        prior_gap = round(circ - prior_len, 2)
+    return dict(
+        size=size,
+        cx=cx,
+        cy=cy,
+        r=r,
+        stroke=stroke,
+        circ=round(circ, 2),
+        current=current,
+        prior=prior,
+        cur_dash=f'{cur_len} {cur_gap}',
+        prior_dash=f'{prior_len} {prior_gap}' if prior_len is not None else None,
+    )
+
+
+def expanded_radar_scores(dev_scores, part_overall, pres_score):
+    """7-axis scores for an extended skills radar (dev + participação + presença)."""
+    return list(dev_scores) + [part_overall, pres_score]
+
+
+def heptagon_polygon(scores, cx=100, cy=105, max_r=78):
+    """Return SVG polygon points for a 7-axis radar chart."""
+    pts = []
+    n = len(scores)
+    for i, s in enumerate(scores):
+        angle = -math.pi / 2 + i * 2 * math.pi / n
+        r = (float(s) / 5.0) * max_r
+        x = round(cx + r * math.cos(angle), 2)
+        y = round(cy + r * math.sin(angle), 2)
+        pts.append(f'{x},{y}')
+    return ' '.join(pts)
+
+
+def heptagon_grid(cx=100, cy=105, max_r=78, n=7):
+    rings = []
+    for level in range(1, 6):
+        r = (level / 5.0) * max_r
+        pts = []
+        for i in range(n):
+            angle = -math.pi / 2 + i * 2 * math.pi / n
+            x = round(cx + r * math.cos(angle), 2)
+            y = round(cy + r * math.sin(angle), 2)
+            pts.append(f'{x},{y}')
+        rings.append(' '.join(pts))
+    return rings
+
+
+def heptagon_axes(cx=100, cy=105, max_r=78, n=7):
+    eps = []
+    for i in range(n):
+        angle = -math.pi / 2 + i * 2 * math.pi / n
+        x = round(cx + max_r * math.cos(angle), 2)
+        y = round(cy + max_r * math.sin(angle), 2)
+        eps.append((x, y))
+    return eps
+
+
+EXPANDED_RADAR_LABELS = [
+    'Audição', 'Fala', 'Gramática', 'Escrita', 'Leitura', 'Participação', 'Presença',
+]
+
+
+def build_month_comparison(ctx, snapshots, turma, student_name, report_month, trend=None):
+    from report_periods import month_label, prior_month_snapshot, previous_calendar_month, student_composite_score
+
+    prev_month = previous_calendar_month(report_month)
+    prior = prior_month_snapshot(snapshots or {}, turma, student_name, report_month)
+    composite = student_composite_score(ctx)
+    prior_composite = prior.get('composite_score') if prior else None
+
+    dim_rows = []
+    for label, key in COMPARISON_DIMS:
+        current = ctx[key]
+        prior_val = prior.get(key) if prior else None
+        dim_rows.append(dict(
+            label=label,
+            key=key,
+            current=current,
+            prior=prior_val,
+            delta=score_delta_badge(current, prior_val),
+        ))
+
+    return dict(
+        has_prior=prior is not None,
+        prior_month=prev_month,
+        prior_month_label=month_label(prev_month) if prev_month else '',
+        composite_current=composite,
+        composite_prior=prior_composite,
+        composite_delta=score_delta_badge(composite, prior_composite),
+        trend=trend,
+        dims=dim_rows,
+        bars=comparison_bar_chart(dim_rows),
+        donut=composite_donut_chart(composite, prior_composite),
+    )
+
+
 def pie_path(percentage, cx=58, cy=58, r=48):
     """Return (svg_path_d, is_full_circle) for a clockwise attendance pie slice."""
     pct = float(percentage)
@@ -193,7 +353,7 @@ def group_by_turma(students):
 
 # ── Report builders ───────────────────────────────────────────────────────────
 
-def build_student_ctx(s, all_lessons, report_month=None, trend=None):
+def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=None):
     from report_periods import month_label
 
     turma = (s.get("turma") or "").strip()
@@ -244,7 +404,8 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None):
     ]
     comp_overall = avg_score(comp_scores)
 
-    return dict(
+    expanded_scores = expanded_radar_scores(dev_scores, part_overall, pres_score)
+    ctx = dict(
         student=s,
         report_month=report_month,
         report_month_label=month_label(report_month) if report_month else '',
@@ -266,7 +427,19 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None):
         skill_columns=skill_column_charts(dev_scores),
         comp_scores=comp_scores,
         comp_overall=comp_overall,
+        expanded_radar=heptagon_polygon(expanded_scores),
+        expanded_grid=heptagon_grid(n=len(expanded_scores)),
+        expanded_axes=heptagon_axes(n=len(expanded_scores)),
+        expanded_labels=EXPANDED_RADAR_LABELS,
+        comparison=None,
     )
+    if report_month:
+        ctx['comparison'] = build_month_comparison(
+            ctx, snapshots, turma, s.get('student_name', ''), report_month, trend=trend,
+        )
+        for dim in ctx['comparison']['dims']:
+            ctx[f"{dim['key']}_delta"] = dim['delta']
+    return ctx
 
 
 def build_class_ctx(turma, students, all_lessons, report_month=None, snapshots=None):
@@ -286,7 +459,9 @@ def build_class_ctx(turma, students, all_lessons, report_month=None, snapshots=N
                 composite, report_month, snapshots,
                 s.get('turma', ''), s.get('student_name', ''),
             )
-        ctx = build_student_ctx(s, all_lessons, report_month=report_month, trend=trend)
+        ctx = build_student_ctx(
+            s, all_lessons, report_month=report_month, trend=trend, snapshots=snapshots,
+        )
         student_data.append(ctx)
 
     return dict(
@@ -331,7 +506,9 @@ def generate_individual_reports(students, lessons, env, out_dir, report_month=No
                 composite, report_month, snapshots,
                 turma, student_name,
             )
-        ctx = build_student_ctx(s, lessons, report_month=report_month, trend=trend)
+        ctx = build_student_ctx(
+            s, lessons, report_month=report_month, trend=trend, snapshots=snapshots,
+        )
         if report_month:
             ctx['report_month_label'] = month_label(report_month)
         html = tpl.render(**ctx)

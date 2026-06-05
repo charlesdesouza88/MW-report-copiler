@@ -1,5 +1,6 @@
 from compiler import (
     build_student_ctx,
+    composite_donut_chart,
     create_report_environment,
     generate_individual_reports,
     group_by_turma,
@@ -8,7 +9,9 @@ from compiler import (
     pie_path,
     pres_to_score,
     presence_pct,
+    score_delta_badge,
 )
+from report_periods import prior_month_snapshot, student_snapshot_id
 
 
 def _student(**overrides):
@@ -173,6 +176,113 @@ def test_individual_report_renders_labeled_overall_scores():
     assert "bubble-abs" not in html
     assert "Nota" in html
     assert "Critérios" in html
+
+
+def test_score_delta_badge_directions():
+    assert score_delta_badge(4, 3)['css'] == 'delta-up'
+    assert score_delta_badge(2, 4)['css'] == 'delta-down'
+    assert score_delta_badge(3, 3)['css'] == 'delta-stable'
+    assert score_delta_badge(3, None) is None
+
+
+def test_composite_donut_includes_prior_ring():
+    donut = composite_donut_chart(4, 3)
+    assert donut['prior_dash'] is not None
+    assert donut['cur_dash']
+
+
+def test_build_student_ctx_month_comparison_with_snapshots():
+    sid = student_snapshot_id('MASTER', 'Jane Doe')
+    snapshots = {
+        f'MASTER|{sid}|2026-02': {
+            'composite_score': 3,
+            'dev_overall': 3,
+            'part_overall': 3,
+            'comp_overall': 3,
+            'pres_score': 3,
+        },
+    }
+    lessons = [
+        {
+            "turma": "MASTER",
+            "aula_num": "1",
+            "date": "01/03/2026",
+            "licao_conteudo": "L1",
+            "atividade_extra": "",
+            "habilidades": "",
+        },
+        {
+            "turma": "MASTER",
+            "aula_num": "2",
+            "date": "03/03/2026",
+            "licao_conteudo": "L2",
+            "atividade_extra": "",
+            "habilidades": "",
+        },
+    ]
+    ctx = build_student_ctx(
+        _student(faltas="1", missed_aulas="2"), lessons,
+        report_month='2026-03', snapshots=snapshots,
+    )
+    assert ctx['comparison'] is not None
+    assert ctx['comparison']['has_prior'] is True
+    assert ctx['pres_score_delta']['css'] == 'delta-down'
+    assert ctx['expanded_radar']
+    assert len(ctx['expanded_grid']) == 5
+
+
+def test_individual_report_renders_comparison_section():
+    from pathlib import Path
+
+    base = Path(__file__).resolve().parent.parent
+    env = create_report_environment(base / "templates")
+    sid = student_snapshot_id('MASTER', 'Jane Doe')
+    snapshots = {
+        f'MASTER|{sid}|2026-02': {
+            'composite_score': 3,
+            'dev_overall': 3,
+            'part_overall': 3,
+            'comp_overall': 3,
+            'pres_score': 5,
+        },
+    }
+    html = env.get_template('individual_report.html').render(
+        **build_student_ctx(
+            _student(faltas='1', missed_aulas='2'),
+            [
+                {
+                    "turma": "MASTER",
+                    "aula_num": "1",
+                    "date": "01/03/2026",
+                    "licao_conteudo": "L1",
+                    "atividade_extra": "",
+                    "habilidades": "",
+                },
+                {
+                    "turma": "MASTER",
+                    "aula_num": "2",
+                    "date": "03/03/2026",
+                    "licao_conteudo": "L2",
+                    "atividade_extra": "",
+                    "habilidades": "",
+                },
+            ],
+            report_month='2026-03',
+            snapshots=snapshots,
+        ),
+    )
+    assert 'Comparativo Mensal' in html
+    assert 'Visão Geral (7 eixos)' in html
+    assert 'delta-badge' in html
+    assert 'Índice Geral' in html
+
+
+def test_prior_month_snapshot_lookup():
+    sid = student_snapshot_id('MASTER', 'Jane')
+    snapshots = {f'MASTER|{sid}|2026-02': {'composite_score': 4}}
+    row = prior_month_snapshot(snapshots, 'MASTER', 'Jane', '2026-03')
+    assert row['composite_score'] == 4
+    assert prior_month_snapshot(snapshots, 'MASTER', 'Jane', '2026-02') is None
 
 
 def test_report_generation_escapes_text_and_sanitizes_filename(tmp_path):

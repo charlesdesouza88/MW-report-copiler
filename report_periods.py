@@ -152,6 +152,15 @@ def _snapshot_key(turma, student_id, month_key):
     return f'{turma}|{student_id}|{month_key}'
 
 
+def prior_month_snapshot(snapshots, turma, student_name, report_month):
+    """Return the previous calendar month's snapshot row, if any."""
+    prev_month = previous_calendar_month(report_month)
+    if not prev_month or not snapshots:
+        return None
+    sid = student_snapshot_id(turma, student_name)
+    return snapshots.get(_snapshot_key(turma, sid, prev_month))
+
+
 def load_snapshots(path):
     if not path.exists():
         return {}

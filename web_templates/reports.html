@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
-{% from '_macros/list_filters.html' import filter_panel, filter_group_extra, list_filter_script %}
+{% from '_macros/list_filters.html' import filter_panel, filter_group_extra, filter_turma_group, filter_month_group, list_filter_script %}
 {% block title %}Relatórios{% endblock %}
 {% block page_title %}Relatórios gerados{% endblock %}
 
 {% block topbar_actions %}
-  {% if individual or diagnostics %}
+  {% if report_rows %}
   <a href="{{ url_for('download_all', month=selected_month) if selected_month else url_for('download_all') }}" class="btn btn-outline btn-sm">↓ Baixar todos (.zip)</a>
   {% endif %}
   <form method="post" action="{{ url_for('generate') }}" style="display:inline-flex; gap:8px; align-items:center;">
@@ -21,22 +21,7 @@
 
 {% block content %}
 
-{% if available_months %}
-<form method="get" action="{{ url_for('reports') }}" class="card" style="padding:14px 16px; margin-bottom:16px; display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
-  <label style="font-weight:700; font-size:13px;">Filtrar por mês</label>
-  <select name="month" onchange="this.form.submit()" style="padding:8px 12px; border:1px solid #E2E2E2; border-radius:8px; min-width:180px;">
-    <option value="">Todos os meses</option>
-    {% for m in available_months %}
-    <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ month_label(m) }}</option>
-    {% endfor %}
-  </select>
-  {% if selected_month %}
-  <span class="text-gray font-sm">Mostrando relatórios de {{ month_label(selected_month) }}</span>
-  {% endif %}
-</form>
-{% endif %}
-
-{% if not individual and not diagnostics %}
+{% if not report_rows %}
 <div class="card" style="text-align:center; padding:48px;">
   <div style="font-size:40px; margin-bottom:12px;">◈</div>
   <p class="text-gray" style="margin-bottom:16px;">
@@ -55,37 +40,69 @@
 </div>
 {% else %}
 
-{% call filter_panel('filter-reports', 'Buscar aluno ou tipo de relatório...') %}
+{% call filter_panel('filter-reports', 'Buscar aluno, turma ou mês...') %}
   {{ filter_group_extra('Tipo', [
     {'value': 'individual', 'label': 'Individual'},
     {'value': 'diagnostic', 'label': 'Diagnóstico de turma'},
   ], 'report_kind', 'Todos') }}
+  {% if months_in_reports %}
+  {{ filter_month_group(months_in_reports, 'Todos') }}
+  {% endif %}
+  {% if report_turma_filters %}
+  {{ filter_turma_group(report_turma_filters, 'Todas') }}
+  {% endif %}
+  {{ filter_group_extra('Evolução', [
+    {'value': 'improved', 'label': '▲ Melhorou'},
+    {'value': 'declined', 'label': '▼ Piorou'},
+    {'value': 'stable', 'label': '→ Estável'},
+    {'value': 'first', 'label': '— Primeiro período'},
+    {'value': '__none__', 'label': 'Sem evolução'},
+  ], 'trend', 'Todas') }}
 {% endcall %}
 
-{% if individual %}
-<div class="section-title mb-16">Relatórios individuais ({{ individual|length }})</div>
+<div class="section-title mb-16">Relatórios ({{ report_rows|length }})</div>
 <div class="table-wrap mb-24">
   <table>
     <thead>
       <tr>
-        <th>Aluno</th>
+        <th>Tipo</th>
+        <th>Aluno / Turma</th>
+        <th>Turma</th>
         <th>Mês</th>
         <th>Evolução</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
-      {% for f in individual %}
-      {% set trend = (report_trends|default({})).get(f.name) %}
-      {% set file_month = (report_months|default({})).get(f.name) %}
+      {% for row in report_rows %}
+      {% set trend = row.trend %}
+      {% set turma_label = turma_labels.get(row.turma, row.turma) if row.turma else '' %}
       <tr class="report-row filter-row-item"
           style="--filter-i: {{ loop.index0 % 12 }}"
-          data-report-kind="individual"
-          data-search="{{ (f.stem.replace('_', ' ') ~ ' ' ~ (month_label(file_month) if file_month else ''))|lower }}">
-        <td><strong>{{ f.stem.replace('_', ' ') }}</strong></td>
+          data-filter-id="{{ loop.index0 }}"
+          data-report-kind="{{ row.kind }}"
+          data-month="{{ row.month }}"
+          data-turma="{{ row.turma }}"
+          data-trend="{{ trend.direction if trend else '__none__' }}"
+          data-search="{{ (row.display ~ ' ' ~ turma_label ~ ' ' ~ (month_label(row.month) if row.month else '') ~ ' ' ~ row.kind)|lower }}">
         <td>
-          {% if file_month %}
-          <span class="tag">{{ month_label(file_month) }}</span>
+          {% if row.kind == 'diagnostic' %}
+          <span class="report-kind-badge report-kind-diagnostic">Diagnóstico</span>
+          {% else %}
+          <span class="report-kind-badge report-kind-individual">Individual</span>
+          {% endif %}
+        </td>
+        <td><strong>{{ row.display }}</strong></td>
+        <td>
+          {% if row.turma %}
+          <span class="tag">{{ turma_label }}</span>
+          {% else %}
+          <span class="text-gray font-sm">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if row.month %}
+          <span class="tag">{{ month_label(row.month) }}</span>
           {% else %}
           <span class="text-gray font-sm">—</span>
           {% endif %}
@@ -101,11 +118,11 @@
         </td>
         <td>
           <div class="report-actions">
-            <a href="{{ url_for('preview', filename=f.name) }}" target="_blank" class="btn btn-ghost btn-xs">👁 Visualizar</a>
-            <a href="{{ url_for('preview', filename=f.name) }}" target="_blank"
-               onclick="openPrint(event, '{{ url_for('preview', filename=f.name) }}')"
+            <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank" class="btn btn-ghost btn-xs">👁 Visualizar</a>
+            <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank"
+               onclick="openPrint(event, '{{ url_for('preview', filename=row.filename) }}')"
                class="btn btn-ghost btn-xs">🖨 Imprimir</a>
-            <a href="{{ url_for('download_report', filename=f.name) }}" class="btn btn-primary btn-xs">↓ Baixar</a>
+            <a href="{{ url_for('download_report', filename=row.filename) }}" class="btn btn-primary btn-xs">↓ Baixar</a>
           </div>
         </td>
       </tr>
@@ -113,53 +130,21 @@
     </tbody>
   </table>
 </div>
-{% endif %}
-
-{% if diagnostics %}
-<div class="section-title mb-16">Diagnósticos de turma ({{ diagnostics|length }})</div>
-<div class="table-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th>Turma</th>
-        <th>Mês</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for f in diagnostics %}
-      {% set month = report_month_from_filename(f.name) %}
-      <tr class="report-row filter-row-item"
-          style="--filter-i: {{ loop.index0 % 12 }}"
-          data-report-kind="diagnostic"
-          data-search="{{ ('diagnostico turma ' ~ (month_label(month) if month else ''))|lower }}">
-        <td><strong>Diagnóstico de turma</strong></td>
-        <td>
-          {% if month %}
-          <span class="tag">{{ month_label(month) }}</span>
-          {% else %}
-          <span class="text-gray font-sm">—</span>
-          {% endif %}
-        </td>
-        <td>
-          <div class="report-actions">
-            <a href="{{ url_for('preview', filename=f.name) }}" target="_blank" class="btn btn-ghost btn-xs">👁 Visualizar</a>
-            <a href="{{ url_for('preview', filename=f.name) }}" target="_blank"
-               onclick="openPrint(event, '{{ url_for('preview', filename=f.name) }}')"
-               class="btn btn-ghost btn-xs">🖨 Imprimir</a>
-            <a href="{{ url_for('download_report', filename=f.name) }}" class="btn btn-primary btn-xs">↓ Baixar</a>
-          </div>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
 
 {% endif %}
 
 <style>
+.report-kind-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.report-kind-individual { background: var(--purple-lt); color: var(--purple-dk); }
+.report-kind-diagnostic { background: #E8F4FD; color: #1A5276; }
 .trend-badge {
   display: inline-block;
   font-size: 12px;
@@ -183,7 +168,7 @@ function openPrint(e, url) {
   w.addEventListener('load', () => w.print());
 }
 </script>
-{% if individual or diagnostics %}
-{{ list_filter_script('.report-row', 'reports', '#filter-reports', []) }}
+{% if report_rows %}
+{{ list_filter_script('.report-row', 'reports', '#filter-reports', ['month']) }}
 {% endif %}
 {% endblock %}
