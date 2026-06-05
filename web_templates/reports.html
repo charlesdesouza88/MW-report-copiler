@@ -3,21 +3,28 @@
 {% block title %}Relatórios{% endblock %}
 {% block page_title %}Relatórios gerados{% endblock %}
 
-{% block topbar_actions %}
-  {% if report_rows %}
-  <a href="{{ url_for('download_all', month=selected_month) if selected_month else url_for('download_all') }}" class="btn btn-outline btn-sm">↓ Baixar todos (.zip)</a>
-  {% endif %}
-  <form method="post" action="{{ url_for('generate') }}" style="display:inline-flex; gap:8px; align-items:center;">
-    {% if available_months %}
-    <select name="report_month" class="input-select" style="padding:6px 10px; border-radius:8px; border:1px solid #E2E2E2;">
-      {% for m in available_months %}
-      <option value="{{ m }}" {% if m == (selected_month or default_month) %}selected{% endif %}>{{ month_label(m) }}</option>
-      {% endfor %}
-    </select>
+{% block topbar_actions %}{% endblock %}
+
+{% macro report_actions_bar() %}
+<div class="page-toolbar">
+  <span class="page-toolbar-label">Ações</span>
+  <div class="page-toolbar-actions">
+    {% if report_rows %}
+    <a href="{{ url_for('download_all', month=selected_month) if selected_month else url_for('download_all') }}" class="btn btn-outline btn-sm">↓ Baixar todos (.zip)</a>
     {% endif %}
-    <button type="submit" class="btn btn-primary btn-sm">▶ Regenerar</button>
-  </form>
-{% endblock %}
+    <form method="post" action="{{ url_for('generate') }}">
+      {% if available_months %}
+      <select name="report_month" class="input-select" aria-label="Mês para regenerar">
+        {% for m in available_months %}
+        <option value="{{ m }}" {% if m == (selected_month or default_month) %}selected{% endif %}>{{ month_label(m) }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      <button type="submit" class="btn btn-primary btn-sm">▶ Regenerar</button>
+    </form>
+  </div>
+</div>
+{% endmacro %}
 
 {% block content %}
 
@@ -31,7 +38,7 @@
     Nenhum relatório gerado ainda.
     {% endif %}
   </p>
-  <form method="post" action="{{ url_for('generate') }}">
+  <form method="post" action="{{ url_for('generate') }}" class="page-toolbar-actions" style="justify-content:center;">
     {% if available_months %}
     <input type="hidden" name="report_month" value="{{ selected_month or default_month }}">
     {% endif %}
@@ -39,6 +46,8 @@
   </form>
 </div>
 {% else %}
+
+{{ report_actions_bar() }}
 
 {% call filter_panel('filter-reports', 'Buscar aluno, turma ou mês...') %}
   {{ filter_group_extra('Tipo', [
@@ -61,8 +70,49 @@
 {% endcall %}
 
 <div class="section-title mb-16">Relatórios ({{ report_rows|length }})</div>
-<div class="table-wrap mb-24">
-  <table>
+
+<div class="reports-cards-view">
+  {% for row in report_rows %}
+  {% set trend = row.trend %}
+  {% set turma_label = turma_labels.get(row.turma, row.turma) if row.turma else '' %}
+  <div class="report-card report-row filter-row-item"
+       style="--filter-i: {{ loop.index0 % 12 }}"
+       data-filter-id="{{ loop.index0 }}"
+       data-report-kind="{{ row.kind }}"
+       data-month="{{ row.month }}"
+       data-turma="{{ row.turma }}"
+       data-trend="{{ trend.direction if trend else '__none__' }}"
+       data-search="{{ (row.display ~ ' ' ~ turma_label ~ ' ' ~ (month_label(row.month) if row.month else '') ~ ' ' ~ row.kind)|lower }}">
+    <div class="report-card-header">
+      <div>
+        {% if row.kind == 'diagnostic' %}
+        <span class="report-kind-badge report-kind-diagnostic">Diagnóstico</span>
+        {% else %}
+        <span class="report-kind-badge report-kind-individual">Individual</span>
+        {% endif %}
+        <strong style="display:block; margin-top:8px; font-size:15px;">{{ row.display }}</strong>
+      </div>
+      {% if trend %}
+      <span class="trend-badge trend-{{ trend.direction }}">{{ trend.symbol }} {{ trend.label }}</span>
+      {% endif %}
+    </div>
+    <div class="report-card-meta">
+      {% if row.turma %}<span class="tag">{{ turma_label }}</span>{% endif %}
+      {% if row.month %}<span class="tag">{{ month_label(row.month) }}</span>{% endif %}
+    </div>
+    <div class="report-card-actions">
+      <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank" class="btn btn-ghost btn-sm">👁 Visualizar</a>
+      <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank"
+         onclick="openPrint(event, '{{ url_for('preview', filename=row.filename) }}')"
+         class="btn btn-ghost btn-sm">🖨 Imprimir</a>
+      <a href="{{ url_for('download_report', filename=row.filename) }}" class="btn btn-primary btn-sm">↓ Baixar</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="table-wrap mb-24 reports-table-view">
+  <table class="reports-table">
     <thead>
       <tr>
         <th>Tipo</th>
@@ -70,7 +120,7 @@
         <th>Turma</th>
         <th>Mês</th>
         <th>Evolução</th>
-        <th></th>
+        <th class="col-actions">Ações</th>
       </tr>
     </thead>
     <tbody>
@@ -116,7 +166,7 @@
           <span class="text-gray font-sm">—</span>
           {% endif %}
         </td>
-        <td>
+        <td class="col-actions">
           <div class="report-actions">
             <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank" class="btn btn-ghost btn-xs">👁 Visualizar</a>
             <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank"
