@@ -177,41 +177,53 @@ def composite_donut_chart(current, prior=None, size=96, stroke=10):
     )
 
 
-def column_bar_chart(items, bar_w=28, gap=12, max_h=84, label_h=20, axis_w=18, title=''):
+def column_bar_chart(items, bar_w=28, gap=12, max_h=84, label_h=24, axis_w=18, title='', pad_top=20):
     """Vertical column chart for scores 1–5 with axis labels and bar tracks."""
     n = len(items)
     chart_x = axis_w + 4
     width = chart_x + max(n * (bar_w + gap) + gap, bar_w + gap * 2)
-    height = max_h + label_h + 14
+    plot_bottom = pad_top + max_h
+    height = plot_bottom + label_h + 8
     cols = []
     y_ticks = []
     for level in range(1, 6):
-        y = round(max_h - (level / 5.0) * max_h, 1)
+        y = round(pad_top + max_h - (level / 5.0) * max_h, 1)
         y_ticks.append(dict(level=level, y=y, label_x=axis_w - 2))
     for i, item in enumerate(items):
         score = int(item['score'])
-        h = round((score / 5.0) * max_h, 1)
+        h = max(1, round((score / 5.0) * max_h, 1))
         x = chart_x + gap + i * (bar_w + gap)
+        bar_y = pad_top + max_h - h
+        if h >= 24:
+            score_text_y = round(bar_y + h / 2 + 4, 1)
+            score_inside = True
+        else:
+            score_text_y = round(max(pad_top + 6, bar_y - 8), 1)
+            score_inside = False
         cols.append(dict(
             label=item['label'],
             score=score,
             x=x,
-            y=max_h - h,
+            y=bar_y,
             w=bar_w,
             h=h,
-            track_y=0,
+            track_y=pad_top,
             track_h=max_h,
             text_x=round(x + bar_w / 2, 1),
             label_x=round(x + bar_w / 2, 1),
+            score_text_y=score_text_y,
+            score_inside=score_inside,
         ))
     return dict(
         width=width,
         height=height,
         max_h=max_h,
+        pad_top=pad_top,
+        plot_bottom=plot_bottom,
         cols=cols,
-        label_y=max_h + label_h,
+        label_y=plot_bottom + label_h - 2,
         axis_x=chart_x - 2,
-        axis_y=max_h,
+        axis_y=plot_bottom,
         y_ticks=y_ticks,
         title=title,
     )

@@ -459,16 +459,22 @@ body {
     <div class="class-summary-att-title">Gráfico de colunas — médias</div>
     <svg class="chart-svg" width="{{ class_summary.column_chart.width }}" height="{{ class_summary.column_chart.height }}" viewBox="0 0 {{ class_summary.column_chart.width }} {{ class_summary.column_chart.height }}" font-family="Arial" role="img" aria-label="Médias da turma">
       {% if class_summary.column_chart.title %}
-      <text x="{{ (class_summary.column_chart.width / 2)|int }}" y="10" text-anchor="middle" font-size="8" font-weight="bold" fill="#5B2D8E">{{ class_summary.column_chart.title }}</text>
+      <text x="{{ (class_summary.column_chart.width / 2)|int }}" y="12" text-anchor="middle" font-size="8" font-weight="bold" fill="#5B2D8E">{{ class_summary.column_chart.title }}</text>
       {% endif %}
       {% for tick in class_summary.column_chart.y_ticks %}
-      <text x="{{ tick.label_x }}" y="{{ tick.y + 4 }}" text-anchor="end" font-size="7" fill="#888">{{ tick.level }}</text>
+      <text x="{{ tick.label_x }}" y="{{ tick.y + 3 }}" text-anchor="end" font-size="7" fill="#888" dominant-baseline="middle">{{ tick.level }}</text>
       <line x1="{{ class_summary.column_chart.axis_x }}" y1="{{ tick.y }}" x2="{{ class_summary.column_chart.width - 6 }}" y2="{{ tick.y }}" stroke="#EEE" stroke-width="1"/>
       {% endfor %}
+      <line x1="{{ class_summary.column_chart.axis_x }}" y1="{{ class_summary.column_chart.pad_top }}" x2="{{ class_summary.column_chart.axis_x }}" y2="{{ class_summary.column_chart.plot_bottom }}" stroke="#CCC" stroke-width="1"/>
+      <line x1="{{ class_summary.column_chart.axis_x }}" y1="{{ class_summary.column_chart.plot_bottom }}" x2="{{ class_summary.column_chart.width - 6 }}" y2="{{ class_summary.column_chart.plot_bottom }}" stroke="#CCC" stroke-width="1"/>
       {% for col in class_summary.column_chart.cols %}
       <rect x="{{ col.x }}" y="{{ col.track_y }}" width="{{ col.w }}" height="{{ col.track_h }}" fill="#E8E8E8" rx="4"/>
       <rect class="anim-col-bar" style="animation-delay: {{ loop.index0 * 0.12 }}s" x="{{ col.x }}" y="{{ col.y }}" width="{{ col.w }}" height="{{ col.h }}" fill="#5B2D8E" rx="4"/>
-      <text x="{{ col.text_x }}" y="{{ col.y - 4 }}" text-anchor="middle" font-size="11" font-weight="bold" fill="#5B2D8E">{{ col.score }}</text>
+      {% endfor %}
+      {% for col in class_summary.column_chart.cols %}
+      <text x="{{ col.text_x }}" y="{{ col.score_text_y }}" text-anchor="middle" font-size="11" font-weight="bold" fill="{% if col.score_inside %}#fff{% else %}#5B2D8E{% endif %}" dominant-baseline="middle">{{ col.score }}</text>
+      {% endfor %}
+      {% for col in class_summary.column_chart.cols %}
       <text x="{{ col.label_x }}" y="{{ class_summary.column_chart.label_y }}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="#444">{{ col.label }}</text>
       {% endfor %}
     </svg>
