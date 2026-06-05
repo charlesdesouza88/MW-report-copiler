@@ -177,16 +177,21 @@ def composite_donut_chart(current, prior=None, size=96, stroke=10):
     )
 
 
-def column_bar_chart(items, bar_w=26, gap=10, max_h=72, label_h=16):
-    """Vertical column chart for scores 1–5. items: list of {label, score}."""
+def column_bar_chart(items, bar_w=28, gap=12, max_h=84, label_h=20, axis_w=18, title=''):
+    """Vertical column chart for scores 1–5 with axis labels and bar tracks."""
     n = len(items)
-    width = max(n * (bar_w + gap) + gap, bar_w + gap * 2)
-    height = max_h + label_h + 10
+    chart_x = axis_w + 4
+    width = chart_x + max(n * (bar_w + gap) + gap, bar_w + gap * 2)
+    height = max_h + label_h + 14
     cols = []
+    y_ticks = []
+    for level in range(1, 6):
+        y = round(max_h - (level / 5.0) * max_h, 1)
+        y_ticks.append(dict(level=level, y=y, label_x=axis_w - 2))
     for i, item in enumerate(items):
         score = int(item['score'])
         h = round((score / 5.0) * max_h, 1)
-        x = gap + i * (bar_w + gap)
+        x = chart_x + gap + i * (bar_w + gap)
         cols.append(dict(
             label=item['label'],
             score=score,
@@ -194,10 +199,72 @@ def column_bar_chart(items, bar_w=26, gap=10, max_h=72, label_h=16):
             y=max_h - h,
             w=bar_w,
             h=h,
+            track_y=0,
+            track_h=max_h,
             text_x=round(x + bar_w / 2, 1),
             label_x=round(x + bar_w / 2, 1),
         ))
-    return dict(width=width, height=height, max_h=max_h, cols=cols, label_y=max_h + label_h)
+    return dict(
+        width=width,
+        height=height,
+        max_h=max_h,
+        cols=cols,
+        label_y=max_h + label_h,
+        axis_x=chart_x - 2,
+        axis_y=max_h,
+        y_ticks=y_ticks,
+        title=title,
+    )
+
+
+def horizontal_score_bars(items, bar_max_w=168, bar_h=16, label_w=78, row_gap=10, score_w=22):
+    """Aligned horizontal bars with label, track, fill, and score value."""
+    rows = []
+    y = 0
+    for item in items:
+        score = int(item['score'])
+        fill_w = round((score / 5.0) * bar_max_w, 1)
+        rows.append(dict(
+            label=item['label'],
+            score=score,
+            y=y,
+            label_x=0,
+            label_y=y + bar_h - 3,
+            bar_x=label_w,
+            bar_y=y,
+            track_w=bar_max_w,
+            fill_w=fill_w,
+            score_x=label_w + bar_max_w + 8,
+            score_y=y + bar_h - 3,
+        ))
+        y += bar_h + row_gap
+    return dict(
+        rows=rows,
+        width=label_w + bar_max_w + score_w + 10,
+        height=max(y, 1),
+        bar_h=bar_h,
+        bar_max_w=bar_max_w,
+        label_w=label_w,
+    )
+
+
+def score_ring_row(items, ring_size=58, stroke=7, gap=12):
+    """Row of labeled mini progress rings (1–5 scale)."""
+    rings = []
+    x = 0
+    for item in items:
+        score = int(item['score'])
+        donut = composite_donut_chart(score, size=ring_size, stroke=stroke)
+        rings.append(dict(
+            label=item['label'],
+            score=score,
+            x=x,
+            donut=donut,
+            label_x=round(x + ring_size / 2, 1),
+            label_y=ring_size + 12,
+        ))
+        x += ring_size + gap
+    return dict(rings=rings, width=max(x - gap, ring_size), height=ring_size + 18, ring_size=ring_size)
 
 
 def composite_sparkline(snapshots, turma, student_name, report_month, current_composite, max_points=4):
@@ -272,10 +339,21 @@ def class_summary_charts(student_data):
         sl['w'] = round((sl['count'] / total) * bar_w, 1) if total else 0
         sl['x'] = x
         x += sl['w']
+    column_chart = column_bar_chart(
+        [dict(label=l, score=max(1, min(5, int(round(a))))) for l, a in zip(labels, avgs)],
+        title='Médias da turma',
+        bar_w=32,
+        gap=14,
+    )
     return dict(
         student_count=total,
         averages=avgs,
         bars=bars,
+        column_chart=column_chart,
+        dimension_rings=score_ring_row([
+            dict(label=l, score=max(1, min(5, int(round(a)))))
+            for l, a in zip(labels, avgs)
+        ], ring_size=52, stroke=6, gap=10),
         attendance_bar=dict(width=bar_w, height=14, slices=slices),
         composite_avg=round(
             sum(student_composite_score(sd) for sd in student_data) / total, 1,
@@ -519,6 +597,7 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
 
     expanded_scores = expanded_radar_scores(dev_scores, part_overall, pres_score)
     part_labels = ['Oral', 'Foco', 'Equipe']
+    comp_labels = ['Organização', 'Pontualidade', 'Respeito']
     ctx = dict(
         student=s,
         report_month=report_month,
@@ -541,9 +620,22 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
         skill_columns=skill_column_charts(dev_scores),
         dev_column_chart=column_bar_chart([
             dict(label=dev_labels[i], score=dev_scores[i]) for i in range(len(dev_scores))
-        ]),
+        ], title='Habilidades'),
         part_column_chart=column_bar_chart([
             dict(label=part_labels[i], score=part_scores[i]) for i in range(len(part_scores))
+        ], title='Critérios'),
+        comp_column_chart=column_bar_chart([
+            dict(label=comp_labels[i], score=comp_scores[i]) for i in range(len(comp_labels))
+        ], title='Critérios'),
+        comp_labels=comp_labels,
+        horizontal_dev_bars=horizontal_score_bars([
+            dict(label=dev_labels[i], score=dev_scores[i]) for i in range(len(dev_labels))
+        ]),
+        dimension_rings=score_ring_row([
+            dict(label='Presença', score=pres_score),
+            dict(label='Desenv.', score=dev_overall),
+            dict(label='Particip.', score=part_overall),
+            dict(label='Comport.', score=comp_overall),
         ]),
         comp_scores=comp_scores,
         comp_overall=comp_overall,
