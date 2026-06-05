@@ -1,0 +1,8 @@
+{% macro page_toolbar(label='Ações') %}
+<div class="page-toolbar">
+  <span class="page-toolbar-label">{{ label }}</span>
+  <div class="page-toolbar-actions">
+    {{ caller() }}
+  </div>
+</div>
+{% endmacro %}

@@ -2,20 +2,7 @@
 {% block title %}Dashboard{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
 
-{% block topbar_actions %}
-  {% if data_ready %}
-  <form method="post" action="{{ url_for('generate') }}" style="display:inline-flex; gap:8px; align-items:center;">
-    {% if available_months %}
-    <select name="report_month" style="padding:6px 10px; border-radius:8px; border:1px solid #E2E2E2;">
-      {% for m in available_months %}
-      <option value="{{ m }}" {% if m == default_month %}selected{% endif %}>{{ month_label(m) }}</option>
-      {% endfor %}
-    </select>
-    {% endif %}
-    <button type="submit" class="btn btn-primary">▶ Gerar Relatórios</button>
-  </form>
-  {% endif %}
-{% endblock %}
+{% block topbar_actions %}{% endblock %}
 
 {% block content %}
 
