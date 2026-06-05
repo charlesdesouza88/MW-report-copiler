@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros/turma_filter_script.html' import turma_filter_script %}
+{% from '_macros/list_filters.html' import filter_panel, filter_group, list_filter_script %}
 {% set return_turma = request.args.get('turma', '') %}
 {% block title %}Aulas{% endblock %}
 {% block page_title %}Detalhes das aulas{% endblock %}
@@ -14,19 +14,24 @@
   Cadastre o conteúdo de cada aula por turma — os mesmos dados do arquivo <code>lessons.csv</code>.
 </p>
 
-{% if turmas %}
-<div class="filter-scroll mb-16" id="turma-filter">
-  <button class="btn btn-sm btn-primary filter-btn" data-turma="">Todas</button>
-  {% for t in turmas %}
-  <button class="btn btn-sm btn-ghost filter-btn" data-turma="{{ t }}">{{ t }}</button>
-  {% endfor %}
-</div>
-{% endif %}
-
 {% if lessons %}
+{% call filter_panel('filter-lessons', 'Buscar por turma, conteúdo ou habilidades...') %}
+  {% if turmas %}
+  {{ filter_group('Turma', turmas, 'turma', 'Todas') }}
+  {% endif %}
+  {% if habilidades %}
+  {{ filter_group('Habilidades', habilidades, 'habilidades', 'Todas') }}
+  {% endif %}
+{% endcall %}
+
 <div class="students-cards-view">
   {% for lesson in lessons %}
-  <div class="student-card lesson-card-item" data-turma="{{ lesson.turma }}">
+  <div class="student-card lesson-card-item filter-row-item"
+       style="--filter-i: {{ loop.index0 % 12 }}"
+       data-filter-id="{{ loop.index0 }}"
+       data-turma="{{ lesson.turma }}"
+       data-habilidades="{{ lesson.habilidades or '' }}"
+       data-search="{{ (lesson.turma ~ ' ' ~ (lesson.aula_num or '') ~ ' ' ~ (lesson.date or '') ~ ' ' ~ (lesson.licao_conteudo or '') ~ ' ' ~ (lesson.habilidades or '') ~ ' ' ~ (lesson.atividade_extra or ''))|lower }}">
     <div class="student-card-header">
       <div>
         <strong style="font-size:15px;">Aula {{ lesson.aula_num or '—' }}</strong>
@@ -68,7 +73,12 @@
     </thead>
     <tbody>
       {% for lesson in lessons %}
-      <tr class="lesson-row" data-turma="{{ lesson.turma }}">
+      <tr class="lesson-row filter-row-item"
+          style="--filter-i: {{ loop.index0 % 12 }}"
+          data-filter-id="{{ loop.index0 }}"
+          data-turma="{{ lesson.turma }}"
+          data-habilidades="{{ lesson.habilidades or '' }}"
+          data-search="{{ (lesson.turma ~ ' ' ~ (lesson.aula_num or '') ~ ' ' ~ (lesson.date or '') ~ ' ' ~ (lesson.licao_conteudo or '') ~ ' ' ~ (lesson.habilidades or '') ~ ' ' ~ (lesson.atividade_extra or ''))|lower }}">
         <td class="text-gray font-sm">{{ loop.index }}</td>
         <td><span class="tag">{{ lesson.turma }}</span></td>
         <td><strong>{{ lesson.aula_num or '—' }}</strong></td>
@@ -103,5 +113,7 @@
 {% endblock %}
 
 {% block scripts %}
-{{ turma_filter_script('.lesson-row, .lesson-card-item', 'lessons') }}
+{% if lessons %}
+{{ list_filter_script('.lesson-row, .lesson-card-item', 'lessons', '#filter-lessons', ['turma']) }}
+{% endif %}
 {% endblock %}

@@ -67,7 +67,11 @@ body { font-family: var(--font); background: #F4F2F8; color: var(--text); min-he
 .content { padding: 24px 28px; flex: 1; }
 
 /* ── Cards ── */
-.card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+.card {
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card:hover { box-shadow: 0 6px 20px rgba(91, 45, 142, 0.08); }
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
 .stat-card {
   background: var(--white); border: 1px solid var(--border);
@@ -82,9 +86,10 @@ body { font-family: var(--font); background: #F4F2F8; color: var(--text); min-he
   display: inline-flex; align-items: center; gap: 6px;
   padding: 9px 18px; border-radius: 7px; font-size: 13px; font-weight: 700;
   cursor: pointer; border: none; text-decoration: none;
-  transition: opacity 0.12s;
+  transition: opacity 0.15s, transform 0.15s ease, box-shadow 0.15s ease;
 }
-.btn:hover { opacity: 0.85; }
+.btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
 .btn-primary { background: var(--purple); color: var(--white); }
 .btn-outline { background: transparent; color: var(--purple); border: 2px solid var(--purple); }
 .btn-danger { background: #C0392B; color: var(--white); }
@@ -226,6 +231,86 @@ input[type="time"].input-datetime::-moz-focus-inner {
 .student-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .report-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .form-actions-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+/* ── List filters ── */
+.filter-panel { padding: 16px 18px; animation: filterPanelIn 0.4s ease backwards; }
+.filter-panel-top {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.filter-search-wrap {
+  flex: 1; min-width: 200px; max-width: 420px; position: relative;
+}
+.filter-search-icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--gray); font-size: 15px; pointer-events: none;
+}
+.filter-search {
+  width: 100%; padding: 10px 12px 10px 36px; border: 1px solid var(--border);
+  border-radius: 999px; font-size: 13px; background: #FAFAFC;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.filter-search:focus {
+  outline: none; border-color: var(--purple); background: var(--white);
+  box-shadow: 0 0 0 3px rgba(91, 45, 142, 0.12);
+}
+.filter-meta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.filter-count { font-size: 11px; font-weight: 700; color: var(--gray); white-space: nowrap; }
+.filter-groups { display: flex; flex-direction: column; gap: 12px; }
+.filter-group { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.filter-group-label {
+  font-size: 10px; font-weight: 800; color: var(--purple); text-transform: uppercase;
+  letter-spacing: 0.6px; min-width: 72px; flex-shrink: 0;
+}
+.filter-chips .filter-chip { transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease; }
+.filter-chips .filter-chip.is-active { transform: scale(1.02); }
+.filter-empty {
+  text-align: center; padding: 40px 24px; margin-bottom: 16px;
+  animation: fadeInUp 0.35s ease;
+}
+.filter-empty-icon { font-size: 32px; color: var(--purple); opacity: 0.35; margin-bottom: 10px; }
+.filter-row-item { animation: fadeInUp 0.38s ease backwards; animation-delay: calc(var(--filter-i, 0) * 0.035s); }
+tr.filter-row-item.filter-hidden { display: none; }
+.student-card-item.filter-row-item.filter-hidden,
+.lesson-card-item.filter-row-item.filter-hidden {
+  opacity: 0; transform: translateY(-6px) scale(0.98); max-height: 0; margin: 0; padding: 0;
+  overflow: hidden; border-width: 0; pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s ease, max-height 0.28s ease, margin 0.22s ease, padding 0.22s ease;
+}
+.student-card-item.filter-row-item,
+.lesson-card-item.filter-row-item {
+  transition: opacity 0.22s ease, transform 0.22s ease, max-height 0.28s ease;
+}
+
+/* ── Motion ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes filterPanelIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.content-animate > .filter-panel,
+.content-animate > .card,
+.content-animate > .table-wrap,
+.content-animate > .students-cards-view,
+.content-animate > .section-title,
+.content-animate > p.text-gray {
+  animation: fadeInUp 0.42s ease backwards;
+}
+.content-animate > *:nth-child(1) { animation-delay: 0.02s; }
+.content-animate > *:nth-child(2) { animation-delay: 0.06s; }
+.content-animate > *:nth-child(3) { animation-delay: 0.1s; }
+.content-animate > *:nth-child(4) { animation-delay: 0.14s; }
+.content-animate > *:nth-child(5) { animation-delay: 0.18s; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 /* ── CSV template preview ── */
 .csv-preview-wrap { border: 1px solid #E8E0F1; border-radius: 12px; overflow: auto; background: #fff; -webkit-overflow-scrolling: touch; }
@@ -400,7 +485,7 @@ body.nav-open .nav-backdrop { display: block; }
     <div class="page-title">{{ self.page_title() }}</div>
     <div class="flex gap-8">{{ self.topbar_actions() }}</div>
   </div>
-  <div class="content">
+  <div class="content content-animate">
     {% block content %}{% endblock %}
   </div>
 </div>

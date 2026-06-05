@@ -474,6 +474,71 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
     assert blocked.status_code == 403
 
 
+def test_flagged_student_appears_in_extra_sessions(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "teacher_classes.json").write_text("{}", encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,01/01,L1,,\n",
+        encoding="utf-8",
+    )
+
+    store = UserStore(db_store=None, json_path=data_dir / "users.json")
+    store.initialize()
+    store.create_teacher("chuck@test.local", "pass123", "Chuck")
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "db_store", None)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    monkeypatch.setattr(web_app, "user_store", store)
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    client.post("/login", data={"email": "chuck@test.local", "password": "pass123"})
+    client.post(
+        "/students/0/edit",
+        data={
+            "teacher": "Chuck",
+            "turma": "MASTER",
+            "turma_display": "Masters",
+            "nivel": "KIDS 1",
+            "horario": "Tue 19:00",
+            "student_name": "Jane Doe",
+            "participacao": "4",
+            "comportamento": "3",
+            "speaking": "4",
+            "listening": "5",
+            "foco": "4",
+            "writing": "3",
+            "reading": "4",
+            "gramatica": "2",
+            "trabalho_equipe": "3",
+            "organizacao": "3",
+            "pontualidade": "3",
+            "respeito_regras": "3",
+            "faltas": "1",
+            "missed_aulas": "2",
+            "aula_extra": "Reforço",
+            "feedback_participacao": "Good",
+            "feedback_foco": "Focus",
+            "feedback_trabalho_equipe": "Team",
+            "recomendacoes": "Practice speaking",
+            "observacao": "",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.get("/extra-sessions")
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "Jane Doe" in html
+    assert "Indicado no relatório" in html
+    assert "Reforço" in html
+
+
 def test_teacher_sees_only_own_students(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
@@ -692,7 +757,7 @@ def test_students_page_shows_class_name_not_nivel(monkeypatch, tmp_path):
     _login(client, email="teacher@test.local", password="teachpass")
     html = client.get("/students").get_data(as_text=True)
     assert "Turma Teens noite" in html
-    assert 'data-turma="TEENS_1">Turma Teens noite' in html
+    assert 'data-filter-value="TEENS_1">Turma Teens noite' in html
 
 
 def test_teacher_adds_student_to_dashboard_turma(monkeypatch, tmp_path):

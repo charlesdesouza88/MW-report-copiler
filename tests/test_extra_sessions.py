@@ -1,16 +1,22 @@
 from pathlib import Path
 
 from extra_sessions import (
+    AUTO_AULA_EXTRA_MARKER,
     ATENDIMENTOS_CSV_HEADERS,
     build_atendimentos_template_csv,
+    clear_aula_extra_after_completed_session,
     display_status,
     internal_row_to_csv_row,
+    is_auto_aula_extra_row,
     is_status_ok,
+    normalize_aula_extra,
     normalize_status,
     parse_import_csv,
     parse_session_type,
     parse_turma_from_student_name,
+    reconcile_flagged_students,
     row_from_form,
+    sync_student_extra_sessions,
 )
 
 
@@ -34,6 +40,20 @@ def test_parse_turma_from_student_name():
 
 def test_parse_import_csv_sample():
     rows, errors = parse_import_csv(SAMPLE_CSV)
+    assert not errors
+    assert len(rows) == 2
+    assert rows[0]['student_name'] == 'Jane Test (Comet - A)'
+    assert rows[0]['turma'] == 'Comet - A'
+    assert rows[0]['realizado'] == 'NÃO'
+    assert rows[0]['contatado'] == 'OK'
+    assert rows[1]['marcado'] == 'OK'
+    assert rows[0]['teacher'] == 'Chuck'
+    assert rows[1]['session_type'] == 'Reposição'
+
+
+def test_parse_import_csv_skips_blank_header_row():
+    text = ',,,,,,,,,,\n' + SAMPLE_CSV.lstrip('\n')
+    rows, errors = parse_import_csv(text)
     assert not errors
     assert len(rows) == 2
     assert rows[0]['student_name'] == 'Jane Test (Comet - A)'
@@ -109,3 +129,68 @@ def test_internal_row_to_csv_row():
     assert row['Contatado'] == 'OK'
     assert row['Realizado'] == 'NÃO'
     assert set(row.keys()) == set(ATENDIMENTOS_CSV_HEADERS)
+
+
+def test_normalize_aula_extra():
+    assert normalize_aula_extra('Reforço') == 'Reforço'
+    assert normalize_aula_extra('reposicao') == 'Reposição'
+    assert normalize_aula_extra('') == ''
+
+
+def test_sync_student_extra_sessions_creates_row():
+    student = {
+        'teacher': 'Amanda',
+        'student_name': 'Maria Fernanda Carvalho Pires',
+        'turma': 'COMET',
+        'aula_extra': 'Reforço',
+    }
+    rows = sync_student_extra_sessions([], student)
+    assert len(rows) == 1
+    assert rows[0]['session_type'] == 'Reforço'
+    assert rows[0]['teacher'] == 'Amanda'
+    assert is_auto_aula_extra_row(rows[0])
+
+
+def test_sync_student_extra_sessions_clears_auto_row():
+    student = {
+        'teacher': 'Amanda',
+        'student_name': 'Maria Fernanda Carvalho Pires',
+        'turma': 'COMET',
+        'aula_extra': '',
+    }
+    existing = sync_student_extra_sessions([], {
+        **student,
+        'aula_extra': 'Reposição',
+    })
+    rows = sync_student_extra_sessions(existing, student)
+    assert rows == []
+
+
+def test_reconcile_flagged_students():
+    students = [{
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe',
+        'turma': 'MASTER',
+        'aula_extra': 'Reposição',
+    }]
+    rows = reconcile_flagged_students([], students)
+    assert len(rows) == 1
+    assert rows[0]['session_type'] == 'Reposição'
+
+
+def test_clear_aula_extra_after_completed_session():
+    students = [{
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe',
+        'turma': 'MASTER',
+        'aula_extra': 'Reforço',
+    }]
+    session = {
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe (MASTER)',
+        'turma': 'MASTER',
+        'session_type': 'Reforço',
+        'realizado': 'OK',
+    }
+    updated = clear_aula_extra_after_completed_session(students, session)
+    assert updated[0]['aula_extra'] == ''

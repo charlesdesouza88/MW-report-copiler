@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_macros/list_filters.html' import filter_panel, filter_group, list_filter_script %}
 {% block title %}Reforço e Reposições{% endblock %}
 {% block page_title %}Atendimentos — reforço, reposição e aulas extras{% endblock %}
 
@@ -11,6 +12,7 @@
 <p class="text-gray font-sm" style="margin-bottom:16px;">
   Agende e acompanhe <strong>reforço</strong>, <strong>reposição de aulas perdidas</strong>, nivelamentos e aulas extras —
   no mesmo formato da planilha de atendimentos (contato, marcação e realização).
+  Alunos marcados com <strong>Reforço</strong> ou <strong>Reposição</strong> no cadastro entram aqui automaticamente.
 </p>
 
 {% if message %}
@@ -50,19 +52,16 @@
 </div>
 {% endif %}
 
-{% if teachers or session_types %}
-<div class="filter-scroll mb-16" id="session-filters">
-  <button type="button" class="btn btn-sm btn-primary filter-btn" data-teacher="" data-type="">Todos</button>
-  {% for t in teachers %}
-  <button type="button" class="btn btn-sm btn-ghost filter-btn" data-teacher="{{ t }}" data-type="">{{ t }}</button>
-  {% endfor %}
-  {% for st in session_types %}
-  <button type="button" class="btn btn-sm btn-ghost filter-btn" data-teacher="" data-type="{{ st }}">{{ st }}</button>
-  {% endfor %}
-</div>
-{% endif %}
-
 {% if sessions %}
+{% call filter_panel('filter-extra-sessions', 'Buscar aluno, turma, assunto ou professor...') %}
+  {% if teachers %}
+  {{ filter_group('Professor', teachers, 'teacher', 'Todos') }}
+  {% endif %}
+  {% if session_types %}
+  {{ filter_group('Tipo', session_types, 'type', 'Todos') }}
+  {% endif %}
+{% endcall %}
+
 <div class="table-wrap students-table-view">
   <table>
     <thead>
@@ -82,15 +81,24 @@
     </thead>
     <tbody>
       {% for row in sessions %}
-      <tr class="session-row"
+      <tr class="session-row filter-row-item"
+          style="--filter-i: {{ loop.index0 % 12 }}"
           data-teacher="{{ row.teacher }}"
-          data-type="{{ row.session_type }}">
+          data-type="{{ row.session_type }}"
+          data-search="{{ (row.student_name ~ ' ' ~ (row.turma or '') ~ ' ' ~ (row.session_type or '') ~ ' ' ~ (row.teacher or '') ~ ' ' ~ (row.assuntos or '') ~ ' ' ~ (row.observacao or ''))|lower }}">
         <td>
           <strong>{{ row.student_name }}</strong>
-          {% if row.assuntos %}
+          {% if row.observacao == auto_aula_extra_marker %}
+          <div class="font-sm" style="margin-top:4px;">
+            <span class="tag tag-orange">Indicado no relatório</span>
+          </div>
+          {% endif %}
+          {% if row.assuntos and row.observacao != auto_aula_extra_marker %}
+          <div class="font-sm text-gray" style="margin-top:4px;">{{ row.assuntos }}</div>
+          {% elif row.assuntos and row.observacao == auto_aula_extra_marker and row.assuntos != row.session_type %}
           <div class="font-sm text-gray" style="margin-top:4px;">{{ row.assuntos }}</div>
           {% endif %}
-          {% if row.observacao %}
+          {% if row.observacao and row.observacao != auto_aula_extra_marker %}
           <div class="font-sm text-gray" style="margin-top:2px;">{{ row.observacao }}</div>
           {% endif %}
         </td>
@@ -135,61 +143,10 @@
 </div>
 {% endif %}
 
-<script>
-(function () {
-  const buttons = document.querySelectorAll('#session-filters .filter-btn');
-  const rows = document.querySelectorAll('.session-row');
-  if (!buttons.length) return;
+{% endblock %}
 
-  let activeTeacher = '';
-  let activeType = '';
-
-  function applyFilters() {
-    rows.forEach((row) => {
-      const matchTeacher = !activeTeacher || row.dataset.teacher === activeTeacher;
-      const matchType = !activeType || row.dataset.type === activeType;
-      row.style.display = matchTeacher && matchType ? '' : 'none';
-    });
-  }
-
-  buttons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const t = btn.dataset.teacher || '';
-      const ty = btn.dataset.type || '';
-      if (t) {
-        activeTeacher = activeTeacher === t ? '' : t;
-        activeType = '';
-      } else if (ty) {
-        activeType = activeType === ty ? '' : ty;
-        activeTeacher = '';
-      } else {
-        activeTeacher = '';
-        activeType = '';
-      }
-      buttons.forEach((b) => b.classList.remove('btn-primary'));
-      buttons.forEach((b) => b.classList.add('btn-ghost'));
-      if (activeTeacher) {
-        buttons.forEach((b) => {
-          if (b.dataset.teacher === activeTeacher) {
-            b.classList.add('btn-primary');
-            b.classList.remove('btn-ghost');
-          }
-        });
-      } else if (activeType) {
-        buttons.forEach((b) => {
-          if (b.dataset.type === activeType) {
-            b.classList.add('btn-primary');
-            b.classList.remove('btn-ghost');
-          }
-        });
-      } else {
-        buttons[0].classList.add('btn-primary');
-        buttons[0].classList.remove('btn-ghost');
-      }
-      applyFilters();
-    });
-  });
-})();
-</script>
-
+{% block scripts %}
+{% if sessions %}
+{{ list_filter_script('.session-row', 'extra_sessions', '#filter-extra-sessions', []) }}
+{% endif %}
 {% endblock %}

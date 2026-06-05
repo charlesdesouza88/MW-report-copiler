@@ -5,12 +5,15 @@ import io
 import re
 from pathlib import Path
 
+from auth import normalize_teacher_name
 from form_ui import date_from_form, time_from_form
 
 EXTRA_SESSION_FIELDS = [
     'teacher', 'student_name', 'turma', 'date', 'horario', 'turno',
     'session_type', 'assuntos', 'observacao', 'contatado', 'marcado', 'realizado',
 ]
+
+AUTO_AULA_EXTRA_MARKER = '__auto_aula_extra__'
 
 EXTRA_SESSION_FIELD_LABELS = {
     'teacher': 'Professor',
@@ -253,9 +256,20 @@ def _map_import_row(raw):
     return coerce_session_status_fields(mapped)
 
 
+def _dict_reader_skip_blank_header(text):
+    """Teacher exports often start with an empty separator row before real headers."""
+    lines = text.splitlines()
+    while lines:
+        reader = csv.DictReader(io.StringIO('\n'.join(lines)))
+        if reader.fieldnames and any((name or '').strip() for name in reader.fieldnames):
+            return reader
+        lines = lines[1:]
+    return csv.DictReader(io.StringIO(text))
+
+
 def parse_import_csv(text):
     """Read spreadsheet export; returns list of row dicts."""
-    reader = csv.DictReader(io.StringIO(text))
+    reader = _dict_reader_skip_blank_header(text)
     if not reader.fieldnames:
         return [], ['CSV sem cabeçalho válido.']
 
@@ -275,3 +289,143 @@ def parse_import_csv(text):
 def load_reference_csv(path):
     """Load rows from the user's reference file path (for one-off import)."""
     return Path(path).read_text(encoding='utf-8-sig')
+
+
+def normalize_aula_extra(value):
+    """Canonical aula_extra flag: Reforço, Reposição, or empty."""
+    raw = (value or '').strip()
+    low = raw.casefold()
+    if low in ('reforço', 'reforco'):
+        return 'Reforço'
+    if low in ('reposição', 'reposicao'):
+        return 'Reposição'
+    return ''
+
+
+def is_auto_aula_extra_row(row):
+    return (row.get('observacao') or '').strip() == AUTO_AULA_EXTRA_MARKER
+
+
+def _student_identity_key(student_name='', turma='', teacher=''):
+    name = _display_name_key(student_name)
+    return (
+        name,
+        (turma or '').strip().upper(),
+        normalize_teacher_name(teacher).casefold(),
+    )
+
+
+def _display_name_key(name):
+    cleaned = clean_student_display_name(name).casefold()
+    if ' (' in cleaned:
+        return cleaned.split(' (', 1)[0].strip()
+    return cleaned
+
+
+def _row_matches_student(row, student):
+    if _display_name_key(row.get('student_name')) != _display_name_key(student.get('student_name')):
+        return False
+    row_teacher = normalize_teacher_name(row.get('teacher', '')).casefold()
+    student_teacher = normalize_teacher_name(student.get('teacher', '')).casefold()
+    return row_teacher == student_teacher
+
+
+def has_open_session_for_student(rows, student, session_type):
+    """True when a pending or completed session exists for this student and type."""
+    target = (session_type or '').strip()
+    for row in rows:
+        if not _row_matches_student(row, student):
+            continue
+        if (row.get('session_type') or '').strip() != target:
+            continue
+        return True
+    return False
+
+
+def student_row_from_aula_extra_flag(student):
+    """Build a pending extra-session row from a flagged student."""
+    session_type = normalize_aula_extra(student.get('aula_extra'))
+    if not session_type:
+        return None
+    name = (student.get('student_name') or '').strip()
+    turma = (student.get('turma') or '').strip()
+    display_name = f'{name} ({turma})' if turma and f'({turma})' not in name else name
+    return coerce_session_status_fields({
+        'teacher': (student.get('teacher') or '').strip(),
+        'student_name': clean_student_display_name(display_name),
+        'turma': turma,
+        'date': '',
+        'horario': '',
+        'turno': '',
+        'session_type': session_type,
+        'assuntos': session_type,
+        'observacao': AUTO_AULA_EXTRA_MARKER,
+        'contatado': '',
+        'marcado': '',
+        'realizado': '',
+    })
+
+
+def sync_student_extra_sessions(all_rows, student):
+    """Create or remove auto-synced rows when a student's aula_extra flag changes."""
+    session_type = normalize_aula_extra(student.get('aula_extra'))
+    kept = [
+        row for row in all_rows
+        if not (is_auto_aula_extra_row(row) and _row_matches_student(row, student))
+    ]
+    if not session_type:
+        return kept
+    if has_open_session_for_student(kept, student, session_type):
+        return kept
+    new_row = student_row_from_aula_extra_flag(student)
+    if new_row:
+        kept.append(new_row)
+    return kept
+
+
+def reconcile_flagged_students(all_rows, students):
+    """Ensure every Reforço/Reposição student has a pending extra-session row."""
+    out = list(all_rows)
+    for student in students:
+        session_type = normalize_aula_extra(student.get('aula_extra'))
+        if not session_type:
+            continue
+        if has_open_session_for_student(out, student, session_type):
+            continue
+        new_row = student_row_from_aula_extra_flag(student)
+        if new_row:
+            out.append(new_row)
+    return out
+
+
+def flagged_students_without_session(students, session_rows):
+    """Students flagged for extra help who still lack an open session row."""
+    pending = []
+    for student in students:
+        session_type = normalize_aula_extra(student.get('aula_extra'))
+        if not session_type:
+            continue
+        if has_open_session_for_student(session_rows, student, session_type):
+            continue
+        pending.append({
+            'student_name': student.get('student_name', ''),
+            'turma': student.get('turma', ''),
+            'teacher': student.get('teacher', ''),
+            'session_type': session_type,
+        })
+    return pending
+
+
+def clear_aula_extra_after_completed_session(students, session_row):
+    """Clear the student flag once an extra session is marked done."""
+    if not is_status_ok(session_row.get('realizado')):
+        return students
+    out = []
+    changed = False
+    for student in students:
+        row = dict(student)
+        if _row_matches_student(session_row, student) and normalize_aula_extra(row.get('aula_extra')):
+            row['aula_extra'] = ''
+            changed = True
+        out.append(row)
+    return out if changed else students

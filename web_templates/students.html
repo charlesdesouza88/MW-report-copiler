@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros/turma_filter_script.html' import turma_filter_script %}
+{% from '_macros/list_filters.html' import filter_panel, filter_turma_group, filter_group_extra, list_filter_script %}
 {% set return_turma = request.args.get('turma', '') %}
 {% block title %}Alunos{% endblock %}
 {% block page_title %}Alunos{% endblock %}
@@ -13,19 +13,26 @@
 
 {% block content %}
 
-{% if turma_filters %}
-<div class="filter-scroll mb-16" id="turma-filter">
-  <button class="btn btn-sm btn-primary filter-btn" data-turma="">Todos</button>
-  {% for f in turma_filters %}
-  <button class="btn btn-sm btn-ghost filter-btn" data-turma="{{ f.code }}">{{ f.label }}</button>
-  {% endfor %}
-</div>
-{% endif %}
-
 {% if students %}
+{% call filter_panel('filter-students', 'Buscar por nome, turma ou nível...') %}
+  {% if turma_filters %}
+  {{ filter_turma_group(turma_filters, 'Todos') }}
+  {% endif %}
+  {{ filter_group_extra('Aula extra', [
+    {'value': 'Reforço', 'label': 'Reforço'},
+    {'value': 'Reposição', 'label': 'Reposição'},
+    {'value': '__none__', 'label': 'Sem extra'},
+  ], 'aula_extra', 'Todos') }}
+{% endcall %}
+
 <div class="students-cards-view">
   {% for s in students %}
-  <div class="student-card student-card-item" data-turma="{{ s.turma }}">
+  <div class="student-card student-card-item filter-row-item"
+       style="--filter-i: {{ loop.index0 % 12 }}"
+       data-filter-id="{{ loop.index0 }}"
+       data-turma="{{ s.turma }}"
+       data-aula-extra="{{ s.aula_extra or '__none__' }}"
+       data-search="{{ (s.student_name ~ ' ' ~ turma_labels.get(s.turma, s.turma) ~ ' ' ~ (s.nivel or '') ~ ' ' ~ (s.aula_extra or ''))|lower }}">
     <div class="student-card-header">
       <div>
         <strong style="font-size:15px;">{{ s.student_name }}</strong>
@@ -75,7 +82,12 @@
     </thead>
     <tbody>
       {% for s in students %}
-      <tr class="student-row" data-turma="{{ s.turma }}">
+      <tr class="student-row filter-row-item"
+          style="--filter-i: {{ loop.index0 % 12 }}"
+          data-filter-id="{{ loop.index0 }}"
+          data-turma="{{ s.turma }}"
+          data-aula-extra="{{ s.aula_extra or '__none__' }}"
+          data-search="{{ (s.student_name ~ ' ' ~ turma_labels.get(s.turma, s.turma) ~ ' ' ~ (s.nivel or '') ~ ' ' ~ (s.aula_extra or ''))|lower }}">
         <td class="text-gray font-sm">{{ loop.index }}</td>
         <td><strong>{{ s.student_name }}</strong></td>
         <td><span class="tag">{{ turma_labels.get(s.turma, s.turma) }}</span></td>
@@ -121,5 +133,7 @@
 {% endblock %}
 
 {% block scripts %}
-{{ turma_filter_script('.student-row, .student-card-item', 'students') }}
+{% if students %}
+{{ list_filter_script('.student-row, .student-card-item', 'students', '#filter-students', ['turma']) }}
+{% endif %}
 {% endblock %}

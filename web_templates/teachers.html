@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from '_macros/list_filters.html' import filter_panel, filter_group_extra, list_filter_script %}
 {% block title %}Usuários{% endblock %}
 {% block page_title %}Usuários{% endblock %}
 {% block content %}
@@ -69,6 +70,17 @@
 
 <div class="card">
   <h2 style="font-size:15px;font-weight:900;margin-bottom:16px;">Contas cadastradas</h2>
+
+  {% if users %}
+  {% call filter_panel('filter-teachers', 'Buscar e-mail, professor ou papel...', show_search=true) %}
+    {{ filter_group_extra('Papel', [
+      {'value': 'teacher', 'label': 'Professor'},
+      {'value': 'admin', 'label': 'Admin'},
+      {'value': 'superadmin', 'label': 'Superadmin'},
+    ], 'role', 'Todos') }}
+  {% endcall %}
+  {% endif %}
+
   <div class="table-wrap" style="overflow-x:auto;">
     <table class="data-table" style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
@@ -82,7 +94,10 @@
       </thead>
       <tbody>
         {% for u in users %}
-        <tr style="border-bottom:1px solid #EEE;">
+        <tr class="user-row filter-row-item"
+            style="--filter-i: {{ loop.index0 % 12 }}; border-bottom:1px solid #EEE;"
+            data-role="{{ u.role }}"
+            data-search="{{ (u.email ~ ' ' ~ (u.teacher_name or '') ~ ' ' ~ role_labels.get(u.role, u.role))|lower }}">
           <td style="padding:12px 8px;">{{ u.email }}</td>
           <td style="padding:12px 8px;">{{ role_labels.get(u.role, u.role) }}</td>
           <td style="padding:12px 8px;">{{ u.teacher_name or '—' }}</td>
@@ -132,4 +147,10 @@
     </table>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if users %}
+{{ list_filter_script('.user-row', 'teachers', '#filter-teachers', []) }}
+{% endif %}
 {% endblock %}

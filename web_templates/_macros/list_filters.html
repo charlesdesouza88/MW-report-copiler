@@ -1,0 +1,283 @@
+{% macro filter_panel(panel_id, search_placeholder='Buscar...', show_search=true) %}
+<div class="filter-panel card mb-16" id="{{ panel_id }}" data-filter-panel>
+  <div class="filter-panel-top">
+    {% if show_search %}
+    <div class="filter-search-wrap">
+      <span class="filter-search-icon" aria-hidden="true">⌕</span>
+      <input type="search" class="filter-search" placeholder="{{ search_placeholder }}" data-filter-search autocomplete="off" aria-label="Buscar">
+    </div>
+    {% endif %}
+    <div class="filter-meta">
+      <span class="filter-count" data-filter-count aria-live="polite"></span>
+      <button type="button" class="btn btn-ghost btn-xs filter-clear" data-filter-clear hidden>Limpar filtros</button>
+    </div>
+  </div>
+  <div class="filter-groups">
+    {{ caller() }}
+  </div>
+</div>
+<div class="filter-empty card" data-filter-empty hidden>
+  <div class="filter-empty-icon" aria-hidden="true">⌕</div>
+  <p class="text-gray" style="margin-bottom:12px;">Nenhum resultado com os filtros atuais.</p>
+  <button type="button" class="btn btn-ghost btn-sm" data-filter-clear>Limpar filtros</button>
+</div>
+{% endmacro %}
+
+{% macro filter_group(label, values, filter_key, all_label='Todos') %}
+<div class="filter-group">
+  <span class="filter-group-label">{{ label }}</span>
+  <div class="filter-scroll filter-chips">
+    <button type="button" class="btn btn-sm btn-primary filter-chip is-active" data-filter-key="{{ filter_key }}" data-filter-value="">{{ all_label }}</button>
+    {% for v in values %}
+    <button type="button" class="btn btn-sm btn-ghost filter-chip" data-filter-key="{{ filter_key }}" data-filter-value="{{ v }}">{{ v }}</button>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro filter_group_labeled(label, items, filter_key, all_label='Todos') %}
+<div class="filter-group">
+  <span class="filter-group-label">{{ label }}</span>
+  <div class="filter-scroll filter-chips">
+    <button type="button" class="btn btn-sm btn-primary filter-chip is-active" data-filter-key="{{ filter_key }}" data-filter-value="">{{ all_label }}</button>
+    {% for item in items %}
+    <button type="button" class="btn btn-sm btn-ghost filter-chip" data-filter-key="{{ filter_key }}" data-filter-value="{{ item.value }}">{{ item.label }}</button>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro filter_turma_group(turma_filters, all_label='Todos') %}
+<div class="filter-group">
+  <span class="filter-group-label">Turma</span>
+  <div class="filter-scroll filter-chips">
+    <button type="button" class="btn btn-sm btn-primary filter-chip is-active" data-filter-key="turma" data-filter-value="">{{ all_label }}</button>
+    {% for f in turma_filters %}
+    <button type="button" class="btn btn-sm btn-ghost filter-chip" data-filter-key="turma" data-filter-value="{{ f.code }}">{{ f.label }}</button>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro filter_group_extra(label, items, filter_key, all_label='Todos') %}
+<div class="filter-group">
+  <span class="filter-group-label">{{ label }}</span>
+  <div class="filter-scroll filter-chips">
+    <button type="button" class="btn btn-sm btn-primary filter-chip is-active" data-filter-key="{{ filter_key }}" data-filter-value="">{{ all_label }}</button>
+    {% for item in items %}
+    <button type="button" class="btn btn-sm btn-ghost filter-chip" data-filter-key="{{ filter_key }}" data-filter-value="{{ item.value }}">{{ item.label }}</button>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro list_filter_script(row_selector, storage_key, panel_selector='[data-filter-panel]', url_keys=['turma']) %}
+<script>
+(function () {
+  if (!window.__mwListFiltersEngine) {
+    window.__mwListFiltersEngine = true;
+
+    function datasetKey(filterKey) {
+      return (filterKey || '').replace(/_/g, '-');
+    }
+
+    function parseState(storageKey, urlKeys) {
+      var state = { search: '' };
+      var params = new URLSearchParams(window.location.search);
+      urlKeys.forEach(function (k) {
+        if (params.has(k)) {
+          state[k] = params.get(k) || '';
+        }
+      });
+      try {
+        var saved = JSON.parse(sessionStorage.getItem(storageKey) || '{}');
+        Object.keys(saved).forEach(function (k) {
+          if (state[k] === undefined || state[k] === '') {
+            state[k] = saved[k] || '';
+          }
+        });
+      } catch (e) {}
+      return state;
+    }
+
+    window.MWListFilters = {
+      init: function (opts) {
+        var panel = document.querySelector(opts.panelSelector || '[data-filter-panel]');
+        if (!panel) return;
+
+        var storageKey = 'mw_list_filters_' + opts.storageKey;
+        var urlKeys = opts.urlKeys || ['turma'];
+        var rowSelector = opts.rowSelector;
+        var state = parseState(storageKey, urlKeys);
+        var searchInput = panel.querySelector('[data-filter-search]');
+        var countEl = panel.querySelector('[data-filter-count]');
+        var emptyEl = document.querySelector('[data-filter-empty]');
+        var chips = panel.querySelectorAll('.filter-chip');
+        var clearButtons = document.querySelectorAll('[data-filter-clear]');
+        var filterKeys = [];
+        var debounceTimer = null;
+
+        chips.forEach(function (chip) {
+          var key = chip.dataset.filterKey;
+          if (key && filterKeys.indexOf(key) === -1) {
+            filterKeys.push(key);
+          }
+        });
+
+        if (searchInput) {
+          searchInput.value = state.search || '';
+        }
+
+        function rows() {
+          return document.querySelectorAll(rowSelector);
+        }
+
+        function hasActiveFilters() {
+          if ((state.search || '').trim()) return true;
+          return filterKeys.some(function (k) { return !!(state[k] || ''); });
+        }
+
+        function setChipUI() {
+          chips.forEach(function (chip) {
+            var key = chip.dataset.filterKey;
+            var val = chip.dataset.filterValue || '';
+            var active = (state[key] || '') === val;
+            chip.classList.toggle('btn-primary', active);
+            chip.classList.toggle('btn-ghost', !active);
+            chip.classList.toggle('is-active', active);
+          });
+        }
+
+        function rowMatches(row) {
+          var q = (state.search || '').trim().toLowerCase();
+          if (q) {
+            var hay = (row.dataset.search || row.textContent || '').toLowerCase();
+            if (hay.indexOf(q) === -1) return false;
+          }
+          for (var i = 0; i < filterKeys.length; i++) {
+            var key = filterKeys[i];
+            var filterVal = state[key] || '';
+            if (!filterVal) continue;
+            var rowVal = row.dataset[datasetKey(key)] || '';
+            if (filterVal === '__none__') {
+              if (rowVal && rowVal !== '__none__') return false;
+            } else if (rowVal !== filterVal) {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        function persist() {
+          try {
+            sessionStorage.setItem(storageKey, JSON.stringify(state));
+          } catch (e) {}
+        }
+
+        function syncUrl() {
+          var url = new URL(window.location.href);
+          urlKeys.forEach(function (k) {
+            if (state[k]) {
+              url.searchParams.set(k, state[k]);
+            } else {
+              url.searchParams.delete(k);
+            }
+          });
+          history.replaceState(null, '', url.pathname + url.search + url.hash);
+        }
+
+        function uniqueRowCount(nodeList) {
+          var ids = {};
+          nodeList.forEach(function (row, idx) {
+            var uid = row.dataset.filterId || row.dataset.search || String(idx);
+            ids[uid] = true;
+          });
+          return Object.keys(ids).length;
+        }
+
+        function apply(syncUrlFlag) {
+          var allRows = rows();
+          var visible = 0;
+          var counted = {};
+          allRows.forEach(function (row, idx) {
+            var match = rowMatches(row);
+            row.classList.toggle('filter-hidden', !match);
+            row.style.setProperty('--filter-i', String(idx % 12));
+            if (match) {
+              var uid = row.dataset.filterId || row.dataset.search || String(idx);
+              if (!counted[uid]) {
+                counted[uid] = true;
+                visible += 1;
+              }
+            }
+          });
+
+          var totalCount = uniqueRowCount(allRows);
+
+          if (countEl) {
+            if (allRows.length) {
+              countEl.textContent = visible + ' de ' + totalCount;
+            } else {
+              countEl.textContent = '';
+            }
+          }
+
+          var active = hasActiveFilters();
+          clearButtons.forEach(function (btn) {
+            btn.hidden = !active;
+          });
+
+          if (emptyEl) {
+            emptyEl.hidden = !(totalCount && visible === 0);
+          }
+
+          setChipUI();
+          persist();
+          if (syncUrlFlag) syncUrl();
+        }
+
+        function clearAll() {
+          state.search = '';
+          filterKeys.forEach(function (k) { state[k] = ''; });
+          if (searchInput) searchInput.value = '';
+          apply(true);
+        }
+
+        chips.forEach(function (chip) {
+          chip.addEventListener('click', function () {
+            var key = chip.dataset.filterKey;
+            var val = chip.dataset.filterValue || '';
+            if (!key) return;
+            state[key] = val;
+            apply(true);
+          });
+        });
+
+        if (searchInput) {
+          searchInput.addEventListener('input', function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function () {
+              state.search = searchInput.value || '';
+              apply(false);
+            }, 140);
+          });
+        }
+
+        clearButtons.forEach(function (btn) {
+          btn.addEventListener('click', clearAll);
+        });
+
+        apply(false);
+      }
+    };
+  }
+
+  window.MWListFilters.init({
+    panelSelector: {{ panel_selector|tojson }},
+    rowSelector: {{ row_selector|tojson }},
+    storageKey: {{ storage_key|tojson }},
+    urlKeys: {{ url_keys|tojson }}
+  });
+})();
+</script>
+{% endmacro %}
