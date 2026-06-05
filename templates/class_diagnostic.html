@@ -30,6 +30,19 @@ body {
 .header-center { text-align: center; }
 .class-name { font-size: 20px; font-weight: 900; }
 .class-sub { font-size: 10px; color: #555; }
+.period-line { font-size: 10px; font-weight: 700; color: #444; margin-top: 2px; }
+.trend-pill {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+}
+.trend-improved { background: #E6F4EA; color: #1B7A3D; }
+.trend-declined { background: #FCE8E6; color: #B3261E; }
+.trend-stable { background: #EDE8F4; color: #5B2D8E; }
+.trend-first { background: #F0F0F0; color: #666; }
 .teacher-block { text-align: right; font-size: 10px; }
 .teacher-label { color: #5B2D8E; font-weight: 700; }
 .teacher-name { font-size: 16px; font-weight: 900; color: #5B2D8E; }
@@ -212,6 +225,9 @@ body {
   <div class="header-center">
     <div class="class-name">{{ turma_display }} — {{ nivel }}</div>
     <div class="class-sub">{{ horario }}</div>
+    {% if report_month_label %}
+    <div class="period-line">Período: {{ report_month_label }}</div>
+    {% endif %}
   </div>
   <div class="teacher-block">
     <div class="teacher-label">Teacher</div>
@@ -299,6 +315,9 @@ body {
   <div class="header-center">
     <div class="class-name">{{ turma_display }} — {{ nivel }}</div>
     <div class="class-sub">{{ horario }}</div>
+    {% if report_month_label %}
+    <div class="period-line">Período: {{ report_month_label }}</div>
+    {% endif %}
   </div>
   <div class="teacher-block">
     <div class="teacher-label">Teacher</div>
@@ -314,6 +333,8 @@ body {
       <th>Presença</th>
       <th>Desenvolvimento</th>
       <th>Engajamento</th>
+      <th>Comportamento</th>
+      <th>Tendência</th>
     </tr>
   </thead>
   <tbody>
@@ -323,6 +344,12 @@ body {
       <td><span class="score-circle">{{ sd.pres_score }}</span></td>
       <td><span class="score-circle">{{ sd.dev_overall }}</span></td>
       <td><span class="score-circle">{{ sd.part_overall }}</span></td>
+      <td><span class="score-circle">{{ sd.comp_overall }}</span></td>
+      <td>
+        {% if sd.trend %}
+        <span class="trend-pill trend-{{ sd.trend.direction }}">{{ sd.trend.symbol }} {{ sd.trend.label }}{% if sd.trend.direction != 'first' and sd.trend.delta %} ({% if sd.trend.delta > 0 %}+{% endif %}{{ sd.trend.delta }}){% endif %}</span>
+        {% else %}—{% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>

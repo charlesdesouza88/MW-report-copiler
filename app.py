@@ -7,6 +7,7 @@ import io
 import json
 import logging
 import os
+import re
 import threading
 import time
 import zipfile
@@ -2158,6 +2159,57 @@ def _run_report_generation(students, lessons, report_month):
         logger.warning('Could not save monthly snapshots to %s: %s', SNAPSHOTS_PATH, exc)
 
 
+def _turma_from_diagnostic_filename(filename):
+    """Extract turma code from a class diagnostic report filename."""
+    name = Path(filename).name
+    match = re.match(r'^(.+)_(\d{4}-\d{2})_class_diagnostic\.html$', name)
+    if match:
+        return match.group(1)
+    if name.endswith('_class_diagnostic.html'):
+        return name[: -len('_class_diagnostic.html')]
+    return ''
+
+
+def _build_report_rows(individual, diagnostics, students, lessons, snapshots):
+    """Unified report list entries for the Relatórios page (newest month first)."""
+    rows = []
+    for path in individual:
+        month = report_month_from_filename(path.name) or ''
+        turma, student_name = _student_for_report_file(path, students, month)
+        trend = _trend_for_report_file(path, month, students, lessons, snapshots) if month else None
+        display = student_name or path.stem.replace('_', ' ')
+        rows.append({
+            'filename': path.name,
+            'kind': 'individual',
+            'display': display,
+            'turma': turma or '',
+            'month': month,
+            'trend': trend,
+        })
+    for path in diagnostics:
+        month = report_month_from_filename(path.name) or ''
+        turma = _turma_from_diagnostic_filename(path.name)
+        rows.append({
+            'filename': path.name,
+            'kind': 'diagnostic',
+            'display': 'Diagnóstico de turma',
+            'turma': turma,
+            'month': month,
+            'trend': None,
+        })
+    rows.sort(
+        key=lambda row: (row['month'] or '', row['kind'], row['display'].casefold()),
+        reverse=True,
+    )
+    return rows
+
+
+def _report_turma_filters(report_rows, students, user):
+    codes = sorted({row['turma'].strip() for row in report_rows if row.get('turma', '').strip()})
+    labels = _turma_display_map(students, user)
+    return [{'code': code, 'label': labels.get(code, code)} for code in codes]
+
+
 def _student_for_report_file(path, students, month):
     for student in students:
         turma = student.get('turma', '').strip()
@@ -2329,26 +2381,24 @@ def reports():
             selected_month = ''
 
         files = filter_reports_for_user(sorted(OUT_DIR.glob('*.html')), all_students, _current_user())
-        files = filter_report_files_by_month(files, selected_month)
         individual = [f for f in files if 'class_diagnostic' not in f.name]
         diagnostics = [f for f in files if 'class_diagnostic' in f.name]
 
         snapshots = load_snapshots(SNAPSHOTS_PATH)
-        report_trends = {}
-        report_months = {}
-        for path in individual:
-            month = report_month_from_filename(path.name) or selected_month
-            report_months[path.name] = month
-            trend = _trend_for_report_file(path, month, students, lessons, snapshots)
-            if trend:
-                report_trends[path.name] = trend
+        user = _current_user()
+        report_rows = _build_report_rows(individual, diagnostics, students, lessons, snapshots)
+        report_turma_filters = _report_turma_filters(report_rows, students, user)
+        months_in_reports = sorted(
+            {row['month'] for row in report_rows if row.get('month')},
+            reverse=True,
+        )
 
         return render_template(
             'reports.html',
-            individual=individual,
-            report_trends=report_trends,
-            report_months=report_months,
-            diagnostics=diagnostics,
+            report_rows=report_rows,
+            report_turma_filters=report_turma_filters,
+            months_in_reports=months_in_reports,
+            turma_labels=_turma_display_map(students, user),
             available_months=available_months,
             selected_month=selected_month,
             default_month=default_report_month(lessons),

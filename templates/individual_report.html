@@ -50,6 +50,18 @@ body {
 .trend-declined { background: #FCE8E6; color: #B3261E; }
 .trend-stable { background: #EDE8F4; color: #5B2D8E; }
 .trend-first { background: #F0F0F0; color: #666; }
+.delta-badge {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+.delta-up { background: #E6F4EA; color: #1B7A3D; }
+.delta-down { background: #FCE8E6; color: #B3261E; }
+.delta-stable { background: #EDE8F4; color: #5B2D8E; }
 .teacher-block { text-align: right; }
 .teacher-label { font-size: 10px; font-weight: 700; color: #5B2D8E; }
 .teacher-name { font-size: 16px; font-weight: 900; color: #5B2D8E; }
@@ -196,6 +208,52 @@ body {
 }
 .recomendacoes-text { font-size: 11px; display: inline; margin-left: 4px; }
 
+/* ── Comparativo mensal ── */
+.comparison-section {
+  border: 2px solid #5B2D8E;
+  border-radius: 12px;
+  padding: 8px 10px;
+  margin-top: 2px;
+}
+.comparison-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.comparison-title { font-size: 16px; font-weight: 900; color: #5B2D8E; }
+.comparison-sub { font-size: 10px; font-weight: 700; color: #666; margin-left: 6px; }
+.comparison-body {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+.composite-donut-wrap { text-align: center; flex-shrink: 0; }
+.composite-donut-label {
+  font-size: 8px;
+  font-weight: 700;
+  color: #5B2D8E;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 2px;
+}
+.composite-donut-sub { font-size: 8px; color: #666; margin-top: 2px; }
+.comparison-bars-wrap { min-width: 0; }
+.comparison-bars-legend {
+  display: flex;
+  gap: 10px;
+  font-size: 8px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.legend-bar { display: inline-block; width: 14px; height: 8px; border-radius: 2px; vertical-align: middle; margin-right: 3px; }
+.legend-current { background: #5B2D8E; }
+.legend-prior { background: #C4B5D6; }
+.expanded-radar-wrap { flex-shrink: 0; text-align: center; }
+.expanded-radar-label { font-size: 8px; font-weight: 700; color: #5B2D8E; margin-bottom: 2px; }
+
 @media screen {
   html { -webkit-text-size-adjust: 100%; }
   body {
@@ -210,6 +268,7 @@ body {
   .card-title { font-size: 16px; }
   .recomendacoes-heading { font-size: 20px; }
   .radar-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .comparison-body { grid-template-columns: 1fr; }
 }
 @media print {
   body { width: 297mm; min-width: 297mm; background: #fff; padding: 7mm 8mm 4mm; }
@@ -253,6 +312,9 @@ body {
       <div class="overall-score">
         <div class="overall-score-label">Nota</div>
         <div class="bubble">{{ pres_score }}</div>
+        {% if pres_score_delta %}
+        <span class="delta-badge {{ pres_score_delta.css }}">{{ pres_score_delta.symbol }} {{ pres_score_delta.text }}</span>
+        {% endif %}
       </div>
     </div>
     <div class="presenca-body">
@@ -308,6 +370,9 @@ body {
       <div class="overall-score">
         <div class="overall-score-label">Média</div>
         <div class="bubble">{{ part_overall }}</div>
+        {% if part_overall_delta %}
+        <span class="delta-badge {{ part_overall_delta.css }}">{{ part_overall_delta.symbol }} {{ part_overall_delta.text }}</span>
+        {% endif %}
       </div>
     </div>
     <div class="part-body">
@@ -360,6 +425,9 @@ body {
       <div class="overall-score">
         <div class="overall-score-label">Média</div>
         <div class="bubble">{{ dev_overall }}</div>
+        {% if dev_overall_delta %}
+        <span class="delta-badge {{ dev_overall_delta.css }}">{{ dev_overall_delta.symbol }} {{ dev_overall_delta.text }}</span>
+        {% endif %}
       </div>
     </div>
     <div class="dev-body">
@@ -409,6 +477,9 @@ body {
       <div class="overall-score">
         <div class="overall-score-label">Média</div>
         <div class="bubble">{{ comp_overall }}</div>
+        {% if comp_overall_delta %}
+        <span class="delta-badge {{ comp_overall_delta.css }}">{{ comp_overall_delta.symbol }} {{ comp_overall_delta.text }}</span>
+        {% endif %}
       </div>
     </div>
     <div class="comp-scores-row">
@@ -434,6 +505,86 @@ body {
   </div>
 
 </div><!-- /.grid -->
+
+{% if comparison %}
+<div class="comparison-section">
+  <div class="comparison-header">
+    <div>
+      <span class="comparison-title">Comparativo Mensal</span>
+      {% if comparison.has_prior %}
+      <span class="comparison-sub">vs {{ comparison.prior_month_label }}</span>
+      {% else %}
+      <span class="comparison-sub">Primeiro período registrado</span>
+      {% endif %}
+    </div>
+    {% if trend %}
+    <span class="trend-pill trend-{{ trend.direction }}">{{ trend.symbol }} {{ trend.label }}{% if trend.direction != 'first' and trend.delta %} ({% if trend.delta > 0 %}+{% endif %}{{ trend.delta }}){% endif %}</span>
+    {% endif %}
+  </div>
+  <div class="comparison-body">
+    <div class="composite-donut-wrap">
+      <div class="composite-donut-label">Índice Geral</div>
+      <svg width="{{ comparison.donut.size }}" height="{{ comparison.donut.size }}" viewBox="0 0 {{ comparison.donut.size }} {{ comparison.donut.size }}">
+        <circle cx="{{ comparison.donut.cx }}" cy="{{ comparison.donut.cy }}" r="{{ comparison.donut.r }}" fill="none" stroke="#E8E4EE" stroke-width="{{ comparison.donut.stroke }}"/>
+        {% if comparison.donut.prior_dash %}
+        <circle cx="{{ comparison.donut.cx }}" cy="{{ comparison.donut.cy }}" r="{{ comparison.donut.r }}" fill="none" stroke="#C4B5D6" stroke-width="{{ comparison.donut.stroke - 2 }}" stroke-dasharray="{{ comparison.donut.prior_dash }}" stroke-linecap="round" transform="rotate(-90 {{ comparison.donut.cx }} {{ comparison.donut.cy }})"/>
+        {% endif %}
+        <circle cx="{{ comparison.donut.cx }}" cy="{{ comparison.donut.cy }}" r="{{ comparison.donut.r }}" fill="none" stroke="#5B2D8E" stroke-width="{{ comparison.donut.stroke }}" stroke-dasharray="{{ comparison.donut.cur_dash }}" stroke-linecap="round" transform="rotate(-90 {{ comparison.donut.cx }} {{ comparison.donut.cy }})"/>
+        <text x="{{ comparison.donut.cx }}" y="{{ comparison.donut.cy + 5 }}" text-anchor="middle" font-size="22" font-weight="bold" fill="#5B2D8E" font-family="Arial">{{ comparison.composite_current }}</text>
+      </svg>
+      <div class="composite-donut-sub">
+        {% if comparison.composite_prior is not none %}
+        Anterior: {{ comparison.composite_prior }}
+        {% if comparison.composite_delta %}
+        <span class="delta-badge {{ comparison.composite_delta.css }}">{{ comparison.composite_delta.text }}</span>
+        {% endif %}
+        {% else %}—{% endif %}
+      </div>
+    </div>
+    <div class="comparison-bars-wrap">
+      <div class="comparison-bars-legend">
+        <span><span class="legend-bar legend-current"></span>Atual</span>
+        {% if comparison.has_prior %}
+        <span><span class="legend-bar legend-prior"></span>{{ comparison.prior_month_label }}</span>
+        {% endif %}
+      </div>
+      <svg width="{{ comparison.bars.width }}" height="{{ comparison.bars.height }}" viewBox="0 0 {{ comparison.bars.width }} {{ comparison.bars.height }}" font-family="Arial">
+        {% for row in comparison.bars.rows %}
+        <text x="{{ row.label_x }}" y="{{ row.y + 9 }}" font-size="9" font-weight="bold" fill="#333">{{ row.label }}</text>
+        <rect x="{{ row.bar_x }}" y="{{ row.current_y }}" width="{{ row.current_w }}" height="{{ comparison.bars.bar_h }}" rx="3" fill="#5B2D8E"/>
+        <text x="{{ row.bar_x + comparison.bars.bar_max_w + 4 }}" y="{{ row.current_y + 9 }}" font-size="9" font-weight="bold" fill="#5B2D8E">{{ row.current }}</text>
+        {% if row.prior is not none %}
+        <rect x="{{ row.bar_x }}" y="{{ row.prior_y }}" width="{{ row.prior_w }}" height="{{ comparison.bars.bar_h }}" rx="3" fill="#C4B5D6"/>
+        <text x="{{ row.bar_x + comparison.bars.bar_max_w + 4 }}" y="{{ row.prior_y + 9 }}" font-size="9" fill="#666">{{ row.prior }}</text>
+        {% endif %}
+        {% if row.delta %}
+        <text x="{{ row.bar_x + comparison.bars.bar_max_w + 18 }}" y="{{ row.current_y + 9 }}" font-size="8" font-weight="bold" fill="{% if row.delta.css == 'delta-up' %}#1B7A3D{% elif row.delta.css == 'delta-down' %}#B3261E{% else %}#5B2D8E{% endif %}">{{ row.delta.text }}</text>
+        {% endif %}
+        {% endfor %}
+      </svg>
+    </div>
+    <div class="expanded-radar-wrap">
+      <div class="expanded-radar-label">Visão Geral (7 eixos)</div>
+      <svg width="170" height="175" viewBox="-5 0 210 215" font-family="Arial">
+        {% for ring in expanded_grid %}
+        <polygon points="{{ ring }}" fill="none" stroke="#DDD" stroke-width="1"/>
+        {% endfor %}
+        {% for ep in expanded_axes %}
+        <line x1="100" y1="105" x2="{{ ep[0] }}" y2="{{ ep[1] }}" stroke="#DDD" stroke-width="1"/>
+        {% endfor %}
+        <polygon points="{{ expanded_radar }}" fill="rgba(210,150,225,0.25)" stroke="#7B4FA0" stroke-width="2"/>
+        <text x="100" y="18" text-anchor="middle" font-size="7" font-weight="bold">Audição</text>
+        <text x="188" y="72" text-anchor="end" font-size="7" font-weight="bold">Fala</text>
+        <text x="168" y="198" text-anchor="middle" font-size="7" font-weight="bold">Gram.</text>
+        <text x="32" y="198" text-anchor="middle" font-size="7" font-weight="bold">Escrita</text>
+        <text x="12" y="72" text-anchor="start" font-size="7" font-weight="bold">Leitura</text>
+        <text x="148" y="28" text-anchor="middle" font-size="7" font-weight="bold">Part.</text>
+        <text x="52" y="28" text-anchor="middle" font-size="7" font-weight="bold">Pres.</text>
+      </svg>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <!-- RECOMENDAÇÕES -->
 <div class="recomendacoes">
