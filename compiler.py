@@ -177,7 +177,7 @@ def composite_donut_chart(current, prior=None, size=96, stroke=10):
     )
 
 
-def column_bar_chart(items, bar_w=28, gap=12, max_h=84, label_h=24, axis_w=18, title='', pad_top=20):
+def column_bar_chart(items, bar_w=28, gap=12, max_h=84, label_h=24, axis_w=18, title='', pad_top=26):
     """Vertical column chart for scores 1–5 with axis labels and bar tracks."""
     n = len(items)
     chart_x = axis_w + 4
@@ -194,11 +194,11 @@ def column_bar_chart(items, bar_w=28, gap=12, max_h=84, label_h=24, axis_w=18, t
         h = max(1, round((score / 5.0) * max_h, 1))
         x = chart_x + gap + i * (bar_w + gap)
         bar_y = pad_top + max_h - h
-        if h >= 24:
+        if h >= 28:
             score_text_y = round(bar_y + h / 2 + 4, 1)
             score_inside = True
         else:
-            score_text_y = round(max(pad_top + 6, bar_y - 8), 1)
+            score_text_y = round(max(pad_top + 8, bar_y - 11), 1)
             score_inside = False
         cols.append(dict(
             label=item['label'],

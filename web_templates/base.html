@@ -148,7 +148,7 @@ img, svg, video { max-width: 100%; height: auto; }
   border-radius: var(--radius); border: 1px solid var(--border);
   max-width: 100%;
 }
-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
 th {
   background: var(--purple); color: var(--white);
   padding: 10px 13px; text-align: left;
@@ -276,8 +276,23 @@ input[type="time"].input-datetime::-moz-focus-inner {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   min-width: 44px; padding: 6px 8px; background: var(--purple-lt); border-radius: 8px;
 }
-.student-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.student-card-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.student-card-actions form { display: inline-flex; margin: 0; align-items: center; flex: 1 1 auto; min-width: 0; }
+.inline-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.inline-actions form { display: inline-flex; margin: 0; align-items: center; }
+.turma-list { display: flex; flex-direction: column; gap: 8px; }
+.turma-list-item {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 10px 12px; background: #F4F2F8; border-radius: 7px;
+}
+.turma-list-item-body { flex: 1 1 160px; min-width: 0; }
+.list-row-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end;
+  margin-left: auto;
+}
+.list-row-actions form { display: inline-flex; margin: 0; align-items: center; }
 .report-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; align-items: center; }
+.report-actions form { display: inline-flex; margin: 0; align-items: center; }
 .reports-table th.col-actions,
 .reports-table td.col-actions,
 .data-table th.col-actions,
@@ -285,6 +300,7 @@ input[type="time"].input-datetime::-moz-focus-inner {
 table th.col-actions,
 table td.col-actions { width: 1%; white-space: nowrap; text-align: right; vertical-align: middle; }
 .row-actions { display: inline-flex; flex-wrap: nowrap; gap: 6px; justify-content: flex-end; align-items: center; }
+.row-actions form { display: inline-flex; margin: 0; align-items: center; }
 .page-toolbar {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
   gap: 12px; padding: 14px 16px; margin-bottom: 16px;
@@ -352,6 +368,7 @@ table td.col-actions { width: 1%; white-space: nowrap; text-align: right; vertic
 tr.filter-row-item.filter-hidden { display: none; }
 .student-card-item.filter-row-item.filter-hidden,
 .lesson-card-item.filter-row-item.filter-hidden,
+.session-card-item.filter-row-item.filter-hidden,
 .report-card.filter-row-item.filter-hidden {
   opacity: 0; transform: translateY(-6px) scale(0.98); max-height: 0; margin: 0; padding: 0;
   overflow: hidden; border-width: 0; pointer-events: none;
@@ -359,6 +376,7 @@ tr.filter-row-item.filter-hidden { display: none; }
 }
 .student-card-item.filter-row-item,
 .lesson-card-item.filter-row-item,
+.session-card-item.filter-row-item,
 .report-card.filter-row-item {
   transition: opacity 0.22s ease, transform 0.22s ease, max-height 0.28s ease;
 }
@@ -460,7 +478,10 @@ body.nav-open .nav-backdrop { display: block; }
   }
   .menu-toggle { display: inline-flex; }
   .page-title { color: #fff; flex: 1; min-width: 0; }
-  .page-header-body { flex-direction: column; align-items: stretch; }
+  .page-header-body { flex-direction: column; align-items: stretch; gap: 10px; }
+  .page-title { order: 1; }
+  .review-month-form { order: 2; }
+  .topbar-actions { order: 3; }
   .topbar-actions { width: 100%; margin-left: 0; justify-content: flex-end; }
   .review-month-form { width: 100%; margin-left: 0; justify-content: flex-start; }
   .review-month-form label { color: rgba(255,255,255,0.75); }
@@ -495,6 +516,7 @@ body.nav-open .nav-backdrop { display: block; }
   .student-card-header { flex-direction: column; align-items: flex-start; }
   .filter-group { align-items: flex-start; }
   .filter-group-label { min-width: 0; width: 100%; margin-bottom: 2px; }
+  .list-row-actions { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 639px) {
@@ -512,11 +534,29 @@ body.nav-open .nav-backdrop { display: block; }
   .reports-table-view { display: none !important; }
   .reports-cards-view { display: block !important; }
   .report-card-actions { grid-template-columns: 1fr; }
+  .turma-list-item { flex-direction: column; align-items: stretch; }
+  .list-row-actions {
+    width: 100%; margin-left: 0; display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+  }
+  .list-row-actions .btn { width: 100%; justify-content: center; min-height: 44px; }
+  .list-row-actions form { display: flex; width: 100%; min-width: 0; }
+  .list-row-actions form .btn { width: 100%; }
+  .inline-actions { width: 100%; }
+  .inline-actions .btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
+  .inline-actions form { display: flex; flex: 1 1 auto; min-width: 0; }
+  .inline-actions form .btn { width: 100%; justify-content: center; }
   .page-toolbar-actions { width: 100%; margin-left: 0; }
   .page-toolbar-actions .btn,
   .page-toolbar-actions form { width: 100%; }
   .page-toolbar-actions form .btn { flex: 1; }
+  .student-card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+  .student-card-actions > .btn,
+  .student-card-actions form { margin: 0; min-width: 0; width: 100%; }
+  .student-card-actions form { display: flex; }
+  .student-card-actions .btn { width: 100%; justify-content: center; min-height: 44px; }
   .row-actions { flex-wrap: wrap; width: 100%; justify-content: stretch; }
+  .row-actions form { display: flex; flex: 1 1 auto; min-width: 0; }
   .row-actions .btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
   .form-actions-bar .btn { flex: 1 1 100%; justify-content: center; min-height: 44px; }
   .btn { min-height: 44px; }

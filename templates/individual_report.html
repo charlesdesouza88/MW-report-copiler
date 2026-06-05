@@ -555,11 +555,10 @@ body {
     from { transform: scaleX(0); }
     to { transform: scaleX(1); }
   }
+  /* Column bars stay untransformed on narrow viewports so score labels paint on top (WebKit). */
   .anim-col-bar {
-    transform-box: fill-box;
-    transform-origin: bottom center;
-    transform: scaleY(0);
-    animation: barGrowUp 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    transform: none;
+    opacity: 1;
   }
   .anim-h-bar {
     transform-box: fill-box;
@@ -690,6 +689,12 @@ body {
     grid-template-columns: auto 1fr auto;
     align-items: center;
   }
+  .anim-col-bar {
+    transform-box: fill-box;
+    transform-origin: bottom center;
+    transform: scaleY(0);
+    animation: barGrowUp 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
 }
 @media screen and (min-width: 900px) {
   body { padding: 18px 24px 28px; font-size: 17px; gap: 10px; }
@@ -750,9 +755,11 @@ body {
   <rect x="{{ col.x }}" y="{{ col.track_y }}" width="{{ col.w }}" height="{{ col.track_h }}" fill="{{ track }}" rx="4"/>
   <rect class="anim-col-bar" style="animation-delay: {{ loop.index0 * 0.12 }}s" x="{{ col.x }}" y="{{ col.y }}" width="{{ col.w }}" height="{{ col.h }}" fill="{{ fill }}" rx="4"/>
   {% endfor %}
+  <g class="chart-score-labels">
   {% for col in chart.cols %}
   <text x="{{ col.text_x }}" y="{{ col.score_text_y }}" text-anchor="middle" font-size="13" font-weight="bold" fill="{% if col.score_inside %}#fff{% else %}{{ fill }}{% endif %}" font-family="Arial" dominant-baseline="middle">{{ col.score }}</text>
   {% endfor %}
+  </g>
   {% for col in chart.cols %}
   <text x="{{ col.label_x }}" y="{{ chart.label_y }}" text-anchor="middle" font-size="9" font-weight="bold" fill="#444" font-family="Arial">{{ col.label }}</text>
   {% endfor %}

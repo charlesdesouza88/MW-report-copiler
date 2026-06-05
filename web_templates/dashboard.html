@@ -126,19 +126,19 @@
       <button type="submit" class="btn btn-primary" style="margin-top:12px;">+ Criar turma</button>
     </form>
     {% if teacher_classes %}
-    <div style="display:flex; flex-direction:column; gap:8px;">
+    <div class="turma-list">
       {% for c in teacher_classes %}
-      <div style="display:flex; align-items:center; justify-content:space-between; padding: 8px 12px; background:#F4F2F8; border-radius:7px;">
-        <div>
+      <div class="turma-list-item">
+        <div class="turma-list-item-body">
           <span style="font-weight:900; font-size:13px;">{{ c.turma_display }}</span>
           {% if c.horario %}<span class="font-sm text-gray" style="margin-left:8px;">{{ c.horario }}</span>{% elif c.needs_schedule %}<span class="font-sm text-gray" style="margin-left:8px;">— complete dias/horário</span>{% endif %}
         </div>
-        <div class="flex gap-8" style="align-items:center;">
+        <div class="list-row-actions">
           <a href="{{ url_for('student_new') }}?turma={{ c.turma }}" class="btn btn-ghost btn-xs">+ Aluno</a>
           <a href="{{ url_for('students') }}?turma={{ c.turma }}" class="btn btn-ghost btn-xs">Alunos</a>
           <a href="{{ url_for('lessons') }}?turma={{ c.turma }}" class="btn btn-ghost btn-xs">Aulas</a>
           <a href="{{ url_for('turma_edit', turma=c.turma) }}" class="btn btn-ghost btn-xs">Editar</a>
-          <form method="post" action="{{ url_for('turma_delete') }}" style="margin:0;"
+          <form method="post" action="{{ url_for('turma_delete') }}"
                 onsubmit="return confirm({{ ('Excluir a turma «' ~ c.turma_display ~ '»? Só é possível se não houver alunos vinculados.')|tojson }})">
             <input type="hidden" name="turma" value="{{ c.turma }}">
             <button type="submit" class="btn btn-ghost btn-xs" style="color:#A93226;">Excluir</button>
@@ -152,11 +152,13 @@
     {% endif %}
 
     {% elif turmas %}
-    <div style="display:flex; flex-direction:column; gap:8px;">
+    <div class="turma-list">
       {% for t in turmas %}
-      <div style="display:flex; align-items:center; justify-content:space-between; padding: 8px 12px; background:#F4F2F8; border-radius:7px;">
-        <span style="font-weight:900; font-size:13px;">{{ t }}</span>
-        <div class="flex gap-8">
+      <div class="turma-list-item">
+        <div class="turma-list-item-body">
+          <span style="font-weight:900; font-size:13px;">{{ t }}</span>
+        </div>
+        <div class="list-row-actions">
           <a href="{{ url_for('students') }}?turma={{ t }}" class="btn btn-ghost btn-xs">Alunos</a>
           <a href="{{ url_for('lessons') }}?turma={{ t }}" class="btn btn-ghost btn-xs">Aulas</a>
         </div>

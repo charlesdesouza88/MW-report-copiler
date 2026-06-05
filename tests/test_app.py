@@ -1306,3 +1306,45 @@ def test_teacher_upload_merges_without_wiping_other_teachers(monkeypatch, tmp_pa
     text = (data_dir / "students.csv").read_text(encoding="utf-8")
     assert "Jane Doe" in text
     assert "Bob Smith" in text
+
+
+def test_responsive_layout_markers(monkeypatch, tmp_path):
+    """List pages expose table + card views and action columns use shared layout classes."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+
+    web_app._save_extra_sessions([
+        {"teacher": "Chuck", "student_name": "Jane Doe", "turma": "MASTER", "date": "01/05",
+         "horario": "09:00", "turno": "Manhã", "session_type": "Reforço", "assuntos": "Test",
+         "observacao": "", "contatado": "ok", "marcado": "ok", "realizado": "ok"},
+    ])
+
+    client = web_app.app.test_client()
+    _login(client)
+
+    students_html = client.get("/students").get_data(as_text=True)
+    assert 'td class="col-actions"' in students_html
+    assert "students-cards-view" in students_html
+    assert "student-card-actions" in students_html
+
+    lessons_html = client.get("/lessons").get_data(as_text=True)
+    assert 'td class="col-actions"' in lessons_html
+    assert "lesson-card-item" in lessons_html
+
+    extra_html = client.get("/extra-sessions").get_data(as_text=True)
+    assert "session-card-item" in extra_html
+    assert "students-cards-view" in extra_html
+    assert 'td class="col-actions"' in extra_html
+
+    dashboard_html = client.get("/").get_data(as_text=True)
+    assert "list-row-actions" in dashboard_html or "turma-list" in dashboard_html
+
+    upload_html = client.get("/upload").get_data(as_text=True)
+    assert "inline-actions" in upload_html
+    assert "viewport" in upload_html
