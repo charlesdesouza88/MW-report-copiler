@@ -2,6 +2,7 @@
 {% from '_macros/list_filters.html' import filter_panel, filter_turma_group, filter_group_extra, list_filter_script %}
 {% from '_macros/page_toolbar.html' import page_toolbar %}
 {% set return_turma = request.args.get('turma', '') %}
+{% set return_month = review_month or request.args.get('month', '') %}
 {% block title %}Alunos{% endblock %}
 {% block page_title %}Alunos{% endblock %}
 
@@ -14,7 +15,7 @@
   {% if current_user and current_user.role == 'teacher' %}
   <a href="{{ url_for('dashboard') }}#criar-turma" class="btn btn-outline">+ Nova turma</a>
   {% endif %}
-  <a href="{{ url_for('student_new', turma=return_turma) if return_turma else url_for('student_new') }}" class="btn btn-primary">+ Novo aluno</a>
+  <a href="{{ url_with_month('student_new', turma=return_turma) if return_turma else url_with_month('student_new') }}" class="btn btn-primary">+ Novo aluno</a>
 {% endcall %}
 {% call filter_panel('filter-students', 'Buscar por nome, turma ou nível...') %}
   {% if turma_filters %}
@@ -54,8 +55,8 @@
       {% endif %}
     </div>
     <div class="student-card-actions">
-      <a href="{{ url_for('student_edit', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_edit', idx=loop.index0) }}" class="btn btn-ghost btn-sm">Editar</a>
-      <form method="post" action="{{ url_for('student_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_delete', idx=loop.index0) }}"
+      <a href="{{ url_with_month('student_edit', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_edit', idx=loop.index0, month=return_month) }}" class="btn btn-ghost btn-sm">Editar</a>
+      <form method="post" action="{{ url_with_month('student_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_delete', idx=loop.index0, month=return_month) }}"
             onsubmit="return confirm({{ ('Excluir ' ~ s.student_name ~ '?')|tojson }})">
         <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
       </form>
@@ -109,8 +110,8 @@
         </td>
         <td>
           <div class="row-actions">
-            <a href="{{ url_for('student_edit', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_edit', idx=loop.index0) }}" class="btn btn-ghost btn-xs">Editar</a>
-            <form method="post" action="{{ url_for('student_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_delete', idx=loop.index0) }}"
+            <a href="{{ url_with_month('student_edit', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_edit', idx=loop.index0, month=return_month) }}" class="btn btn-ghost btn-xs">Editar</a>
+            <form method="post" action="{{ url_with_month('student_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_delete', idx=loop.index0, month=return_month) }}"
                   onsubmit="return confirm({{ ('Excluir ' ~ s.student_name ~ '?')|tojson }})">
               <button type="submit" class="btn btn-danger btn-xs">✕</button>
             </form>

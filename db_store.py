@@ -70,6 +70,14 @@ class LessonAttendanceRow(Base):
     data_json: Mapped[str] = mapped_column(Text, nullable=False)
 
 
+class StudentMonthlyReviewRow(Base):
+    __tablename__ = "student_monthly_review_rows"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    row_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    data_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class UserRow(Base):
     __tablename__ = "users"
 
@@ -145,6 +153,12 @@ class DatabaseStore:
 
     def save_lesson_attendance(self, rows):
         self._replace_rows(LessonAttendanceRow, rows)
+
+    def load_monthly_reviews(self):
+        return self._load_rows(StudentMonthlyReviewRow)
+
+    def save_monthly_reviews(self, rows):
+        self._replace_rows(StudentMonthlyReviewRow, rows)
 
     def load_users(self):
         with self.session() as session:

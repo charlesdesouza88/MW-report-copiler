@@ -186,6 +186,23 @@ body {
 }
 .bar-label { font-size: 11px; font-weight: 900; font-style: italic; margin-top: 2px; }
 .radar-wrap { flex-shrink: 0; }
+.skill-columns-row {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid #EEE;
+}
+.skill-col-mini {
+  text-align: center; flex: 1; min-width: 52px; max-width: 72px;
+}
+.skill-col-label { font-size: 7px; font-weight: 700; color: #5B2D8E; margin-top: 2px; line-height: 1.1; }
+.skill-col-score { font-size: 11px; font-weight: 900; color: #5B2D8E; }
+.column-chart-wrap { margin-top: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.column-chart-wrap svg { display: block; margin: 0 auto; }
+.chart-svg { max-width: 100%; height: auto; display: block; }
+.sparkline-wrap {
+  display: inline-flex; flex-direction: column; align-items: center;
+  margin-left: 10px; vertical-align: middle;
+}
+.sparkline-label { font-size: 7px; font-weight: 700; color: #5B2D8E; text-transform: uppercase; letter-spacing: 0.3px; }
 
 /* ── COMPORTAMENTO ── */
 .comp-scores-row { display: flex; gap: 8px; justify-content: space-around; margin-bottom: 6px; }
@@ -255,24 +272,80 @@ body {
 .expanded-radar-label { font-size: 8px; font-weight: 700; color: #5B2D8E; margin-bottom: 2px; }
 
 @media screen {
-  html { -webkit-text-size-adjust: 100%; }
+  html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
   body {
     width: 100%;
-    max-width: 100%;
+    max-width: min(1180px, 100%);
     min-width: 0;
-    padding: 12px;
+    margin: 0 auto;
+    padding: 14px 16px 20px;
     background: #E8E4EE;
+    font-size: 12px;
+    gap: 8px;
   }
-  .grid { grid-template-columns: 1fr; grid-template-rows: auto; }
-  .student-name { font-size: 22px; }
-  .card-title { font-size: 16px; }
-  .recomendacoes-heading { font-size: 20px; }
-  .radar-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .comparison-body { grid-template-columns: 1fr; }
+  .header { flex-wrap: wrap; gap: 10px; padding-bottom: 8px; }
+  .header-center { flex: 1; min-width: 0; }
+  .student-name { font-size: clamp(20px, 4.5vw, 34px); word-break: break-word; }
+  .turma-line { font-size: clamp(10px, 2vw, 12px); line-height: 1.35; }
+  .teacher-block { flex-shrink: 0; }
+  .teacher-name { font-size: clamp(14px, 2.5vw, 18px); }
+  .grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    gap: 10px;
+  }
+  .card { padding: 12px 14px; }
+  .card-title { font-size: clamp(15px, 2.8vw, 20px); }
+  .bubble { width: 44px; height: 44px; font-size: 24px; }
+  .bubble-md { width: 52px; height: 52px; font-size: 28px; }
+  .bar-track { height: 16px; }
+  .bar-label { font-size: 12px; }
+  .recomendacoes { padding: 10px 14px; }
+  .recomendacoes-heading { font-size: clamp(18px, 3.5vw, 24px); }
+  .recomendacoes-text { font-size: 12px; line-height: 1.45; }
+  .comparison-section { padding: 12px 14px; }
+  .comparison-title { font-size: 18px; }
+  .comparison-bars-wrap svg,
+  .composite-donut-wrap svg,
+  .expanded-radar-wrap svg,
+  .radar-wrap svg,
+  .pie-wrap svg { max-width: 100%; height: auto; }
+  .radar-wrap,
+  .comparison-bars-wrap,
+  .expanded-radar-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .comparison-body { grid-template-columns: 1fr; gap: 14px; }
+  .presenca-body, .part-body, .dev-body { flex-wrap: wrap; }
+  .part-body { flex-direction: column; }
+  .part-left, .part-right { width: 100%; }
+  .fb-item-text { font-size: 10px; line-height: 1.4; }
+}
+@media screen and (min-width: 640px) {
+  body { padding: 16px 20px 24px; font-size: 13px; }
+  .grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .part-body { flex-direction: row; }
+  .comparison-body {
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+  }
+}
+@media screen and (min-width: 900px) {
+  body { padding: 18px 24px 28px; font-size: 14px; gap: 10px; }
+  .card { padding: 14px 16px; }
+  .card-title { font-size: 20px; }
+  .bubble { width: 48px; height: 48px; font-size: 26px; }
+  .bubble-md { width: 58px; height: 58px; font-size: 32px; }
+  .bar-track { height: 18px; }
+  .scale-item { font-size: 9.5px; }
+  .fb-item-text { font-size: 11px; }
+  .composite-donut-wrap svg { width: 110px; height: 110px; }
+  .radar-wrap svg { width: 220px; height: auto; }
 }
 @media print {
   body { width: 297mm; min-width: 297mm; background: #fff; padding: 7mm 8mm 4mm; }
   .grid { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+  .skill-columns-row,
+  .column-chart-wrap,
+  .sparkline-wrap { display: none; }
 }
 </style>
 </head>
@@ -292,6 +365,19 @@ body {
       Período: {{ report_month_label }}
       {% if trend %}
       <span class="trend-pill trend-{{ trend.direction }}">{{ trend.symbol }} {{ trend.label }}{% if trend.direction != 'first' and trend.delta %} ({% if trend.delta > 0 %}+{% endif %}{{ trend.delta }}){% endif %}</span>
+      {% endif %}
+      {% if composite_sparkline %}
+      <span class="sparkline-wrap">
+        <span class="sparkline-label">Evolução</span>
+        <svg class="chart-svg" width="{{ composite_sparkline.width }}" height="{{ composite_sparkline.height }}" viewBox="0 0 {{ composite_sparkline.width }} {{ composite_sparkline.height }}" role="img" aria-label="Evolução do índice geral">
+          <line x1="4" y1="{{ composite_sparkline.height - 4 }}" x2="{{ composite_sparkline.width - 4 }}" y2="{{ composite_sparkline.height - 4 }}" stroke="#DDD" stroke-width="1"/>
+          <path d="{{ composite_sparkline.path }}" fill="none" stroke="#5B2D8E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          {% for pt in composite_sparkline.points %}
+          <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3" fill="#5B2D8E"/>
+          <text x="{{ pt.x }}" y="{{ composite_sparkline.height - 1 }}" text-anchor="middle" font-size="6" fill="#666" font-family="Arial">{{ pt.label }}</text>
+          {% endfor %}
+        </svg>
+      </span>
       {% endif %}
     </div>
     {% endif %}
@@ -319,7 +405,7 @@ body {
     </div>
     <div class="presenca-body">
       <div class="pie-wrap">
-        <svg width="108" height="108" viewBox="0 0 116 116">
+        <svg class="chart-svg" width="108" height="108" viewBox="0 0 116 116">
           <circle cx="58" cy="58" r="48" fill="#BBBBBB"/>
           {% if full_circle %}
           <circle cx="58" cy="58" r="48" fill="#5B2D8E"/>
@@ -399,6 +485,15 @@ body {
           <div class="scale-item"><span class="scale-num-circle">4</span>Sempre</div>
           <div class="scale-item"><span class="scale-num-circle">5</span>Com excelência</div>
         </div>
+        <div class="column-chart-wrap">
+          <svg class="chart-svg" width="{{ part_column_chart.width }}" height="{{ part_column_chart.height }}" viewBox="0 0 {{ part_column_chart.width }} {{ part_column_chart.height }}" role="img" aria-label="Participação por critério">
+            {% for col in part_column_chart.cols %}
+            <rect x="{{ col.x }}" y="{{ col.y }}" width="{{ col.w }}" height="{{ col.h }}" rx="3" fill="#5B2D8E"/>
+            <text x="{{ col.text_x }}" y="{{ col.y - 3 }}" text-anchor="middle" font-size="9" font-weight="bold" fill="#5B2D8E" font-family="Arial">{{ col.score }}</text>
+            <text x="{{ col.label_x }}" y="{{ part_column_chart.label_y }}" text-anchor="middle" font-size="7" font-weight="bold" fill="#555" font-family="Arial">{{ col.label }}</text>
+            {% endfor %}
+          </svg>
+        </div>
       </div>
       <div class="part-right">
         <div class="fb-heading">Feedback do professor</div>
@@ -450,7 +545,7 @@ body {
         </div>
       </div>
       <div class="radar-wrap">
-        <svg width="200" height="205" viewBox="-5 0 210 215" font-family="Arial">
+        <svg class="chart-svg" width="200" height="205" viewBox="-5 0 210 215" font-family="Arial">
           <text x="100" y="12" text-anchor="middle" font-size="9" fill="#555">Avaliação de Habilidades Linguísticas</text>
           {% for ring in grid %}
           <polygon points="{{ ring }}" fill="none" stroke="#DDD" stroke-width="1"/>
@@ -465,6 +560,31 @@ body {
           <text x="25" y="200" text-anchor="middle" font-size="9" font-weight="bold">Escrita</text>
           <text x="2" y="82" text-anchor="start" font-size="9" font-weight="bold">Leitura</text>
           <text x="170" y="15" font-size="8" fill="#7B4FA0">— Aluno</text>
+        </svg>
+      </div>
+      <div class="skill-columns-row">
+        {% for col in skill_columns %}
+        <div class="skill-col-mini">
+          <svg class="chart-svg" width="56" height="58" viewBox="0 0 68 72" font-family="Arial" role="img" aria-label="{{ col.label }}: {{ col.score }}">
+            {% for ring in col.mini.grid %}
+            <polygon points="{{ ring }}" fill="none" stroke="#C8C8C8" stroke-width="1"/>
+            {% endfor %}
+            <polygon points="{{ col.mini.pentagon }}" fill="rgba(91,45,142,0.15)" stroke="#9B7BB8" stroke-width="1"/>
+            <line x1="{{ col.mini.center[0] }}" y1="{{ col.mini.center[1] }}" x2="{{ col.mini.highlight_tip[0] }}" y2="{{ col.mini.highlight_tip[1] }}" stroke="#5B2D8E" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="{{ col.mini.highlight_tip[0] }}" cy="{{ col.mini.highlight_tip[1] }}" r="2.5" fill="#5B2D8E"/>
+          </svg>
+          <div class="skill-col-score">{{ col.score }}</div>
+          <div class="skill-col-label">{{ col.label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="column-chart-wrap" style="width:100%; margin-top:6px;">
+        <svg class="chart-svg" width="{{ dev_column_chart.width }}" height="{{ dev_column_chart.height }}" viewBox="0 0 {{ dev_column_chart.width }} {{ dev_column_chart.height }}" role="img" aria-label="Habilidades por área">
+          {% for col in dev_column_chart.cols %}
+          <rect x="{{ col.x }}" y="{{ col.y }}" width="{{ col.w }}" height="{{ col.h }}" rx="3" fill="#7B4FA0"/>
+          <text x="{{ col.text_x }}" y="{{ col.y - 3 }}" text-anchor="middle" font-size="9" font-weight="bold" fill="#5B2D8E" font-family="Arial">{{ col.score }}</text>
+          <text x="{{ col.label_x }}" y="{{ dev_column_chart.label_y }}" text-anchor="middle" font-size="7" font-weight="bold" fill="#555" font-family="Arial">{{ col.label }}</text>
+          {% endfor %}
         </svg>
       </div>
     </div>

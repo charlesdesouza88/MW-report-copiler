@@ -1,13 +1,19 @@
 {% extends 'base.html' %}
 {% set return_turma = request.args.get('turma', '') %}
+{% set return_month = review_month or request.args.get('month', '') %}
 {% block title %}{{ 'Novo aluno' if is_new else student.student_name }}{% endblock %}
 {% block page_title %}{{ 'Novo aluno' if is_new else 'Editar: ' + student.student_name }}{% endblock %}
 
 {% block topbar_actions %}
-  <a href="{{ url_for('students', turma=return_turma) if return_turma else url_for('students') }}" class="btn btn-ghost">← Voltar</a>
+  <a href="{{ url_with_month('students', turma=return_turma) if return_turma else url_with_month('students') }}" class="btn btn-ghost">← Voltar</a>
 {% endblock %}
 
 {% block content %}
+{% if review_month %}
+<div class="review-banner">
+  Editando revisão de <strong>{{ review_month_label }}</strong>
+</div>
+{% endif %}
 {% if form_error %}
 <div class="alert" style="background:#FADBD8; color:#A93226; border:1px solid #F1948A;">✕ &nbsp;{{ form_error }}</div>
 {% endif %}
@@ -19,6 +25,9 @@
 <form method="post" style="max-width: 860px;"{% if no_teacher_classes %} class="disabled-form"{% endif %}>
   {% if return_turma %}
   <input type="hidden" name="return_turma" value="{{ return_turma }}">
+  {% endif %}
+  {% if return_month %}
+  <input type="hidden" name="return_month" value="{{ return_month }}">
   {% endif %}
 
   <!-- Info básica -->

@@ -11,6 +11,7 @@ import re
 import threading
 import time
 import zipfile
+from datetime import datetime
 from pathlib import Path
 
 from flask import (Flask, abort, redirect, render_template, request,
@@ -55,10 +56,19 @@ from teacher_classes import (add_class as register_teacher_class,
                              turma_codes_for_teacher,
                              update_class as update_teacher_class)
 from report_periods import (available_report_months, compute_month_trend,
-                            default_report_month, filter_report_files_by_month,
+                            default_report_month, filter_lessons_by_month,
+                            filter_report_files_by_month,
                             individual_report_filename, load_snapshots,
-                            month_label, report_month_from_filename,
+                            month_label, parse_lesson_month,
+                            report_month_from_filename,
                             student_composite_score, upsert_month_snapshots)
+from student_reviews import (MONTHLY_REVIEW_FIELDS, ROSTER_FIELDS,
+                             apply_upload_row, extract_roster_fields,
+                             load_monthly_reviews, merge_roster_for_month,
+                             migrate_roster_scores_to_month,
+                             rows_from_store, save_monthly_reviews,
+                             split_student_row, store_from_rows,
+                             upsert_monthly_review)
 
 try:
     from db_store import DatabaseStore
@@ -215,7 +225,9 @@ DATA_DIR = _ensure_writable_dir(
 OUT_DIR = _ensure_writable_dir(
     os.environ.get('OUT_DIR', default_out_dir), '/tmp/mw/output')
 SNAPSHOTS_PATH = DATA_DIR / 'student_snapshots.json'
+MONTHLY_REVIEWS_PATH = DATA_DIR / 'student_monthly_reviews.json'
 TEACHER_CLASSES_PATH = DATA_DIR / 'teacher_classes.json'
+_monthly_migration_done = False
 
 app = Flask(__name__, template_folder='web_templates')
 SECRET_KEY = os.environ.get('SECRET_KEY')
@@ -243,6 +255,7 @@ app.jinja_env.globals.update(
     display_status=display_status,
     month_label=month_label,
     report_month_from_filename=report_month_from_filename,
+    parse_lesson_month=parse_lesson_month,
 )
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
 SUPERADMIN_EMAIL = os.environ.get('SUPERADMIN_EMAIL', 'admin@misterwiz.local').strip()
@@ -553,7 +566,7 @@ def _validate_teacher_lesson_rows(rows, user, students):
 def _merge_teacher_students(new_rows, user):
     teacher_key = normalize_teacher_name(user.get('teacher_name', '')).casefold()
     kept = [
-        row for row in _load_students()
+        row for row in _load_roster_students()
         if normalize_teacher_name(row.get('teacher', '')).casefold() != teacher_key
     ]
     return kept + new_rows
@@ -569,18 +582,25 @@ def _merge_teacher_lessons(new_rows, user, students):
 
 
 def _save_upload_dataset(key, rows, user, students_context=None):
-    if has_full_data_access(user['role']):
-        if key == 'students':
-            _save_students(rows)
-        else:
-            _save_lessons(rows)
-        return
-
     if key == 'students':
-        _save_students(_merge_teacher_students(rows, user))
+        review_month = _get_review_month()
+        store = _load_monthly_review_store()
+        roster_rows = []
+        for row in rows:
+            profile = apply_upload_row(row, store, review_month)
+            roster_rows.append(_roster_row_for_storage(profile))
+        _save_monthly_review_store(store)
+        if has_full_data_access(user['role']):
+            _save_students(roster_rows)
+        else:
+            _save_students(_merge_teacher_students(roster_rows, user))
         return
 
-    students = students_context if students_context is not None else _load_students()
+    if has_full_data_access(user['role']):
+        _save_lessons(rows)
+        return
+
+    students = students_context if students_context is not None else _load_roster_students()
     _save_lessons(_merge_teacher_lessons(rows, user, students))
 
 
@@ -647,13 +667,20 @@ def role_required(*roles):
     return decorator
 
 
-def _scoped_students():
-    all_students = _load_students()
+def _scoped_students(review_month=None, merge=True):
+    _ensure_monthly_migration()
+    roster = _load_roster_students()
     user = _current_user()
     if not user:
-        return all_students, []
-    visible = filter_students_for_user(all_students, user)
-    return all_students, visible
+        return roster, []
+    visible_roster = filter_students_for_user(roster, user)
+    if not merge:
+        return roster, visible_roster
+    if review_month is None:
+        review_month = _get_review_month(_load_lessons())
+    store = _load_monthly_review_store()
+    visible = merge_roster_for_month(visible_roster, store, review_month)
+    return roster, visible
 
 
 def _scoped_lessons(all_students=None):
@@ -859,11 +886,11 @@ def _lesson_from_form():
     return row
 
 
-def _persist_lesson_attendance(lesson, all_students):
-    """Save attendance picks for this aula and sync student faltas/missed_aulas."""
+def _persist_lesson_attendance(lesson, roster):
+    """Save attendance picks and sync faltas/missed_aulas into the lesson's review month."""
     entries = parse_attendance_form(request.form)
     if not entries:
-        return all_students
+        return
     turma = lesson.get('turma', '')
     aula_num = lesson.get('aula_num', '')
     attendance_rows = replace_lesson_attendance(
@@ -877,7 +904,16 @@ def _persist_lesson_attendance(lesson, all_students):
         entry['student_name']: normalize_attendance_status(entry['status'])
         for entry in entries
     }
-    return apply_attendance_to_students(all_students, turma, aula_num, attendance_by_name)
+    month_key = parse_lesson_month(lesson.get('date', '')) or _get_review_month()
+    store = _load_monthly_review_store()
+    merged = merge_roster_for_month(roster, store, month_key)
+    updated = apply_attendance_to_students(merged, turma, aula_num, attendance_by_name)
+    if updated != merged:
+        turma_key = turma.strip()
+        for row in updated:
+            if (row.get('turma') or '').strip() == turma_key:
+                upsert_monthly_review(store, row, month_key)
+        _save_monthly_review_store(store)
 
 
 def _lesson_edit_context(lesson, all_rows, all_students, allowed_turmas, is_new,
@@ -953,18 +989,27 @@ def _list_turma_param():
     return (request.args.get('turma') or request.form.get('return_turma') or '').strip()
 
 
-def _redirect_students():
+def _list_month_param():
+    return (request.args.get('month') or request.form.get('return_month') or '').strip()
+
+
+def _redirect_with_list_params(endpoint):
     turma = _list_turma_param()
+    month = _list_month_param() or session.get('review_month') or ''
+    kwargs = {}
     if turma:
-        return redirect(url_for('students', turma=turma))
-    return redirect(url_for('students'))
+        kwargs['turma'] = turma
+    if month:
+        kwargs['month'] = month
+    return redirect(url_for(endpoint, **kwargs))
+
+
+def _redirect_students():
+    return _redirect_with_list_params('students')
 
 
 def _redirect_lessons():
-    turma = _list_turma_param()
-    if turma:
-        return redirect(url_for('lessons', turma=turma))
-    return redirect(url_for('lessons'))
+    return _redirect_with_list_params('lessons')
 
 
 def _sort_lessons(rows):
@@ -1002,20 +1047,141 @@ def _merge_scoped_students(all_students, visible_students):
 @app.context_processor
 def inject_auth():
     user = _current_user()
+    lessons = _load_lessons()
+    review_month = _get_review_month(lessons) if user else ''
     return {
         'current_user': user,
         'role_labels': ROLE_LABELS,
         'can_manage_teachers': can_manage_teachers(user['role']) if user else False,
         'can_upload_csv': bool(user),
         'can_upload_all_csv': has_full_data_access(user['role']) if user else False,
+        'review_month': review_month,
+        'review_month_label': month_label(review_month) if review_month else '',
+        'available_review_months': _available_review_months(lessons) if user else [],
+        'url_with_month': _url_with_month,
     }
 
 
-def _load_students():
+def _load_roster_students():
     if db_store:
         return db_store.load_students()
     path = DATA_DIR / 'students.csv'
     return load_csv(path) if path.exists() else []
+
+
+def _load_students():
+    return _load_roster_students()
+
+
+def _roster_row_for_storage(profile):
+    row = {field: '' for field in STUDENT_FIELDS}
+    row.update({field: (profile.get(field) or '').strip() for field in ROSTER_FIELDS})
+    return row
+
+
+def _monthly_reviews_path():
+    """Resolve monthly reviews file from DATA_DIR (supports test monkeypatching)."""
+    return DATA_DIR / 'student_monthly_reviews.json'
+
+
+def _load_monthly_review_store():
+    if db_store:
+        return store_from_rows(db_store.load_monthly_reviews())
+    return load_monthly_reviews(_monthly_reviews_path())
+
+
+def _save_monthly_review_store(store):
+    rows = rows_from_store(store)
+    if db_store:
+        db_store.save_monthly_reviews(rows)
+        return
+    save_monthly_reviews(_monthly_reviews_path(), store)
+
+
+def _merged_roster_for_month(roster, month_key):
+    store = _load_monthly_review_store()
+    return merge_roster_for_month(roster, store, month_key)
+
+
+def _persist_monthly_rows(students, month_key):
+    store = _load_monthly_review_store()
+    for student in students:
+        upsert_monthly_review(store, student, month_key)
+    _save_monthly_review_store(store)
+
+
+def _ensure_monthly_migration():
+    global _monthly_migration_done
+    if _monthly_migration_done:
+        return
+    lessons = _load_lessons()
+    month = default_report_month(lessons)
+    roster = _load_roster_students()
+    store = _load_monthly_review_store()
+    if migrate_roster_scores_to_month(roster, store, month):
+        _save_monthly_review_store(store)
+    _monthly_migration_done = True
+
+
+def _available_review_months(lessons):
+    months = list(available_report_months(lessons))
+    current = datetime.now().strftime('%Y-%m')
+    if current not in months:
+        months.append(current)
+    return sorted(set(months))
+
+
+def _get_review_month(lessons=None):
+    if lessons is None:
+        lessons = _load_lessons()
+    available = _available_review_months(lessons)
+    raw = (request.args.get('month') or session.get('review_month') or '').strip()
+    if raw in available:
+        session['review_month'] = raw
+        return raw
+    default = default_report_month(lessons)
+    if default not in available and available:
+        default = available[-1]
+    session['review_month'] = default
+    return default
+
+
+def _set_review_month(month, lessons=None):
+    if lessons is None:
+        lessons = _load_lessons()
+    month = (month or '').strip()
+    available = _available_review_months(lessons)
+    if month not in available:
+        return False
+    session['review_month'] = month
+    return True
+
+
+def _url_with_month(endpoint, **kwargs):
+    month = kwargs.pop('month', None)
+    if month is None:
+        month = session.get('review_month', '')
+    if month and 'month' not in kwargs:
+        kwargs['month'] = month
+    return url_for(endpoint, **kwargs)
+
+
+def _persist_student_save(all_rows, global_idx, updated, review_month):
+    profile, _ = split_student_row(updated)
+    all_rows[global_idx] = _roster_row_for_storage(profile)
+    _save_students(all_rows)
+    store = _load_monthly_review_store()
+    upsert_monthly_review(store, updated, review_month)
+    _save_monthly_review_store(store)
+
+
+def _persist_student_create(all_rows, new_row, review_month):
+    profile, _ = split_student_row(new_row)
+    all_rows.append(_roster_row_for_storage(profile))
+    _save_students(all_rows)
+    store = _load_monthly_review_store()
+    upsert_monthly_review(store, new_row, review_month)
+    _save_monthly_review_store(store)
 
 
 def _load_lessons():
@@ -1309,6 +1475,18 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.route('/review-month', methods=['POST'])
+@login_required
+def set_review_month():
+    month = (request.form.get('review_month') or '').strip()
+    if not _set_review_month(month):
+        abort(400)
+    target = (request.form.get('next') or request.referrer or '').strip()
+    if target and target.startswith(request.host_url.rstrip('/')):
+        return redirect(target)
+    return redirect(url_for('dashboard', month=month))
+
+
 # ── Dashboard ─────────────────────────────────────────────────────────────────────
 
 @app.route('/')
@@ -1330,6 +1508,8 @@ def dashboard():
     generate_error_detail = session.pop('generate_error_detail', None)
     turma_flash_ok = session.pop('turma_flash_ok', None)
     turma_flash_error = session.pop('turma_flash_error', None)
+    review_month = _get_review_month(lessons)
+    month_lessons = filter_lessons_by_month(lessons, review_month)
 
     teacher_classes = []
     turma_list = list(turmas.keys())
@@ -1351,7 +1531,7 @@ def dashboard():
     return render_template('dashboard.html',
         student_count=len(students),
         turma_count=turma_count,
-        lesson_count=len(lessons),
+        lesson_count=len(month_lessons),
         report_count=len(individual),
         turmas=turma_list,
         teacher_classes=teacher_classes,
@@ -1359,8 +1539,9 @@ def dashboard():
         weekday_choices=WEEKDAY_CHOICES,
         data_ready=data_ready,
         db_status=db_status,
-        available_months=available_report_months(lessons),
-        default_month=default_report_month(lessons),
+        available_months=_available_review_months(lessons),
+        default_month=review_month,
+        review_month=review_month,
         generate_error=generate_error,
         generate_error_detail=generate_error_detail,
         turma_flash_ok=turma_flash_ok,
@@ -1599,9 +1780,8 @@ def student_edit(idx):
         global_idx = find_student_global_index(all_rows, visible, idx)
         if global_idx is None:
             abort(404)
-        visible[idx] = updated
-        all_rows[global_idx] = updated
-        _save_students(all_rows)
+        review_month = _get_review_month()
+        _persist_student_save(all_rows, global_idx, updated, review_month)
         _sync_student_aula_extra_sessions(updated)
         return _redirect_students()
     return render_template(
@@ -1629,8 +1809,8 @@ def student_new():
                     all_rows, user, True, new_row, None, form_error=form_error,
                 ),
             )
-        all_rows.append(new_row)
-        _save_students(all_rows)
+        review_month = _get_review_month()
+        _persist_student_create(all_rows, new_row, review_month)
         _sync_student_aula_extra_sessions(new_row)
         return _redirect_students()
     defaults = dict(visible[0]) if visible else dict(all_rows[0]) if all_rows else {}
@@ -1701,13 +1881,14 @@ def lesson_edit(idx):
             abort(404)
         all_rows[global_idx] = updated
         _save_lessons(_sort_lessons(all_rows))
-        updated_students = _persist_lesson_attendance(updated, _load_students())
-        _save_students(updated_students)
+        _persist_lesson_attendance(updated, _load_roster_students())
         return _redirect_lessons()
 
     attendance_rows = _load_lesson_attendance()
+    lesson_month = parse_lesson_month(visible[idx].get('date', '')) or _get_review_month()
+    students_merged = _merged_roster_for_month(all_students, lesson_month)
     ctx = _lesson_edit_context(
-        visible[idx], all_rows, all_students, allowed_turmas, is_new=False,
+        visible[idx], all_rows, students_merged, allowed_turmas, is_new=False,
         attendance_rows=attendance_rows,
     )
     return render_template(
@@ -1736,8 +1917,7 @@ def lesson_new():
             abort(403)
         all_rows.append(new_row)
         _save_lessons(_sort_lessons(all_rows))
-        updated_students = _persist_lesson_attendance(new_row, _load_students())
-        _save_students(updated_students)
+        _persist_lesson_attendance(new_row, _load_roster_students())
         return _redirect_lessons()
 
     defaults = {}
@@ -1836,10 +2016,12 @@ def extra_session_edit(idx):
         all_rows[global_idx] = updated
         _save_extra_sessions(all_rows)
         if is_status_ok(updated.get('realizado')):
-            students = _load_students()
-            cleared = clear_aula_extra_after_completed_session(students, updated)
-            if cleared is not students:
-                _save_students(cleared)
+            review_month = _get_review_month()
+            roster = _load_roster_students()
+            merged = _merged_roster_for_month(roster, review_month)
+            cleared = clear_aula_extra_after_completed_session(merged, updated)
+            if cleared is not merged:
+                _persist_monthly_rows(cleared, review_month)
         return redirect(url_for('extra_sessions'))
 
     return render_template(
@@ -2104,10 +2286,10 @@ def download_csv(name):
 # ── Generate & Reports ────────────────────────────────────────────────────────────────
 
 def _report_month_from_request(lessons):
-    raw = (request.form.get('report_month') or request.args.get('month') or '').strip()
-    if raw and raw in available_report_months(lessons):
+    raw = (request.form.get('report_month') or '').strip()
+    if raw and raw in _available_review_months(lessons):
         return raw
-    return default_report_month(lessons)
+    return _get_review_month(lessons)
 
 
 def _validate_generation_inputs(students, lessons):
@@ -2376,9 +2558,11 @@ def reports():
         all_students, students = _scoped_students()
         _, lessons = _scoped_lessons(all_students)
         selected_month = (request.args.get('month') or '').strip()
-        available_months = available_report_months(lessons)
-        if selected_month and selected_month not in available_months:
-            selected_month = ''
+        available_months = _available_review_months(lessons)
+        if not selected_month:
+            selected_month = _get_review_month(lessons)
+        elif selected_month not in available_months:
+            selected_month = _get_review_month(lessons)
 
         files = filter_reports_for_user(sorted(OUT_DIR.glob('*.html')), all_students, _current_user())
         individual = [f for f in files if 'class_diagnostic' not in f.name]
@@ -2401,7 +2585,7 @@ def reports():
             turma_labels=_turma_display_map(students, user),
             available_months=available_months,
             selected_month=selected_month,
-            default_month=default_report_month(lessons),
+            default_month=_get_review_month(lessons),
         )
     except Exception as exc:
         logger.exception('Reports page failed: %s', exc)

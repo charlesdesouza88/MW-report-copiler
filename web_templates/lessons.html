@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros/list_filters.html' import filter_panel, filter_group, list_filter_script %}
+{% from '_macros/list_filters.html' import filter_panel, filter_group, filter_month_group, list_filter_script %}
 {% from '_macros/page_toolbar.html' import page_toolbar %}
 {% set return_turma = request.args.get('turma', '') %}
 {% block title %}Aulas{% endblock %}
@@ -24,6 +24,9 @@
   {% if habilidades %}
   {{ filter_group('Habilidades', habilidades, 'habilidades', 'Todas') }}
   {% endif %}
+  {% if available_review_months %}
+  {{ filter_month_group(available_review_months, 'Todos') }}
+  {% endif %}
 {% endcall %}
 
 <div class="students-cards-view">
@@ -32,6 +35,7 @@
        style="--filter-i: {{ loop.index0 % 12 }}"
        data-filter-id="{{ loop.index0 }}"
        data-turma="{{ lesson.turma }}"
+       data-month="{{ parse_lesson_month(lesson.date) or '' }}"
        data-habilidades="{{ lesson.habilidades or '' }}"
        data-search="{{ (lesson.turma ~ ' ' ~ (lesson.aula_num or '') ~ ' ' ~ (lesson.date or '') ~ ' ' ~ (lesson.licao_conteudo or '') ~ ' ' ~ (lesson.habilidades or '') ~ ' ' ~ (lesson.atividade_extra or ''))|lower }}">
     <div class="student-card-header">
@@ -79,6 +83,7 @@
           style="--filter-i: {{ loop.index0 % 12 }}"
           data-filter-id="{{ loop.index0 }}"
           data-turma="{{ lesson.turma }}"
+          data-month="{{ parse_lesson_month(lesson.date) or '' }}"
           data-habilidades="{{ lesson.habilidades or '' }}"
           data-search="{{ (lesson.turma ~ ' ' ~ (lesson.aula_num or '') ~ ' ' ~ (lesson.date or '') ~ ' ' ~ (lesson.licao_conteudo or '') ~ ' ' ~ (lesson.habilidades or '') ~ ' ' ~ (lesson.atividade_extra or ''))|lower }}">
         <td class="text-gray font-sm">{{ loop.index }}</td>
@@ -116,6 +121,6 @@
 
 {% block scripts %}
 {% if lessons %}
-{{ list_filter_script('.lesson-row, .lesson-card-item', 'lessons', '#filter-lessons', ['turma']) }}
+{{ list_filter_script('.lesson-row, .lesson-card-item', 'lessons', '#filter-lessons', ['turma', 'month'], {'month': review_month} if review_month else none) }}
 {% endif %}
 {% endblock %}

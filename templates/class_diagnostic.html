@@ -189,22 +189,65 @@ body {
 .extra-notes { border: 2px solid #5B2D8E; border-radius: 8px; padding: 8px; font-size: 10px; }
 .extra-notes-title { font-weight: 700; color: #5B2D8E; margin-bottom: 3px; }
 
+.class-summary {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 2px solid #5B2D8E;
+  border-radius: 10px;
+  background: #FBF8FF;
+}
+.class-summary-donut { text-align: center; flex-shrink: 0; }
+.class-summary-donut-label { font-size: 9px; font-weight: 700; color: #5B2D8E; text-transform: uppercase; margin-bottom: 4px; }
+.class-summary-bars { min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.class-summary-attendance { flex-shrink: 0; min-width: 140px; }
+.class-summary-att-title { font-size: 9px; font-weight: 700; color: #5B2D8E; margin-bottom: 6px; text-transform: uppercase; }
+.class-att-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; font-size: 8px; font-weight: 700; }
+.class-att-legend span { display: inline-flex; align-items: center; gap: 3px; }
+.class-att-sq { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.chart-svg { max-width: 100%; height: auto; display: block; }
+
 @media screen {
-  html { -webkit-text-size-adjust: 100%; }
+  html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
   body {
     width: 100%;
-    max-width: 100%;
+    max-width: min(1160px, 100%);
     min-width: 0;
-    padding: 12px;
+    margin: 0 auto;
+    padding: 14px 16px 24px;
     background: #E8E4EE;
+    font-size: 11px;
   }
-  .skill-cards { grid-template-columns: 1fr; }
-  .skill-card { width: 100%; max-width: 100%; }
-  .skill-bubble { width: 48px; height: 48px; font-size: 24px; }
-  .skill-score-label { font-size: 10.5px; }
-  .skill-mini-web svg { width: 80px; height: 84px; }
+  .header { flex-wrap: wrap; gap: 10px; }
+  .class-name { font-size: clamp(18px, 4vw, 24px); word-break: break-word; }
+  .teacher-name { font-size: clamp(14px, 2.5vw, 18px); }
+  .section-title { font-size: clamp(13px, 2.5vw, 16px); }
+  .skill-cards { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .skill-card { padding: 14px; }
+  .skill-bubble { width: 50px; height: 50px; font-size: 26px; }
+  .skill-mini-web svg { width: 72px; height: 76px; }
+  .class-summary { grid-template-columns: 1fr; gap: 12px; }
+  .class-summary-bars svg { max-width: 100%; height: auto; }
+  .criteria-grid { grid-template-columns: 1fr; }
   .dates-grid { grid-template-columns: 1fr; }
-  .profile-table, .dev-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .profile-table, .dev-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  table.profile-table, table.dev-table { min-width: 520px; }
+}
+@media screen and (min-width: 640px) {
+  body { padding: 16px 20px 28px; font-size: 12px; }
+  .skill-cards { grid-template-columns: repeat(2, 1fr); }
+  .criteria-grid { grid-template-columns: 1fr 1fr; }
+  .dates-grid { grid-template-columns: repeat(3, 1fr); }
+  .class-summary { grid-template-columns: auto 1fr auto; }
+}
+@media screen and (min-width: 900px) {
+  body { padding: 18px 24px 32px; font-size: 13px; }
+  .skill-cards { grid-template-columns: repeat(3, 1fr); }
+  .criteria-grid { grid-template-columns: 1fr 1fr 1fr; }
+  .skill-bubble { width: 54px; height: 54px; font-size: 28px; }
 }
 @media print {
   body { width: 277mm; background: #fff; padding: 0; }
@@ -212,6 +255,7 @@ body {
   .skill-bubble { width: 52px; height: 52px; font-size: 26px; }
   .skill-score-label { font-size: 10.5px; }
   .skill-mini-web svg { width: 72px; height: 76px; }
+  .class-summary { display: none; }
 }
 </style>
 </head>
@@ -234,6 +278,45 @@ body {
     <div class="teacher-name">{{ teacher }}</div>
   </div>
 </div>
+
+{% if class_summary %}
+<div class="class-summary">
+  <div class="class-summary-donut">
+    <div class="class-summary-donut-label">Índice da turma</div>
+    <svg class="chart-svg" width="{{ class_summary.composite_donut.size }}" height="{{ class_summary.composite_donut.size }}" viewBox="0 0 {{ class_summary.composite_donut.size }} {{ class_summary.composite_donut.size }}">
+      <circle cx="{{ class_summary.composite_donut.cx }}" cy="{{ class_summary.composite_donut.cy }}" r="{{ class_summary.composite_donut.r }}" fill="none" stroke="#E8E4EE" stroke-width="{{ class_summary.composite_donut.stroke }}"/>
+      <circle cx="{{ class_summary.composite_donut.cx }}" cy="{{ class_summary.composite_donut.cy }}" r="{{ class_summary.composite_donut.r }}" fill="none" stroke="#5B2D8E" stroke-width="{{ class_summary.composite_donut.stroke }}" stroke-dasharray="{{ class_summary.composite_donut.cur_dash }}" stroke-linecap="round" transform="rotate(-90 {{ class_summary.composite_donut.cx }} {{ class_summary.composite_donut.cy }})"/>
+      <text x="{{ class_summary.composite_donut.cx }}" y="{{ class_summary.composite_donut.cy + 5 }}" text-anchor="middle" font-size="20" font-weight="bold" fill="#5B2D8E" font-family="Arial">{{ class_summary.composite_avg }}</text>
+    </svg>
+    <div style="font-size:9px;color:#666;margin-top:2px;">{{ class_summary.student_count }} alunos</div>
+  </div>
+  <div class="class-summary-bars">
+    <div class="class-summary-att-title">Médias da turma</div>
+    <svg class="chart-svg" width="{{ class_summary.bars.width }}" height="{{ class_summary.bars.height }}" viewBox="0 0 {{ class_summary.bars.width }} {{ class_summary.bars.height }}" font-family="Arial" role="img" aria-label="Médias da turma por dimensão">
+      {% for row in class_summary.bars.rows %}
+      <text x="{{ row.label_x }}" y="{{ row.y + 11 }}" font-size="10" font-weight="bold" fill="#333">{{ row.label }}</text>
+      <rect x="{{ row.bar_x }}" y="{{ row.current_y }}" width="{{ row.current_w }}" height="{{ class_summary.bars.bar_h }}" rx="3" fill="#5B2D8E"/>
+      <text x="{{ row.bar_x + class_summary.bars.bar_max_w + 6 }}" y="{{ row.current_y + 10 }}" font-size="10" font-weight="bold" fill="#5B2D8E">{{ row.current }}</text>
+      {% endfor %}
+    </svg>
+  </div>
+  <div class="class-summary-attendance">
+    <div class="class-summary-att-title">Presença da turma</div>
+    <svg class="chart-svg" width="{{ class_summary.attendance_bar.width }}" height="{{ class_summary.attendance_bar.height + 4 }}" viewBox="0 0 {{ class_summary.attendance_bar.width }} {{ class_summary.attendance_bar.height + 4 }}" role="img" aria-label="Distribuição de presença">
+      {% for sl in class_summary.attendance_bar.slices %}
+      {% if sl.w > 0 %}
+      <rect x="{{ sl.x }}" y="0" width="{{ sl.w }}" height="{{ class_summary.attendance_bar.height }}" fill="{{ sl.color }}" rx="2"/>
+      {% endif %}
+      {% endfor %}
+    </svg>
+    <div class="class-att-legend">
+      {% for sl in class_summary.attendance_bar.slices %}
+      <span><span class="class-att-sq" style="background:{{ sl.color }}"></span>{{ sl.label }} ({{ sl.count }})</span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <div class="section-title">Membros da Turma</div>
 <table class="profile-table">
