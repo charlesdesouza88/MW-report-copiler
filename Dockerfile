@@ -9,4 +9,4 @@ COPY . .
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8080} --timeout 120 --workers 1 app:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8080} --timeout 300 --workers ${WEB_CONCURRENCY:-4} app:app"]

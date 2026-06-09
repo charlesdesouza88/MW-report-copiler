@@ -446,7 +446,7 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
 
     store = UserStore(db_store=None, json_path=data_dir / "users.json")
     store.initialize()
-    store.create_teacher("chuck@test.local", "pass123", "Chuck")
+    store.create_teacher("chuck@test.local", "pass1234", "Chuck")
 
     monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
     monkeypatch.setattr(web_app, "db_store", None)
@@ -456,7 +456,7 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
     _init_user_store(monkeypatch, data_dir)
 
     client = web_app.app.test_client()
-    client.post("/login", data={"email": "chuck@test.local", "password": "pass123"})
+    client.post("/login", data={"email": "chuck@test.local", "password": "pass1234"})
     response = client.get("/lessons")
     html = response.get_data(as_text=True)
 
@@ -531,7 +531,7 @@ def test_flagged_student_appears_in_extra_sessions(monkeypatch, tmp_path):
 
     store = UserStore(db_store=None, json_path=data_dir / "users.json")
     store.initialize()
-    store.create_teacher("chuck@test.local", "pass123", "Chuck")
+    store.create_teacher("chuck@test.local", "pass1234", "Chuck")
 
     monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
     monkeypatch.setattr(web_app, "db_store", None)
@@ -541,7 +541,7 @@ def test_flagged_student_appears_in_extra_sessions(monkeypatch, tmp_path):
     _init_user_store(monkeypatch, data_dir)
 
     client = web_app.app.test_client()
-    client.post("/login", data={"email": "chuck@test.local", "password": "pass123"})
+    client.post("/login", data={"email": "chuck@test.local", "password": "pass1234"})
     client.post(
         "/students/0/edit",
         data={
@@ -595,7 +595,7 @@ def test_teacher_sees_only_own_students(monkeypatch, tmp_path):
 
     store = UserStore(db_store=None, json_path=data_dir / "users.json")
     store.initialize()
-    store.create_teacher("chuck@test.local", "pass123", "Chuck")
+    store.create_teacher("chuck@test.local", "pass1234", "Chuck")
 
     monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
     monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
@@ -603,7 +603,7 @@ def test_teacher_sees_only_own_students(monkeypatch, tmp_path):
     monkeypatch.setattr(web_app, "user_store", store)
 
     client = web_app.app.test_client()
-    client.post("/login", data={"email": "chuck@test.local", "password": "pass123"})
+    client.post("/login", data={"email": "chuck@test.local", "password": "pass1234"})
     response = client.get("/students")
     html = response.get_data(as_text=True)
 

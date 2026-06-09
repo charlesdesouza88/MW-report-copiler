@@ -373,6 +373,43 @@ body {
   border: 1px solid var(--mw-border); background: #fff;
 }
 
+/* ── Attendance calendar ── */
+.att-cal-panel { flex: 1; min-width: 0; }
+.att-cal {
+  border-collapse: collapse; width: 100%;
+  font-size: 10px; margin-top: 4px;
+}
+.att-cal th {
+  font-size: 8px; font-weight: 700; text-align: center;
+  color: #888; padding: 2px 1px; letter-spacing: 0;
+}
+.att-cal td { text-align: center; padding: 2px 1px; }
+.att-day {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  font-size: 9px; font-weight: 700; cursor: default;
+}
+.att-noclass { background: none; color: #bbb; }
+.att-present { background: #5B2D8E; color: #fff; }
+.att-absent  { background: #d94f4f; color: #fff; }
+.att-tardy   { background: #e89020; color: #fff; }
+.att-cal-legend {
+  display: flex; gap: 10px; margin-top: 6px;
+  font-size: 9px; color: #555; align-items: center; flex-wrap: wrap;
+}
+.att-dot {
+  display: inline-block; width: 10px; height: 10px;
+  border-radius: 50%; flex-shrink: 0;
+}
+.att-dot.att-present { background: #5B2D8E; }
+.att-dot.att-absent  { background: #d94f4f; }
+.att-dot.att-tardy   { background: #e89020; }
+.att-missed-list {
+  margin-top: 6px; font-size: 10px; color: #444;
+}
+.att-missed-item { padding: 2px 0; border-bottom: 1px solid #eee; }
+.att-missed-item:last-child { border-bottom: none; }
+
 /* ── PARTICIPAÇÃO ── */
 .part-body { display: contents; }
 .part-left, .part-right { min-width: 0; }
@@ -713,21 +750,70 @@ body {
   .radar-wrap svg { width: 220px; height: auto; }
 }
 @media print {
-  body { width: 297mm; min-width: 297mm; background: #fff; padding: 7mm 8mm 4mm; }
-  .grid { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-  .card { border: 2px solid #111; padding: 8px 10px; }
-  .card-header { padding: 0 0 5px; background: none; }
-  .card-body { padding: 0; gap: 5px; }
+  html { height: 210mm; }
+  body {
+    width: 297mm; min-width: 297mm; height: 210mm;
+    background: #fff; padding: 6mm 8mm 3mm;
+    box-sizing: border-box; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .header { flex-shrink: 0; }
+  .dimension-rings { flex-shrink: 0; }
+  .grid {
+    flex: 1; min-height: 0; overflow: hidden;
+    grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+  }
+  .card { border: 1.5px solid #999; padding: 6px 8px; overflow: hidden; }
+  .card-header { padding: 0 0 4px; background: none; }
+  .card-body { padding: 0; gap: 4px; overflow: hidden; }
   .score-box { border: none; background: none; padding: 0; }
-  .sub-panel, .chart-panel, .metric-cell, .ring-cell { border: 1px solid #CCC; }
-  .stack-layout { display: flex; flex-direction: column; gap: 6px; }
+  .sub-panel, .chart-panel, .metric-cell { border: 1px solid #CCC; }
+  .sub-panel { padding: 4px 6px; }
+  .sub-panel-title { font-size: 8px; padding-bottom: 2px; margin-bottom: 4px; }
+  .stack-layout { display: flex; flex-direction: column; gap: 3px; }
   .split-layout { display: none; }
-  .dimension-rings,
+  /* Shrink bubbles for print */
+  .bubble { width: 36px !important; height: 36px !important; font-size: 20px !important; }
+  .bubble-md { width: 40px !important; height: 40px !important; font-size: 22px !important; }
+  .bubble-lg { width: 46px !important; height: 46px !important; font-size: 24px !important; }
+  .overall-score-label { font-size: 8px; margin-bottom: 2px; }
+  .metric-cell { padding: 4px; }
+  .metric-label { font-size: 8px !important; }
+  /* Hide pie chart visual, keep grade text */
+  .pie-wrap svg, .pie-legend { display: none; }
+  .pie-footer { font-size: 9px; text-align: left; }
   .skill-columns-row,
   .column-chart-wrap,
   .chart-panel,
   .dev-charts-row .horizontal-bars-wrap,
-  .sparkline-wrap { display: none; }
+  .radar-wrap,
+  .sparkline-wrap,
+  .comparison-section,
+  .recomendacoes { display: none; }
+  /* Show score summary strip in print */
+  .dimension-rings {
+    display: flex;
+    background: none;
+    border: 1px solid #CCC;
+    padding: 3px 6px;
+    gap: 4px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+  }
+  .dimension-rings-title {
+    font-size: 8px;
+    margin-bottom: 1px;
+    letter-spacing: 0;
+  }
+  .ring-row { gap: 4px; }
+  .ring-cell {
+    border: 1px solid #CCC;
+    border-radius: 5px;
+    padding: 3px 6px;
+    background: none;
+  }
+  .ring-score { font-size: 16px; }
+  .ring-label { font-size: 8px; }
   .anim-col-bar, .anim-h-bar, .anim-ring-progress, .anim-radar-shape,
   .anim-sparkline-path, .anim-pie-slice, .anim-compare-bar,
   .metric-cell, .ring-cell {
@@ -866,6 +952,50 @@ body {
             <div class="pie-footer">Nota de presença: <strong>{{ pres_score }}</strong> / 5</div>
           </div>
         </div>
+        {% if attendance_calendar and attendance_calendar.has_class %}
+        <div class="sub-panel att-cal-panel">
+          <div class="sub-panel-title">Calendário de Presenças</div>
+          <table class="att-cal">
+            <thead>
+              <tr>
+                {% for h in attendance_calendar.day_headers %}
+                <th>{{ h }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for week in attendance_calendar.weeks %}
+              <tr>
+                {% for cell in week %}
+                <td>
+                  {% if cell.day %}
+                  <span class="att-day att-{{ cell.status or 'noclass' }}" title="Dia {{ cell.day }}{% if cell.status == 'absent' %} — Falta{% elif cell.status == 'tardy' %} — Atraso{% elif cell.status == 'present' %} — Presente{% endif %}">{{ cell.day }}</span>
+                  {% endif %}
+                </td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <div class="att-cal-legend">
+            <span class="att-dot att-present"></span>Presente
+            <span class="att-dot att-absent"></span>Falta
+            <span class="att-dot att-tardy"></span>Atraso
+          </div>
+          {% if missed %}
+          <div class="att-missed-list">
+            {% for m in missed %}
+            <div class="att-missed-item">
+              <strong>Aula {{ m.aula_num }}</strong>{% if m.licao_conteudo %}: {{ m.licao_conteudo }}{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% if needs_makeup %}
+          <div class="no-makeup" style="color:#5B2D8E;border-color:#5B2D8E;">Reposição necessária</div>
+          {% endif %}
+        </div>
+        {% else %}
         <div class="sub-panel presenca-right">
           <div class="sub-panel-title">Registro de faltas</div>
           <div class="missed-heading">Aulas perdidas</div>
@@ -895,6 +1025,7 @@ body {
           <div class="no-makeup">Sem necessidade de reposição</div>
           {% endif %}
         </div>
+        {% endif %}
       </div>
     </div>
   </div>

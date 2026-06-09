@@ -1,1 +1,1 @@
-web: gunicorn --bind 0.0.0.0:$PORT --timeout 120 app:app
+web: gunicorn --bind 0.0.0.0:$PORT --timeout 300 --workers ${WEB_CONCURRENCY:-4} app:app

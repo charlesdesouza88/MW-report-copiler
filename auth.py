@@ -2,7 +2,11 @@
 
 import json
 import logging
+import os
+import tempfile
 from pathlib import Path
+
+_MIN_PASSWORD_LEN = 8
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -221,10 +225,18 @@ class UserStore:
         if self.db_store:
             self.db_store.save_users(users)
             return
-        self.json_path.write_text(
-            json.dumps(users, ensure_ascii=False, indent=2),
-            encoding='utf-8',
-        )
+        content = json.dumps(users, ensure_ascii=False, indent=2).encode('utf-8')
+        fd, tmp = tempfile.mkstemp(dir=self.json_path.parent, suffix='.tmp')
+        try:
+            with os.fdopen(fd, 'wb') as f:
+                f.write(content)
+            os.replace(tmp, self.json_path)
+        except Exception:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
 
     def get_by_email(self, email):
         key = normalize_email(email)
@@ -364,6 +376,8 @@ class UserStore:
         }
 
     def create_teacher(self, email, password, teacher_name):
+        if len(password) < _MIN_PASSWORD_LEN:
+            raise ValueError(f'A senha deve ter pelo menos {_MIN_PASSWORD_LEN} caracteres.')
         users = self.list_users()
         if self.get_by_email(email):
             raise ValueError('Este e-mail já está cadastrado.')
@@ -382,6 +396,8 @@ class UserStore:
     def create_admin(self, email, password, role=ROLE_ADMIN):
         if role not in MANAGEMENT_ROLES:
             raise ValueError('Papel inválido.')
+        if len(password) < _MIN_PASSWORD_LEN:
+            raise ValueError(f'A senha deve ter pelo menos {_MIN_PASSWORD_LEN} caracteres.')
         users = self.list_users()
         if self.get_by_email(email):
             raise ValueError('Este e-mail já está cadastrado.')

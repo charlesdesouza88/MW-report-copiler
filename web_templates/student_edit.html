@@ -23,6 +23,7 @@
 </div>
 {% endif %}
 <form method="post" style="max-width: 860px;"{% if no_teacher_classes %} class="disabled-form"{% endif %}>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% if return_turma %}
   <input type="hidden" name="return_turma" value="{{ return_turma }}">
   {% endif %}

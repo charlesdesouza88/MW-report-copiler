@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+import tempfile
 import threading
 import time
 import zipfile
@@ -16,6 +17,9 @@ from pathlib import Path
 
 from flask import (Flask, abort, redirect, render_template, request,
                    send_file, session, url_for)
+from flask_wtf.csrf import CSRFProtect, CSRFError
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from compiler import (build_student_ctx, create_report_environment,
                       generate_class_diagnostics, generate_individual_reports,
@@ -81,6 +85,27 @@ else:
 BASE = Path(__file__).parent
 
 
+def _atomic_write_csv(path, fieldnames, rows):
+    """Write CSV rows to path atomically (temp file → os.replace)."""
+    path = Path(path)
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=fieldnames, extrasaction='ignore')
+    writer.writeheader()
+    writer.writerows(rows)
+    content = buf.getvalue().encode('utf-8')
+    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix='.tmp')
+    try:
+        with os.fdopen(fd, 'wb') as f:
+            f.write(content)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def _ensure_writable_dir(path, fallback):
     candidate = Path(path)
     try:
@@ -119,7 +144,24 @@ def _load_local_env():
 
 _load_local_env()
 
-logging.basicConfig(level=logging.INFO)
+
+class _JsonFormatter(logging.Formatter):
+    def format(self, record):
+        data = {
+            't': self.formatTime(record, '%Y-%m-%dT%H:%M:%S'),
+            'level': record.levelname,
+            'logger': record.name,
+            'msg': record.getMessage(),
+        }
+        if record.exc_info:
+            data['exc'] = self.formatException(record.exc_info)
+        import json as _json
+        return _json.dumps(data, ensure_ascii=False)
+
+
+_handler = logging.StreamHandler()
+_handler.setFormatter(_JsonFormatter())
+logging.basicConfig(handlers=[_handler], level=logging.INFO, force=True)
 logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
@@ -224,6 +266,13 @@ DATA_DIR = _ensure_writable_dir(
     os.environ.get('DATA_DIR', default_data_dir), '/tmp/mw/data')
 OUT_DIR = _ensure_writable_dir(
     os.environ.get('OUT_DIR', default_out_dir), '/tmp/mw/output')
+
+if str(DATA_DIR).startswith('/tmp'):
+    logger.warning(
+        'DATA_DIR is %s — this path is ephemeral and data will be lost on container restart. '
+        'Set DATA_DIR to a Railway volume mount or use DATABASE_URL for persistent storage.',
+        DATA_DIR,
+    )
 SNAPSHOTS_PATH = DATA_DIR / 'student_snapshots.json'
 MONTHLY_REVIEWS_PATH = DATA_DIR / 'student_monthly_reviews.json'
 TEACHER_CLASSES_PATH = DATA_DIR / 'teacher_classes.json'
@@ -245,7 +294,23 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     SESSION_COOKIE_SECURE=bool(PRODUCTION_ENV),
+    WTF_CSRF_TIME_LIMIT=3600,
 )
+
+csrf = CSRFProtect(app)
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri='memory://',
+)
+
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    logger.warning('CSRF validation failed: %s', e.description)
+    return render_template('login.html', error='Sessão expirada. Por favor, tente novamente.',
+                           bootstrap_email='', accounts_configured=True), 400
 
 app.jinja_env.globals.update(
     storage_date_to_iso=storage_date_to_iso,
@@ -1195,20 +1260,14 @@ def _save_students(students):
     if db_store:
         db_store.save_students(students)
         return
-    with open(DATA_DIR / 'students.csv', 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=STUDENT_FIELDS, extrasaction='ignore')
-        writer.writeheader()
-        writer.writerows(students)
+    _atomic_write_csv(DATA_DIR / 'students.csv', STUDENT_FIELDS, students)
 
 
 def _save_lessons(lessons):
     if db_store:
         db_store.save_lessons(lessons)
         return
-    with open(DATA_DIR / 'lessons.csv', 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=LESSON_FIELDS, extrasaction='ignore')
-        writer.writeheader()
-        writer.writerows(lessons)
+    _atomic_write_csv(DATA_DIR / 'lessons.csv', LESSON_FIELDS, lessons)
 
 
 def _load_extra_sessions():
@@ -1224,10 +1283,7 @@ def _save_extra_sessions(rows):
     if db_store:
         db_store.save_extra_sessions(rows)
         return
-    with open(DATA_DIR / 'extra_sessions.csv', 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=EXTRA_SESSION_FIELDS, extrasaction='ignore')
-        writer.writeheader()
-        writer.writerows(rows)
+    _atomic_write_csv(DATA_DIR / 'extra_sessions.csv', EXTRA_SESSION_FIELDS, rows)
 
 
 def _sync_student_aula_extra_sessions(student):
@@ -1256,10 +1312,7 @@ def _save_lesson_attendance(rows):
     if db_store:
         db_store.save_lesson_attendance(rows)
         return
-    with open(DATA_DIR / 'lesson_attendance.csv', 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=ATTENDANCE_FIELDS, extrasaction='ignore')
-        writer.writeheader()
-        writer.writerows(rows)
+    _atomic_write_csv(DATA_DIR / 'lesson_attendance.csv', ATTENDANCE_FIELDS, rows)
 
 
 def _scoped_extra_sessions():
@@ -1428,6 +1481,7 @@ def health_auth():
 
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit('10 per minute')
 def login():
     error = None
     user_count = len(user_store.list_users())
@@ -2324,10 +2378,12 @@ def _run_report_generation(students, lessons, report_month):
         raise RuntimeError(f'Cannot write reports to {OUT_DIR}: {exc}') from exc
 
     snapshots = load_snapshots(SNAPSHOTS_PATH)
+    attendance_rows = _load_lesson_attendance()
     env = create_report_environment(TMPL_DIR)
     generate_individual_reports(
         students, lessons, env, OUT_DIR,
         report_month=report_month, snapshots=snapshots,
+        attendance_rows=attendance_rows,
     )
     generate_class_diagnostics(
         students, lessons, env, OUT_DIR,

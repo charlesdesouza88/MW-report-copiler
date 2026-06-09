@@ -9,6 +9,7 @@
 
 {% block content %}
 <form method="post" style="max-width: 760px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <div class="form-section">
     <div class="form-section-title">Aluno e professor</div>
