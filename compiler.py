@@ -744,13 +744,13 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
         skill_columns=skill_column_charts(dev_scores),
         dev_column_chart=column_bar_chart([
             dict(label=dev_labels[i], score=dev_scores[i]) for i in range(len(dev_scores))
-        ], title='Habilidades'),
+        ], title='Habilidades', gap=18),
         part_column_chart=column_bar_chart([
             dict(label=part_labels[i], score=part_scores[i]) for i in range(len(part_scores))
         ], title='Critérios'),
         comp_column_chart=column_bar_chart([
             dict(label=comp_labels[i], score=comp_scores[i]) for i in range(len(comp_labels))
-        ], title='Critérios'),
+        ], title='Critérios', gap=36),
         comp_labels=comp_labels,
         horizontal_dev_bars=horizontal_score_bars([
             dict(label=dev_labels[i], score=dev_scores[i]) for i in range(len(dev_labels))
