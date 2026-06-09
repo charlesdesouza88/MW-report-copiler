@@ -13,6 +13,7 @@
     <a href="{{ url_for('download_all', month=selected_month) if selected_month else url_for('download_all') }}" class="btn btn-outline btn-sm">↓ Baixar todos (.zip)</a>
     {% endif %}
     <form method="post" action="{{ url_for('generate') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% if available_months %}
       <select name="report_month" class="input-select" aria-label="Mês para regenerar">
         {% for m in available_months %}
@@ -39,6 +40,7 @@
     {% endif %}
   </p>
   <form method="post" action="{{ url_for('generate') }}" class="page-toolbar-actions" style="justify-content:center;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if available_months %}
     <input type="hidden" name="report_month" value="{{ selected_month or default_month }}">
     {% endif %}

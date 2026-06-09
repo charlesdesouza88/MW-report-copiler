@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Mister Wiz Report Compiler — generates student and class reports from CSV data."""
 
+import calendar as _calendar
 import csv
 import math
 import sys
+from datetime import date as _date, datetime as _datetime
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -556,7 +558,96 @@ def group_by_turma(students):
 
 # ── Report builders ───────────────────────────────────────────────────────────
 
-def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=None):
+_DAY_ABBR = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+
+
+def build_attendance_calendar(turma_lessons, missed, tardy_aula_nums, report_month,
+                              extra_absent_aula_nums=None):
+    """Return a calendar dict for the Presença section.
+
+    Returns:
+        {
+          'day_headers': ['Seg', 'Ter', ...],   # Mon–Sun
+          'weeks': [                             # list of week rows
+            [{'day': int|None, 'status': 'absent'|'tardy'|'present'|None}, ...]
+          ],
+          'has_class': bool,  # any class day exists in this month
+        }
+    """
+    if not report_month:
+        return None
+    try:
+        year, mon = int(report_month[:4]), int(report_month[5:7])
+    except (ValueError, IndexError):
+        return None
+
+    # Build lookup: aula_num → date for this turma in this month
+    aula_to_date = {}
+    for lesson in turma_lessons:
+        raw_date = lesson.get('date', '').strip()
+        aula_num = str(lesson.get('aula_num', '')).strip()
+        if not raw_date or not aula_num:
+            continue
+        for fmt in ('%d/%m/%Y', '%Y-%m-%d'):
+            try:
+                d = _datetime.strptime(raw_date, fmt).date()
+                if d.year == year and d.month == mon:
+                    aula_to_date[aula_num] = d
+                break
+            except ValueError:
+                continue
+
+    # missed lesson aula_nums → dates (from pre-computed missed list + attendance_rows)
+    missed_dates = set()
+    for lesson in missed:
+        aula_num = str(lesson.get('aula_num', '')).strip()
+        d = aula_to_date.get(aula_num)
+        if d:
+            missed_dates.add(d)
+    for aula_num in (extra_absent_aula_nums or set()):
+        d = aula_to_date.get(str(aula_num))
+        if d:
+            missed_dates.add(d)
+
+    # tardy dates
+    tardy_dates = set()
+    for aula_num in tardy_aula_nums:
+        d = aula_to_date.get(str(aula_num))
+        if d:
+            tardy_dates.add(d)
+
+    class_dates = set(aula_to_date.values())
+
+    # Build ISO-week calendar grid (Mon=0 .. Sun=6)
+    cal_weeks = _calendar.monthcalendar(year, mon)
+    weeks = []
+    for week in cal_weeks:
+        row = []
+        for col_idx, day_num in enumerate(week):
+            if day_num == 0:
+                row.append({'day': None, 'status': None})
+            else:
+                d = _date(year, mon, day_num)
+                if d in missed_dates:
+                    status = 'absent'
+                elif d in tardy_dates:
+                    status = 'tardy'
+                elif d in class_dates:
+                    status = 'present'
+                else:
+                    status = None
+                row.append({'day': day_num, 'status': status})
+        weeks.append(row)
+
+    return {
+        'day_headers': _DAY_ABBR,
+        'weeks': weeks,
+        'has_class': bool(class_dates),
+    }
+
+
+def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=None,
+                      attendance_rows=None):
     from report_periods import month_label
 
     turma = (s.get("turma") or "").strip()
@@ -606,6 +697,27 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
         int_score(s.get("respeito_regras") or s.get("comportamento", 3)),
     ]
     comp_overall = avg_score(comp_scores)
+
+    # Tardy + extra absent lessons from per-lesson attendance records
+    tardy_aula_nums = set()
+    extra_absent_aula_nums = set()
+    if attendance_rows:
+        student_name_key = (s.get('student_name') or '').strip().lower()
+        turma_key = turma.upper()
+        for row in attendance_rows:
+            if (row.get('turma', '').strip().upper() == turma_key
+                    and row.get('student_name', '').strip().lower() == student_name_key):
+                status = row.get('status', '').strip()
+                aula = str(row.get('aula_num', '')).strip()
+                if status == 'tardy':
+                    tardy_aula_nums.add(aula)
+                elif status == 'absent':
+                    extra_absent_aula_nums.add(aula)
+
+    attendance_calendar = build_attendance_calendar(
+        turma_lessons, missed, tardy_aula_nums, report_month,
+        extra_absent_aula_nums=extra_absent_aula_nums,
+    )
 
     expanded_scores = expanded_radar_scores(dev_scores, part_overall, pres_score)
     part_labels = ['Oral', 'Foco', 'Equipe']
@@ -657,6 +769,7 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
         expanded_labels=EXPANDED_RADAR_LABELS,
         comparison=None,
         composite_sparkline=None,
+        attendance_calendar=attendance_calendar,
     )
     if report_month:
         ctx['comparison'] = build_month_comparison(
@@ -719,7 +832,8 @@ def create_report_environment(template_dir):
     )
 
 
-def generate_individual_reports(students, lessons, env, out_dir, report_month=None, snapshots=None):
+def generate_individual_reports(students, lessons, env, out_dir, report_month=None, snapshots=None,
+                                attendance_rows=None):
     from report_periods import compute_month_trend, month_label, student_composite_score
     tpl = env.get_template("individual_report.html")
     snapshots = snapshots or {}
@@ -731,7 +845,8 @@ def generate_individual_reports(students, lessons, env, out_dir, report_month=No
             continue
         trend = None
         if report_month:
-            base_ctx = build_student_ctx(s, lessons, report_month=report_month)
+            base_ctx = build_student_ctx(s, lessons, report_month=report_month,
+                                         attendance_rows=attendance_rows)
             composite = student_composite_score(base_ctx)
             trend = compute_month_trend(
                 composite, report_month, snapshots,
@@ -739,6 +854,7 @@ def generate_individual_reports(students, lessons, env, out_dir, report_month=No
             )
         ctx = build_student_ctx(
             s, lessons, report_month=report_month, trend=trend, snapshots=snapshots,
+            attendance_rows=attendance_rows,
         )
         if report_month:
             ctx['report_month_label'] = month_label(report_month)

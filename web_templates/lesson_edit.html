@@ -10,6 +10,7 @@
 
 {% block content %}
 <form method="post" style="max-width: 720px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% if return_turma %}
   <input type="hidden" name="return_turma" value="{{ return_turma }}">
   {% endif %}

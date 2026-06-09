@@ -116,6 +116,7 @@
     <div style="padding:20px;">
       {% if can_upload_csv %}
       <form method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label class="file-dropzone" aria-label="Selecionar arquivo CSV de alunos">
           <div style="width:54px; height:54px; border-radius:16px; background:#fff; color:#5B2D8E; font-size:26px; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; box-shadow:0 8px 24px rgba(91,45,142,0.08);">↑</div>
           <div style="font-size:13px; font-weight:800; color:#111; margin-bottom:6px;">Selecione o arquivo de alunos</div>
@@ -132,6 +133,7 @@
         <a href="{{ url_for('download_csv', name='students') }}" class="btn btn-ghost btn-sm">↓ Baixar atual</a>
         <form method="post" action="{{ url_for('delete_csv', name='students') }}"
               onsubmit="return confirm('{% if can_upload_all_csv %}Remover students.csv e todos os alunos? Esta ação não pode ser desfeita.{% else %}Remover todos os seus alunos importados? Outros professores não serão afetados.{% endif %}');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-danger btn-sm">{% if can_upload_all_csv %}✕ Remover dados{% else %}✕ Remover meus alunos{% endif %}</button>
         </form>
         {% endif %}
@@ -210,6 +212,7 @@
     <div style="padding:20px;">
       {% if can_upload_csv %}
       <form method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label class="file-dropzone" aria-label="Selecionar arquivo CSV de aulas">
           <div style="width:54px; height:54px; border-radius:16px; background:#fff; color:#5B2D8E; font-size:26px; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; box-shadow:0 8px 24px rgba(91,45,142,0.08);">⇪</div>
           <div style="font-size:13px; font-weight:800; color:#111; margin-bottom:6px;">Selecione o arquivo de aulas</div>
@@ -226,6 +229,7 @@
         <a href="{{ url_for('download_csv', name='lessons') }}" class="btn btn-ghost btn-sm">↓ Baixar atual</a>
         <form method="post" action="{{ url_for('delete_csv', name='lessons') }}"
               onsubmit="return confirm('{% if can_upload_all_csv %}Remover lessons.csv e todas as aulas? Esta ação não pode ser desfeita.{% else %}Remover todas as aulas das suas turmas? Outras turmas não serão afetadas.{% endif %}');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-danger btn-sm">{% if can_upload_all_csv %}✕ Remover dados{% else %}✕ Remover minhas aulas{% endif %}</button>
         </form>
         {% endif %}
@@ -267,6 +271,7 @@
 {% if students_exists and lessons_exists %}
 <div style="margin-top:20px; max-width:820px;">
   <form method="post" action="{{ url_for('generate') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if review_month %}
     <input type="hidden" name="report_month" value="{{ review_month }}">
     {% endif %}

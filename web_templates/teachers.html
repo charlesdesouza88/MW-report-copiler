@@ -19,6 +19,7 @@
   <div class="card">
     <h2 style="font-size:15px;font-weight:900;margin-bottom:14px;">Novo professor</h2>
     <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="create_teacher">
       <div class="form-group" style="margin-bottom:12px;">
         <label style="display:block;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:6px;">E-mail</label>
@@ -26,7 +27,7 @@
       </div>
       <div class="form-group" style="margin-bottom:12px;">
         <label style="display:block;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:6px;">Senha</label>
-        <input type="password" name="password" required minlength="6" style="width:100%;padding:10px 12px;border:1px solid #E2E2E2;border-radius:8px;">
+        <input type="password" name="password" required minlength="8" style="width:100%;padding:10px 12px;border:1px solid #E2E2E2;border-radius:8px;">
       </div>
       <div class="form-group" style="margin-bottom:14px;">
         <label style="display:block;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:6px;">Nome do professor (nos CSV)</label>
@@ -46,6 +47,7 @@
   <div class="card">
     <h2 style="font-size:15px;font-weight:900;margin-bottom:14px;">Novo admin</h2>
     <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="create_admin">
       <div class="form-group" style="margin-bottom:12px;">
         <label style="display:block;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:6px;">E-mail</label>
@@ -53,7 +55,7 @@
       </div>
       <div class="form-group" style="margin-bottom:12px;">
         <label style="display:block;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:6px;">Senha</label>
-        <input type="password" name="password" required minlength="6" style="width:100%;padding:10px 12px;border:1px solid #E2E2E2;border-radius:8px;">
+        <input type="password" name="password" required minlength="8" style="width:100%;padding:10px 12px;border:1px solid #E2E2E2;border-radius:8px;">
       </div>
       <div class="form-group" style="margin-bottom:14px;">
         <label style="display:block;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:6px;">Papel</label>
@@ -106,6 +108,7 @@
             <details>
               <summary style="cursor:pointer;font-weight:700;color:#5B2D8E;">Editar</summary>
               <form method="post" style="margin-top:10px;padding:12px;background:#F9F7FC;border-radius:8px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="user_id" value="{{ u.id }}">
                 <div style="margin-bottom:8px;">
@@ -132,6 +135,7 @@
               </form>
               {% if u.id != current_user.id %}
               <form method="post" style="margin-top:8px;" onsubmit="return confirm('Remover este usuário?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="delete">
                 <input type="hidden" name="user_id" value="{{ u.id }}">
                 <button type="submit" class="btn btn-sm" style="color:#C0392B;border-color:#F1948A;">Remover</button>

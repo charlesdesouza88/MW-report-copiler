@@ -35,6 +35,7 @@
   <div style="font-size:12px; font-weight:900; color:#5B2D8E; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px;">Importar planilha</div>
   <p class="font-sm text-gray" style="margin-bottom:12px;">Envie o CSV preenchido (use o modelo acima). Colunas: Nome, Data, Horário, Assuntos, Observação, Turno, Contatado, Marcado, Realizado, Professor.</p>
   <form method="post" action="{{ url_for('extra_sessions_import') }}" enctype="multipart/form-data" class="flex gap-8" style="flex-wrap:wrap; align-items:flex-end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div>
       <label class="font-sm text-gray" style="display:block; margin-bottom:6px;">Arquivo CSV</label>
       <input type="file" name="file" accept=".csv" required>
@@ -102,6 +103,7 @@
       <a href="{{ url_for('extra_session_edit', idx=loop.index0) }}" class="btn btn-ghost btn-sm">Editar</a>
       <form method="post" action="{{ url_for('extra_session_delete', idx=loop.index0) }}"
             onsubmit="return confirm('Excluir este atendimento?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
       </form>
     </div>
@@ -172,6 +174,7 @@
             <a href="{{ url_for('extra_session_edit', idx=loop.index0) }}" class="btn btn-ghost btn-xs">Editar</a>
             <form method="post" action="{{ url_for('extra_session_delete', idx=loop.index0) }}"
                   onsubmit="return confirm('Excluir este atendimento?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn btn-danger btn-xs">✕</button>
             </form>
           </div>

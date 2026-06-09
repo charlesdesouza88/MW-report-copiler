@@ -64,6 +64,7 @@ input:focus { outline: none; border-color: #5B2D8E; }
   <div class="error">{{ error }}</div>
   {% endif %}
   <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-group">
       <label>E-mail</label>
       <input type="email" name="email" value="{{ request.form.get('email', '') }}" placeholder="{{ bootstrap_email }}" autocomplete="username" required autofocus>

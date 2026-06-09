@@ -96,8 +96,8 @@ def test_user_store_create_teacher(tmp_path):
     store = UserStore(json_path=tmp_path / 'users.json')
     store.initialize()
     store.ensure_bootstrap_superadmin('boss@test.local', 'secret1')
-    store.create_teacher('chuck@test.local', 'secret2', 'Chuck')
-    user = store.authenticate('chuck@test.local', 'secret2')
+    store.create_teacher('chuck@test.local', 'secret22', 'Chuck')
+    user = store.authenticate('chuck@test.local', 'secret22')
     assert user is not None
     assert user['role'] == ROLE_TEACHER
     assert user['teacher_name'] == 'Chuck'
@@ -111,7 +111,7 @@ def test_teacher_can_upload_scoped_csv(monkeypatch, tmp_path):
 
     store = UserStore(json_path=data_dir / 'users.json')
     store.initialize()
-    store.create_teacher('t@test.local', 'pass123', 'Chuck')
+    store.create_teacher('t@test.local', 'pass1234', 'Chuck')
 
     monkeypatch.setattr(web_app, 'DATA_DIR', data_dir)
     monkeypatch.setattr(web_app, 'OUT_DIR', out_dir)
@@ -128,7 +128,7 @@ def test_teacher_can_upload_scoped_csv(monkeypatch, tmp_path):
     )
 
     client = web_app.app.test_client()
-    client.post('/login', data={'email': 't@test.local', 'password': 'pass123'})
+    client.post('/login', data={'email': 't@test.local', 'password': 'pass1234'})
     assert client.get('/upload').status_code == 200
     assert client.get('/upload/template/students').status_code == 200
     response = client.post(
