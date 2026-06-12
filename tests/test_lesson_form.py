@@ -71,7 +71,7 @@ def test_turma_next_aula_map_uppercase_keys():
 
 
 def test_habilidades_choices_count():
-    assert len(HABILIDADES_CHOICES) == 5
+    assert len(HABILIDADES_CHOICES) == 6
 
 
 def test_licao_conteudo_choices_count():

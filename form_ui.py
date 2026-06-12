@@ -224,6 +224,7 @@ def turma_code_from_nivel(nivel):
 
 
 HABILIDADES_CHOICES = (
+    'Nenhuma',
     'Liderança',
     'Empreendedorismo',
     'Educação financeira',
