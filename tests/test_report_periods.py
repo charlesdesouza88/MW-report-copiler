@@ -32,6 +32,22 @@ def test_available_and_default_month():
     assert default_report_month(lessons) == '2026-03'
 
 
+def test_default_report_month_prefers_current_over_future(monkeypatch):
+    from datetime import datetime
+
+    class FakeDateTime:
+        @classmethod
+        def now(cls):
+            return datetime(2026, 5, 30)
+
+    monkeypatch.setattr('report_periods.datetime', FakeDateTime)
+    lessons = [
+        {'date': '01/05/2026'},
+        {'date': '01/06/2026'},
+    ]
+    assert default_report_month(lessons) == '2026-05'
+
+
 def test_filter_lessons_by_month():
     lessons = [
         {'turma': 'A', 'aula_num': '1', 'date': '01/02/2026'},

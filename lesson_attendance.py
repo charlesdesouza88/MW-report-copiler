@@ -123,9 +123,23 @@ def _attendance_rows_for_month(lessons, attendance_rows, month_key):
     ]
 
 
+def students_with_attendance_in_month(lessons, attendance_rows, month_key):
+    """Return (student keys with any attendance row, rows) for a review month."""
+    month_rows = _attendance_rows_for_month(lessons, attendance_rows, month_key)
+    tracked = set()
+    for row in month_rows:
+        name = (row.get('student_name') or '').strip()
+        if not name:
+            continue
+        tracked.add((_turma_key(row.get('turma')), name))
+    return tracked, month_rows
+
+
 def recompute_faltas_from_attendance(students, lessons, attendance_rows, month_key):
     """Rebuild missed_aulas/faltas from saved lesson attendance for one review month."""
-    month_rows = _attendance_rows_for_month(lessons, attendance_rows, month_key)
+    tracked, month_rows = students_with_attendance_in_month(
+        lessons, attendance_rows, month_key,
+    )
     if not month_rows:
         return students
 
@@ -143,6 +157,9 @@ def recompute_faltas_from_attendance(students, lessons, attendance_rows, month_k
     for student in students:
         row = dict(student)
         key = (_turma_key(row.get('turma')), (row.get('student_name') or '').strip())
+        if key not in tracked:
+            updated.append(row)
+            continue
         nums = _sort_aula_nums(missed.get(key, set()))
         row['missed_aulas'] = ','.join(nums)
         row['faltas'] = str(len(nums))

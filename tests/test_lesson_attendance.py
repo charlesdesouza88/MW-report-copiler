@@ -155,3 +155,40 @@ def test_recompute_faltas_keeps_students_when_no_attendance():
     students = [{'turma': 'STAR', 'student_name': 'Ana', 'faltas': '3', 'missed_aulas': '1,2,3'}]
     updated = recompute_faltas_from_attendance(students, [], [], '2026-02')
     assert updated == students
+
+
+def test_recompute_faltas_does_not_zero_untracked_students():
+    students = [
+        {
+            'turma': 'LIVE_FLOW',
+            'student_name': 'Live Flow Kid',
+            'faltas': '0',
+            'missed_aulas': '',
+        },
+        {
+            'turma': 'COMET',
+            'student_name': 'Davi Ribeiro Silva',
+            'faltas': '2',
+            'missed_aulas': '3,7',
+        },
+    ]
+    lessons = [
+        {'turma': 'LIVE_FLOW', 'aula_num': '6', 'date': '16/06/2026'},
+    ]
+    attendance_rows = [
+        {
+            'turma': 'LIVE_FLOW',
+            'aula_num': '6',
+            'student_name': 'Live Flow Kid',
+            'status': 'absent',
+        },
+    ]
+    updated = recompute_faltas_from_attendance(
+        students, lessons, attendance_rows, '2026-06',
+    )
+    live = updated[0]
+    comet = updated[1]
+    assert live['faltas'] == '1'
+    assert live['missed_aulas'] == '6'
+    assert comet['faltas'] == '2'
+    assert comet['missed_aulas'] == '3,7'
