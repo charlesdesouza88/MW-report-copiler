@@ -180,7 +180,7 @@ def run_inprocess():
         )
         runner.check(
             'Create student',
-            r.status_code == 302 and r.headers['Location'].endswith('/students'),
+            r.status_code == 302 and r.headers['Location'].startswith('/students'),
             r.headers.get('Location', ''),
         )
 
