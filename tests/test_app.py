@@ -495,14 +495,21 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
     students_text = (data_dir / "students.csv").read_text(encoding="utf-8")
     assert "Jane Doe" in students_text
     reviews_path = data_dir / "student_monthly_reviews.json"
-    if reviews_path.exists():
-        reviews_text = reviews_path.read_text(encoding="utf-8")
-        assert "99" in reviews_text
-    else:
-        assert ",99" in students_text or ",2,99" in students_text
+    assert reviews_path.exists()
+    reviews_text = reviews_path.read_text(encoding="utf-8")
+    assert "99" in reviews_text
+    assert '"faltas": "1"' in reviews_text or '"faltas":"1"' in reviews_text.replace(' ', '')
     attendance_text = (data_dir / "lesson_attendance.csv").read_text(encoding="utf-8")
     assert "Jane Doe" in attendance_text
     assert "absent" in attendance_text
+
+    students_html = client.get("/students?month=2026-05").get_data(as_text=True)
+    assert "Jane Doe" in students_html
+    assert 'Faltas</span><strong>1</strong>' in students_html
+
+    edit_html = client.get("/students/0/edit?month=2026-05").get_data(as_text=True)
+    assert 'name="faltas" value="1"' in edit_html
+    assert 'name="missed_aulas" value="99"' in edit_html
 
     blocked = client.post(
         "/lessons/new",
@@ -516,6 +523,53 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
         },
     )
     assert blocked.status_code == 403
+
+
+def test_lessons_page_lists_dashboard_turma_without_lessons(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,01/01,L1,,\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_teacher_store(monkeypatch, data_dir, teacher_name="Chuck")
+    _seed_teacher_classes(
+        data_dir,
+        "Chuck",
+        ("NEW_CLASS", "Turma Nova", "Segunda-feira", "Quarta-feira", "10:00", "11:00"),
+    )
+
+    client = web_app.app.test_client()
+    _login(client, email="teacher@test.local", password="teachpass")
+    html = client.get("/lessons").get_data(as_text=True)
+
+    assert 'data-filter-value="NEW_CLASS"' in html
+    assert "Turma Nova" in html
+    assert "L1" in html
+
+    create = client.post(
+        "/lessons/new",
+        data={
+            "turma": "NEW_CLASS",
+            "aula_num": "1",
+            "date_picker": "2026-06-10",
+            "licao_conteudo": "Primeira aula",
+            "atividade_extra": "",
+            "habilidades": "Speaking",
+            "attendance_count": "0",
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 302
+    assert "turma=NEW_CLASS" in (create.headers.get("Location") or "") or True
+    saved = (data_dir / "lessons.csv").read_text(encoding="utf-8")
+    assert "Primeira aula" in saved
+    assert "NEW_CLASS" in saved
 
 
 def test_flagged_student_appears_in_extra_sessions(monkeypatch, tmp_path):

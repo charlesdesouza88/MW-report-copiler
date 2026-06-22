@@ -41,10 +41,11 @@ from extra_sessions import (AUTO_AULA_EXTRA_MARKER, EXTRA_SESSION_FIELD_LABELS,
                             reconcile_flagged_students, row_from_form,
                             sync_student_extra_sessions)
 from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
-                               ATTENDANCE_LABELS, apply_attendance_to_students,
-                               attendance_map_for_lesson, normalize_attendance_status,
-                               parse_attendance_form, replace_lesson_attendance,
-                               students_by_turma, students_for_turma)
+                               ATTENDANCE_LABELS, attendance_map_for_lesson,
+                               normalize_attendance_status, parse_attendance_form,
+                               recompute_faltas_from_attendance,
+                               replace_lesson_attendance, students_by_turma,
+                               students_for_turma)
 from form_ui import (HABILIDADES_CHOICES, LICAO_CONTEUDO_CHOICES,
                      LICAO_ESPECIAL_CHOICES, NIVEL_CHOICES, WEEKDAY_CHOICES,
                      date_from_form, format_class_schedule, format_date_for_input,
@@ -745,6 +746,13 @@ def _scoped_students(review_month=None, merge=True):
         review_month = _get_review_month(_load_lessons())
     store = _load_monthly_review_store()
     visible = merge_roster_for_month(visible_roster, store, review_month)
+    if review_month:
+        visible = recompute_faltas_from_attendance(
+            visible,
+            _load_lessons(),
+            _load_lesson_attendance(),
+            review_month,
+        )
     return roster, visible
 
 
@@ -818,7 +826,11 @@ def _allowed_turmas(all_students, user):
 def _teacher_may_use_turma(turma, all_students, user):
     if has_full_data_access(user['role']):
         return True
-    return turma.strip() in teacher_turmas(all_students, user.get('teacher_name', ''))
+    turma = (turma or '').strip()
+    name = user.get('teacher_name', '')
+    if turma in _teacher_registered_turmas(name):
+        return True
+    return turma in teacher_turmas(all_students, name)
 
 
 def _teacher_may_use_student_turma(turma, all_students, user, nivel=''):
@@ -965,20 +977,15 @@ def _persist_lesson_attendance(lesson, roster):
         entries,
     )
     _save_lesson_attendance(attendance_rows)
-    attendance_by_name = {
-        entry['student_name']: normalize_attendance_status(entry['status'])
-        for entry in entries
-    }
     month_key = parse_lesson_month(lesson.get('date', '')) or _get_review_month()
+    lessons = _load_lessons()
     store = _load_monthly_review_store()
     merged = merge_roster_for_month(roster, store, month_key)
-    updated = apply_attendance_to_students(merged, turma, aula_num, attendance_by_name)
-    if updated != merged:
-        turma_key = turma.strip()
-        for row in updated:
-            if (row.get('turma') or '').strip() == turma_key:
-                upsert_monthly_review(store, row, month_key)
-        _save_monthly_review_store(store)
+    updated = recompute_faltas_from_attendance(merged, lessons, attendance_rows, month_key)
+    for row in updated:
+        upsert_monthly_review(store, row, month_key)
+    _save_monthly_review_store(store)
+    _set_review_month(month_key, lessons)
 
 
 def _lesson_edit_context(lesson, all_rows, all_students, allowed_turmas, is_new,
@@ -1791,6 +1798,20 @@ def _turma_filters(rows, user):
     return [{'code': code, 'label': labels.get(code, code)} for code in codes]
 
 
+def _lesson_turma_filters(all_students, lesson_rows, user):
+    """Turma filters on Aulas: dashboard registry + existing lessons (even with zero aulas)."""
+    if user and user['role'] == ROLE_TEACHER:
+        _sync_teacher_registry(user, all_students)
+    codes = {r.get('turma', '').strip() for r in lesson_rows if r.get('turma', '').strip()}
+    if user:
+        codes |= set(_allowed_turmas(all_students, user))
+    labels = _turma_display_map(all_students, user)
+    return [
+        {'code': code, 'label': labels.get(code, code)}
+        for code in sorted(codes) if code
+    ]
+
+
 # ── Students ──────────────────────────────────────────────────────────────────────────
 
 @app.route('/students')
@@ -1900,14 +1921,15 @@ def student_delete(idx):
 @app.route('/lessons')
 @login_required
 def lessons():
+    user = _current_user()
     all_students, _ = _scoped_students()
     _, rows = _scoped_lessons(all_students)
-    turmas = sorted({r.get('turma', '').strip() for r in rows if r.get('turma', '').strip()})
+    turma_filters = _lesson_turma_filters(all_students, rows, user)
     habilidades = sorted({r.get('habilidades', '').strip() for r in rows if r.get('habilidades', '').strip()})
     return render_template(
         'lessons.html',
         lessons=rows,
-        turmas=turmas,
+        turma_filters=turma_filters,
         habilidades=habilidades,
         lesson_field_labels=LESSON_FIELD_LABELS,
     )
@@ -1978,7 +2000,8 @@ def lesson_new():
     for field in LESSON_FIELDS:
         defaults[field] = ''
     if allowed_turmas:
-        defaults['turma'] = allowed_turmas[0]
+        wanted = (request.args.get('turma') or '').strip()
+        defaults['turma'] = wanted if wanted in allowed_turmas else allowed_turmas[0]
     attendance_rows = _load_lesson_attendance()
     ctx = _lesson_edit_context(
         defaults, all_rows, all_students, allowed_turmas, is_new=True,
