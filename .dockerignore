@@ -5,6 +5,7 @@ __pycache__
 .git
 .env
 .tmp-mobile-debug
+data/*.csv
 data/imported
 data/teachers
 *.DS_Store

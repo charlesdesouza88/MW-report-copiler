@@ -14,6 +14,7 @@ import time
 import zipfile
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from flask import (Flask, abort, redirect, render_template, request,
                    send_file, session, url_for)
@@ -47,7 +48,7 @@ from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
                                students_by_turma, students_for_turma)
 from form_ui import (HABILIDADES_CHOICES, LICAO_CONTEUDO_CHOICES,
                      LICAO_ESPECIAL_CHOICES, NIVEL_CHOICES, WEEKDAY_CHOICES,
-                     date_from_form, format_class_schedule, format_date_for_input,
+                     date_from_form, format_date_for_input,
                      is_valid_nivel, licao_choice_for_value, next_aula_num,
                      normalize_habilidades, storage_date_to_iso,
                      storage_time_to_input, suggest_licao_conteudo,
@@ -66,8 +67,7 @@ from report_periods import (available_report_months, compute_month_trend,
                             month_label, parse_lesson_month,
                             report_month_from_filename,
                             student_composite_score, upsert_month_snapshots)
-from student_reviews import (MONTHLY_REVIEW_FIELDS, ROSTER_FIELDS,
-                             apply_upload_row, extract_roster_fields,
+from student_reviews import (ROSTER_FIELDS, apply_upload_row,
                              load_monthly_reviews, merge_roster_for_month,
                              migrate_roster_scores_to_month,
                              rows_from_store, save_monthly_reviews,
@@ -1529,6 +1529,17 @@ def logout():
     return redirect(url_for('login'))
 
 
+def _is_safe_redirect_target(target):
+    """Allow local redirects and exact same-origin absolute URLs only."""
+    if not target:
+        return False
+    parsed = urlsplit(target)
+    if not parsed.netloc:
+        return target.startswith('/') and not target.startswith('//')
+    host = urlsplit(request.host_url)
+    return parsed.scheme in {'http', 'https'} and parsed.scheme == host.scheme and parsed.netloc == host.netloc
+
+
 @app.route('/review-month', methods=['POST'])
 @login_required
 def set_review_month():
@@ -1536,7 +1547,7 @@ def set_review_month():
     if not _set_review_month(month):
         abort(400)
     target = (request.form.get('next') or request.referrer or '').strip()
-    if target and target.startswith(request.host_url.rstrip('/')):
+    if _is_safe_redirect_target(target):
         return redirect(target)
     return redirect(url_for('dashboard', month=month))
 

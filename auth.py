@@ -6,13 +6,13 @@ import os
 import tempfile
 from pathlib import Path
 
-_MIN_PASSWORD_LEN = 8
-
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from report_names import class_diagnostic_filename, student_report_filename
 
 logger = logging.getLogger(__name__)
+
+_MIN_PASSWORD_LEN = 8
 
 ROLE_SUPERADMIN = 'superadmin'
 ROLE_ADMIN = 'admin'

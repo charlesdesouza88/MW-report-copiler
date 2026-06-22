@@ -30,7 +30,7 @@
         <input type="text" value="{{ current_user.teacher_name or session.teacher or '' }}" readonly style="background:#f4f4f4;">
         <input type="hidden" name="teacher" value="{{ current_user.teacher_name or session.teacher or '' }}">
         {% else %}
-        <input type="text" name="teacher" value="{{ session.teacher or '' }}" list="teacher-names" placeholder="Amanda">
+        <input type="text" name="teacher" value="{{ session.teacher or '' }}" list="teacher-names" placeholder="Teacher One">
         <datalist id="teacher-names">
           {% for name in teacher_names %}
           <option value="{{ name }}">

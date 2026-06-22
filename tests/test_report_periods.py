@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from compiler import build_student_ctx
 from report_periods import (
     available_report_months,

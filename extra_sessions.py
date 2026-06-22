@@ -103,7 +103,7 @@ STATUS_NO = 'NÃO'
 
 DEFAULT_ATENDIMENTOS_TEMPLATE_ROWS = [
     {
-        'Nome do aluno ou responsável': 'Jane Doe (MASTER)',
+        'Nome do aluno ou responsável': 'Sample Learner One (MASTER)',
         'Data': '10/02/2026',
         'Horário': '09:30',
         'Assuntos trabalhados': 'Reforço - revisão de vocabulário da última aula',
@@ -112,10 +112,10 @@ DEFAULT_ATENDIMENTOS_TEMPLATE_ROWS = [
         'Contatado': STATUS_OK,
         'Marcado': STATUS_OK,
         'Realizado': '',
-        'Professor': 'Chuck',
+        'Professor': 'Teacher One',
     },
     {
-        'Nome do aluno ou responsável': 'John Smith (Comet - A)',
+        'Nome do aluno ou responsável': 'Sample Learner Two (SPARK)',
         'Data': '12/02/2026',
         'Horário': '14:00',
         'Assuntos trabalhados': 'Reposição - aula perdida (listening e speaking)',
@@ -124,7 +124,7 @@ DEFAULT_ATENDIMENTOS_TEMPLATE_ROWS = [
         'Contatado': STATUS_OK,
         'Marcado': STATUS_OK,
         'Realizado': STATUS_NO,
-        'Professor': 'Amanda',
+        'Professor': 'Teacher Two',
     },
 ]
 

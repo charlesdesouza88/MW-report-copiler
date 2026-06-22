@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from extra_sessions import (
-    AUTO_AULA_EXTRA_MARKER,
     ATENDIMENTOS_CSV_HEADERS,
     build_atendimentos_template_csv,
     clear_aula_extra_after_completed_session,
@@ -139,22 +138,22 @@ def test_normalize_aula_extra():
 
 def test_sync_student_extra_sessions_creates_row():
     student = {
-        'teacher': 'Amanda',
-        'student_name': 'Maria Fernanda Carvalho Pires',
+        'teacher': 'Teacher One',
+        'student_name': 'Sample Learner One',
         'turma': 'COMET',
         'aula_extra': 'Reforço',
     }
     rows = sync_student_extra_sessions([], student)
     assert len(rows) == 1
     assert rows[0]['session_type'] == 'Reforço'
-    assert rows[0]['teacher'] == 'Amanda'
+    assert rows[0]['teacher'] == 'Teacher One'
     assert is_auto_aula_extra_row(rows[0])
 
 
 def test_sync_student_extra_sessions_clears_auto_row():
     student = {
-        'teacher': 'Amanda',
-        'student_name': 'Maria Fernanda Carvalho Pires',
+        'teacher': 'Teacher One',
+        'student_name': 'Sample Learner One',
         'turma': 'COMET',
         'aula_extra': '',
     }
