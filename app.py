@@ -45,7 +45,8 @@ from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
                                normalize_attendance_status, parse_attendance_form,
                                recompute_faltas_from_attendance,
                                replace_lesson_attendance, students_by_turma,
-                               students_for_turma)
+                               students_for_turma,
+                               students_with_attendance_in_month)
 from form_ui import (HABILIDADES_CHOICES, LICAO_CONTEUDO_CHOICES,
                      LICAO_ESPECIAL_CHOICES, NIVEL_CHOICES, WEEKDAY_CHOICES,
                      date_from_form, format_class_schedule, format_date_for_input,
@@ -981,9 +982,15 @@ def _persist_lesson_attendance(lesson, roster):
     lessons = _load_lessons()
     store = _load_monthly_review_store()
     merged = merge_roster_for_month(roster, store, month_key)
+    tracked, _ = students_with_attendance_in_month(lessons, attendance_rows, month_key)
     updated = recompute_faltas_from_attendance(merged, lessons, attendance_rows, month_key)
     for row in updated:
-        upsert_monthly_review(store, row, month_key)
+        key = (
+            (row.get('turma') or '').strip().upper(),
+            (row.get('student_name') or '').strip(),
+        )
+        if key in tracked:
+            upsert_monthly_review(store, row, month_key)
     _save_monthly_review_store(store)
     _set_review_month(month_key, lessons)
 

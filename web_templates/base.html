@@ -679,7 +679,7 @@ body.nav-open .nav-backdrop { display: block; }
     {% if current_user and review_month and request.endpoint in ('students', 'lessons', 'extra_sessions', 'reports') %}
     <div class="review-banner" role="status">
       Revisão mensal: <strong>{{ review_month_label }}</strong>
-      <span class="font-sm text-gray">— notas e feedback deste mês</span>
+      <span class="font-sm text-gray">— notas, faltas e feedback deste mês</span>
     </div>
     {% endif %}
     {% block content %}{% endblock %}

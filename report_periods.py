@@ -32,9 +32,15 @@ def available_report_months(lessons):
 
 def default_report_month(lessons):
     months = available_report_months(lessons)
-    if months:
-        return months[-1]
-    return datetime.now().strftime('%Y-%m')
+    if not months:
+        return datetime.now().strftime('%Y-%m')
+    current = datetime.now().strftime('%Y-%m')
+    if current in months:
+        return current
+    past_or_current = [month for month in months if month <= current]
+    if past_or_current:
+        return past_or_current[-1]
+    return months[0]
 
 
 def previous_calendar_month(month_key):
