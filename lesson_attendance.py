@@ -83,6 +83,73 @@ def replace_lesson_attendance(all_rows, turma, aula_num, entries):
     return kept + new_rows
 
 
+def _sort_aula_nums(nums):
+    def key(num):
+        text = str(num).strip()
+        try:
+            return (0, int(float(text)))
+        except (TypeError, ValueError):
+            return (1, text.casefold())
+
+    return sorted({str(num).strip() for num in nums if str(num).strip()}, key=key)
+
+
+def _lesson_keys_for_month(lessons, month_key):
+    from report_periods import lesson_in_month
+
+    keys = set()
+    for lesson in lessons or []:
+        if not lesson_in_month(lesson, month_key):
+            continue
+        turma = _turma_key(lesson.get('turma'))
+        aula = _aula_key(lesson.get('aula_num'))
+        if turma and aula:
+            keys.add((turma, aula))
+    return keys
+
+
+def _attendance_rows_for_month(lessons, attendance_rows, month_key):
+    if not month_key:
+        return []
+    lesson_keys = _lesson_keys_for_month(lessons, month_key)
+    if not lesson_keys:
+        return []
+    return [
+        row for row in attendance_rows or []
+        if (
+            _turma_key(row.get('turma')),
+            _aula_key(row.get('aula_num')),
+        ) in lesson_keys
+    ]
+
+
+def recompute_faltas_from_attendance(students, lessons, attendance_rows, month_key):
+    """Rebuild missed_aulas/faltas from saved lesson attendance for one review month."""
+    month_rows = _attendance_rows_for_month(lessons, attendance_rows, month_key)
+    if not month_rows:
+        return students
+
+    missed = {}
+    for row in month_rows:
+        if normalize_attendance_status(row.get('status')) != 'absent':
+            continue
+        name = (row.get('student_name') or '').strip()
+        if not name:
+            continue
+        key = (_turma_key(row.get('turma')), name)
+        missed.setdefault(key, set()).add(_aula_key(row.get('aula_num')))
+
+    updated = []
+    for student in students:
+        row = dict(student)
+        key = (_turma_key(row.get('turma')), (row.get('student_name') or '').strip())
+        nums = _sort_aula_nums(missed.get(key, set()))
+        row['missed_aulas'] = ','.join(nums)
+        row['faltas'] = str(len(nums))
+        updated.append(row)
+    return updated
+
+
 def apply_attendance_to_students(students, turma, aula_num, attendance_by_name):
     """Update missed_aulas and faltas when a lesson is saved."""
     turma_key = _turma_key(turma)

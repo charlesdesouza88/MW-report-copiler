@@ -4,6 +4,7 @@ from lesson_attendance import (
     attendance_map_for_lesson,
     normalize_attendance_status,
     parse_attendance_form,
+    recompute_faltas_from_attendance,
     replace_lesson_attendance,
     students_for_turma,
 )
@@ -113,3 +114,44 @@ def test_students_for_turma_sorted():
 
 def test_attendance_choices():
     assert ATTENDANCE_CHOICES == ('present', 'absent', 'tardy')
+
+
+def test_recompute_faltas_from_attendance():
+    students = [
+        {
+            'turma': 'STAR',
+            'student_name': 'Ana',
+            'faltas': '0',
+            'missed_aulas': '',
+        },
+        {
+            'turma': 'STAR',
+            'student_name': 'Bob',
+            'faltas': '2',
+            'missed_aulas': '1,3',
+        },
+    ]
+    lessons = [
+        {'turma': 'STAR', 'aula_num': '1', 'date': '10/02/2026'},
+        {'turma': 'STAR', 'aula_num': '2', 'date': '15/02/2026'},
+    ]
+    attendance_rows = [
+        {'turma': 'STAR', 'aula_num': '1', 'student_name': 'Ana', 'status': 'absent'},
+        {'turma': 'STAR', 'aula_num': '2', 'student_name': 'Ana', 'status': 'present'},
+        {'turma': 'STAR', 'aula_num': '2', 'student_name': 'Bob', 'status': 'absent'},
+    ]
+    updated = recompute_faltas_from_attendance(
+        students, lessons, attendance_rows, '2026-02',
+    )
+    ana = updated[0]
+    bob = updated[1]
+    assert ana['faltas'] == '1'
+    assert ana['missed_aulas'] == '1'
+    assert bob['faltas'] == '1'
+    assert bob['missed_aulas'] == '2'
+
+
+def test_recompute_faltas_keeps_students_when_no_attendance():
+    students = [{'turma': 'STAR', 'student_name': 'Ana', 'faltas': '3', 'missed_aulas': '1,2,3'}]
+    updated = recompute_faltas_from_attendance(students, [], [], '2026-02')
+    assert updated == students
