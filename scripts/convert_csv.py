@@ -17,7 +17,6 @@ from csv_import import (  # noqa: E402
     parse_lesson_plan_csv,
     parse_lessons_csv,
     parse_students_csv,
-    parse_upload_csv,
     write_extra_sessions_csv,
     write_lessons_csv,
     write_students_csv,
@@ -183,7 +182,7 @@ def main():
     teacher_reports.add_argument('--data-dir', default=str(ROOT / 'data'))
     teacher_reports.add_argument(
         '--teacher',
-        help='Convert only one teacher folder, e.g. Amanda',
+        help='Convert only one teacher folder, e.g. Teacher One',
     )
     teacher_reports.add_argument(
         '--all',

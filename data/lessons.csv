@@ -1,32 +1,8 @@
 turma,aula_num,date,licao_conteudo,atividade_extra,habilidades
-COMET,1,09/02/2026,Aula zero,Dinâmica uma verdade e duas mentiras,
-COMET,2,11/02/2026,,,
-COMET,3,23/02/2026,Lesson 1,Linha do tempo IA,
-COMET,4,25/02/2026,Lesson 2,,inteligência emocional
-COMET,5,02/03/2026,Revisão das duas lições anteriores,Roda de conversa empreendedorismo,empreendedorismo
-COMET,6,04/03/2026,,,
-COMET,7,09/03/2025,Lesson 3,,IA
-COMET,8,11/03/2026,Lesson 4,What's missing?,inteligência emocional
-COMET,9,16/03/2026,Lesson 5,,"Bárbara - Início do projeto ""Seeds of English""."
-COMET,10,18/03/2026,Revisão workbook,What's missing?,empreendedorismo
-COMET,11,23/03/2026,Lesson 6,,"Bárbara -  projeto ""Seeds of English""."
-COMET,12,25/03/2026,Lesson 7,Popcorn day,inteligência emocional
-COMET,13,30/03/2026,Aula Pokemon,Horta,"Bárbara -  projeto ""Seeds of English""."
-COMET,14,01/04/2026,Lesson 8,Vídeo my daily routine,empreendedorismo
-COMET,15,06/04/2026,Lesson 9,Revisão + workbook,
-COMET,16,08/04/2026,Lesson 10,,inteligência emocional
-COMET,17,13/04/2026,Lesson 11,Revisão + workbook,empreendedorismo
-COMET,18,15/04/2026,Lesson 12,Reading test,
-COMET,19,22/04/2026,Lesson 13,Campeonato,
-COMET,20,27/04/2026,Lesson 14,movie,inteligencia emocional
-COMET,21,29/04/2026,Revisao,Revisão + workbook,
-COMET,22,04/05/2026,Lesson 15,IA,IA
-LIVE_FLOW,1,,Lição 1,,Liderança
-LIVE_FLOW,2,02/06/2026,Lesson 1,Warm-up activity,comunicação
-LIVE_FLOW,3,04/06/2026,Lesson 2,Reading exercise,leitura
-LIVE_FLOW,4,09/06/2026,Lesson 3,Grammar focus,gramática
-LIVE_FLOW,5,11/06/2026,Lesson 4,Conversation practice,fala
-LIVE_FLOW,6,16/06/2026,Lesson 5,Writing workshop,escrita
-LIVE_FLOW,7,18/06/2026,Lesson 6,Review,
-LIVE_FLOW,8,23/06/2026,Lesson 7,Listening skills,audição
-LIVE_FLOW,9,25/06/2026,Lesson 8,Final review,
+MASTER,1,10/02/2026,Lesson 1: Introductions,Syllabus and class routines,"Speaking, Listening"
+MASTER,2,12/02/2026,Lesson 2: Daily routines,Pair work with frequency adverbs,"Speaking, Writing"
+MASTER,3,19/02/2026,Lesson 3: Past tense review,Group presentation,"Grammar, Speaking"
+MASTER,4,26/02/2026,Lesson 4: Reading strategies,Short comprehension task,"Reading, Vocabulary"
+SPARK,1,09/02/2026,Lesson 1: Classroom language,Team warm-up,"Speaking, Listening"
+SPARK,2,11/02/2026,Lesson 2: Colors and objects,Memory game,"Vocabulary, Speaking"
+SPARK,3,18/02/2026,Lesson 3: Story practice,Guided reading,"Reading, Writing"

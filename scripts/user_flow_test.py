@@ -48,6 +48,19 @@ def _load_dotenv():
         os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
 
+def _csrf_token(html: str) -> str:
+    match = re.search(r'name="csrf_token"\s+value="([^"]+)"', html)
+    if not match:
+        match = re.search(r'value="([^"]+)"\s+name="csrf_token"', html)
+    return match.group(1) if match else ''
+
+
+def _with_csrf(data: dict, token: str) -> dict:
+    payload = dict(data)
+    payload['csrf_token'] = token
+    return payload
+
+
 def _student_form(name, turma, teacher='Chuck'):
     base = {
         'teacher': teacher,
@@ -132,7 +145,11 @@ def run_inprocess():
 
         client = web_app.app.test_client()
 
-        r = client.post('/login', data={'email': email, 'password': password})
+        login_html = client.get('/login').get_data(as_text=True)
+        r = client.post('/login', data=_with_csrf({
+            'email': email,
+            'password': password,
+        }, _csrf_token(login_html)))
         runner.check('Login', r.status_code == 302, f'status={r.status_code}')
 
         r = client.get('/')
@@ -140,9 +157,15 @@ def run_inprocess():
         runner.check('Dashboard', r.status_code == 200 and 'Gerar' in html)
 
         r = client.get('/students/new')
-        runner.check('New student form', r.status_code == 200 and 'Novo aluno' in r.get_data(as_text=True))
+        form_html = r.get_data(as_text=True)
+        form_token = _csrf_token(form_html)
+        runner.check('New student form', r.status_code == 200 and 'Novo aluno' in form_html)
 
-        r = client.post('/students/new', data={'student_name': 'Bad', 'turma': '', 'teacher': 'Chuck'})
+        r = client.post('/students/new', data=_with_csrf({
+            'student_name': 'Bad',
+            'turma': '',
+            'teacher': 'Chuck',
+        }, form_token))
         err_html = r.get_data(as_text=True)
         runner.check(
             'New student validation (missing turma)',
@@ -152,7 +175,7 @@ def run_inprocess():
         new_name = 'Flow Test Kid'
         r = client.post(
             '/students/new',
-            data=_student_form(new_name, 'FLOW_TEST'),
+            data=_with_csrf(_student_form(new_name, 'FLOW_TEST'), form_token),
             follow_redirects=False,
         )
         runner.check(
@@ -170,7 +193,12 @@ def run_inprocess():
         r = client.get('/upload')
         runner.check('Upload page', r.status_code == 200)
 
-        r = client.post('/generate', follow_redirects=False)
+        report_token = _csrf_token(client.get('/reports').get_data(as_text=True))
+        r = client.post(
+            '/generate',
+            data=_with_csrf({'report_month': ''}, report_token),
+            follow_redirects=False,
+        )
         loc = r.headers.get('Location', '')
         runner.check(
             'Generate reports',
@@ -178,7 +206,7 @@ def run_inprocess():
             loc,
         )
 
-        r = client.get(loc if loc.startswith('/') else f'/reports')
+        r = client.get(loc if loc.startswith('/') else '/reports')
         rep_html = r.get_data(as_text=True)
         runner.check(
             'Reports page after generate',
@@ -236,22 +264,31 @@ def run_live(base: str):
                     return opener.open(loc if loc.startswith('http') else base + loc, timeout=60)
             raise
 
-    r = post('/login', {'email': email, 'password': password})
+    login_html = get('/login').read().decode('utf-8', errors='replace')
+    r = post('/login', _with_csrf({
+        'email': email,
+        'password': password,
+    }, _csrf_token(login_html)))
     runner.check('Login', getattr(r, 'status', r.code) in (200, 302))
 
     html = get('/').read().decode('utf-8', errors='replace')
     runner.check('Dashboard', 'Gerar' in html or 'Relatório' in html)
 
     html = get('/students/new').read().decode('utf-8', errors='replace')
+    form_token = _csrf_token(html)
     runner.check('New student form', 'Novo aluno' in html)
 
-    bad_resp = post('/students/new', {'student_name': 'X', 'turma': '', 'teacher': 'Chuck'})
+    bad_resp = post('/students/new', _with_csrf({
+        'student_name': 'X',
+        'turma': '',
+        'teacher': 'Chuck',
+    }, form_token))
     bad_body = bad_resp.read().decode('utf-8', errors='replace')
     runner.check('New student validation', 'Informe o nome do aluno e a turma' in bad_body)
 
     new_name = 'Live Flow Kid'
     try:
-        post('/students/new', _student_form(new_name, 'LIVE_FLOW'), allow_redirect=False)
+        post('/students/new', _with_csrf(_student_form(new_name, 'LIVE_FLOW'), form_token), allow_redirect=False)
         create_ok = False
         loc = ''
     except urllib.error.HTTPError as e:
@@ -263,7 +300,9 @@ def run_live(base: str):
     runner.check('Students list', new_name in html)
 
     try:
-        post('/generate', {'report_month': '2026-02'}, allow_redirect=False)
+        reports_html = get('/reports').read().decode('utf-8', errors='replace')
+        report_token = _csrf_token(reports_html)
+        post('/generate', _with_csrf({'report_month': '2026-02'}, report_token), allow_redirect=False)
         gen_ok = False
         gen_loc = ''
     except urllib.error.HTTPError as e:
