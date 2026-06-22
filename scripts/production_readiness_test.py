@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -83,6 +84,19 @@ def _scores():
     )}
 
 
+def _csrf_token(html: str) -> str:
+    match = re.search(r'name="csrf_token"\s+value="([^"]+)"', html)
+    if not match:
+        match = re.search(r'value="([^"]+)"\s+name="csrf_token"', html)
+    return match.group(1) if match else ''
+
+
+def _with_csrf(data: dict, token: str) -> dict:
+    payload = dict(data)
+    payload['csrf_token'] = token
+    return payload
+
+
 def _pin_test_superadmin(admin_email: str, admin_password: str):
     """Keep in-process journeys off developer .env (app.py caches env at import)."""
     os.environ['SUPERADMIN_EMAIL'] = admin_email
@@ -149,7 +163,12 @@ def run_pytest() -> int:
 
 def journey_admin(client, runner: Runner, out_dir: Path | None = None):
     print('\n=== Admin user journey ===')
-    r = client.post('/login', data={'email': 'admin@test.local', 'password': 'testpass'})
+    login_html = client.get('/login').get_data(as_text=True)
+    token = _csrf_token(login_html)
+    r = client.post('/login', data=_with_csrf({
+        'email': 'admin@test.local',
+        'password': 'testpass',
+    }, token))
     runner.ok('Admin login', r.status_code == 302)
 
     pages = {
@@ -167,23 +186,25 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
 
     html = client.get('/students/new').get_data(as_text=True)
     runner.ok('Admin new student form', 'Novo aluno' in html and 'KIDS 1' in html)
+    form_token = _csrf_token(html)
 
     r = client.post(
         '/students/new',
-        data={
+        data=_with_csrf({
             'teacher': 'Chuck',
             'turma': 'ADMIN_TEST',
             'student_name': 'Admin Created',
             'nivel': 'TEENS 1',
             **_scores(),
             'faltas': '0',
-        },
+        }, form_token),
         follow_redirects=False,
     )
     runner.ok('Admin create student', r.status_code == 302)
     runner.ok('Admin student saved', 'Admin Created' in client.get('/students').get_data(as_text=True))
 
-    r = client.post('/generate', follow_redirects=False)
+    report_token = _csrf_token(client.get('/reports').get_data(as_text=True))
+    r = client.post('/generate', data=_with_csrf({'report_month': ''}, report_token), follow_redirects=False)
     loc = r.headers.get('Location', '')
     runner.ok('Admin generate', r.status_code == 302 and '/reports' in loc)
     reports_dir = out_dir or web_app.OUT_DIR
@@ -199,7 +220,12 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
 def journey_teacher(client, runner: Runner):
     print('\n=== Teacher user journey & visibility ===')
     client.post('/logout')
-    r = client.post('/login', data={'email': 'teacher@test.local', 'password': 'teachpass'})
+    login_html = client.get('/login').get_data(as_text=True)
+    token = _csrf_token(login_html)
+    r = client.post('/login', data=_with_csrf({
+        'email': 'teacher@test.local',
+        'password': 'teachpass',
+    }, token))
     runner.ok('Teacher login', r.status_code == 302)
 
     students_html = client.get('/students').get_data(as_text=True)
@@ -211,33 +237,35 @@ def journey_teacher(client, runner: Runner):
 
     dash_html = client.get('/').get_data(as_text=True)
     runner.ok('Teacher dashboard create turma', 'Criar turma' in dash_html)
+    dash_token = _csrf_token(dash_html)
 
     r = client.post(
         '/turmas/create',
-        data={
+        data=_with_csrf({
             'turma_display': 'Teens class',
             'class_weekday_1': 'Terça-feira',
             'class_weekday_2': 'Quinta-feira',
             'turma_time_start': '18:00',
             'turma_time_end': '19:00',
-        },
+        }, dash_token),
         follow_redirects=False,
     )
     runner.ok('Teacher create turma on dashboard', r.status_code == 302)
 
     form_html = client.get('/students/new').get_data(as_text=True)
     runner.ok('Teacher student turma dropdown', 'TEENS_CLASS' in form_html and 'Teens class' in form_html)
+    form_token = _csrf_token(form_html)
 
     r = client.post(
         '/students/new',
-        data={
+        data=_with_csrf({
             'teacher': 'Chuck',
             'class_choice': 'TEENS_CLASS',
             'nivel': 'TEENS 3',
             'student_name': 'Teacher New Class Kid',
             **_scores(),
             'faltas': '0',
-        },
+        }, form_token),
         follow_redirects=False,
     )
     runner.ok('Teacher add student to turma', r.status_code == 302)
@@ -246,18 +274,19 @@ def journey_teacher(client, runner: Runner):
 
     r = client.post(
         '/students/new',
-        data={
+        data=_with_csrf({
             'teacher': 'Chuck',
             'turma': 'SPARK',
             'student_name': 'Sneaky Bob',
             **_scores(),
             'faltas': '0',
-        },
+        }, form_token),
     )
     sneaky_html = r.get_data(as_text=True)
+    after_sneaky_csv = (web_app.DATA_DIR / 'students.csv').read_text(encoding='utf-8')
     runner.ok(
         'Teacher cannot use Ana turma',
-        'Sneaky Bob' not in csv and ('não permitida' in sneaky_html or 'Dashboard' in sneaky_html),
+        'Sneaky Bob' not in after_sneaky_csv and ('não permitida' in sneaky_html or 'Dashboard' in sneaky_html),
     )
 
 
@@ -336,7 +365,9 @@ def run_live(base: str) -> int:
     except Exception as exc:
         runner.ok('/health/db', False, str(exc))
 
-    post('/login', {'email': email, 'password': password})
+    login_html = get('/login').read().decode('utf-8', errors='replace')
+    login_token = _csrf_token(login_html)
+    post('/login', _with_csrf({'email': email, 'password': password}, login_token))
     for path, label in [
         ('/', 'Dashboard'),
         ('/students', 'Students'),
@@ -354,8 +385,12 @@ def run_live(base: str) -> int:
             runner.ok(label, False, str(exc))
 
     try:
-        post('/login', {'email': email, 'password': password})
-        post('/generate', {'report_month': ''}, redir=False)
+        login_html = get('/login').read().decode('utf-8', errors='replace')
+        login_token = _csrf_token(login_html)
+        post('/login', _with_csrf({'email': email, 'password': password}, login_token))
+        reports_html = get('/reports').read().decode('utf-8', errors='replace')
+        report_token = _csrf_token(reports_html)
+        post('/generate', _with_csrf({'report_month': ''}, report_token), redir=False)
         gen_ok = False
     except urllib.error.HTTPError as e:
         gen_ok = e.code in (302, 303) and '/reports' in (e.headers.get('Location') or '')

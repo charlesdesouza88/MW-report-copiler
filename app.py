@@ -14,6 +14,7 @@ import time
 import zipfile
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from flask import (Flask, abort, redirect, render_template, request,
                    send_file, session, url_for)
@@ -47,7 +48,7 @@ from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
                                students_by_turma, students_for_turma)
 from form_ui import (HABILIDADES_CHOICES, LICAO_CONTEUDO_CHOICES,
                      LICAO_ESPECIAL_CHOICES, NIVEL_CHOICES, WEEKDAY_CHOICES,
-                     date_from_form, format_class_schedule, format_date_for_input,
+                     date_from_form, format_date_for_input,
                      is_valid_nivel, licao_choice_for_value, next_aula_num,
                      normalize_habilidades, storage_date_to_iso,
                      storage_time_to_input, suggest_licao_conteudo,
@@ -66,8 +67,7 @@ from report_periods import (available_report_months, compute_month_trend,
                             month_label, parse_lesson_month,
                             report_month_from_filename,
                             student_composite_score, upsert_month_snapshots)
-from student_reviews import (MONTHLY_REVIEW_FIELDS, ROSTER_FIELDS,
-                             apply_upload_row, extract_roster_fields,
+from student_reviews import (ROSTER_FIELDS, apply_upload_row,
                              load_monthly_reviews, merge_roster_for_month,
                              migrate_roster_scores_to_month,
                              rows_from_store, save_monthly_reviews,
@@ -260,14 +260,15 @@ def _database_status():
 
 default_data_dir = str(BASE / 'data')
 default_out_dir = str(BASE / 'output')
+fallback_base_dir = Path(tempfile.gettempdir()) / 'mw'
 
 TMPL_DIR = BASE / 'templates'
 DATA_DIR = _ensure_writable_dir(
-    os.environ.get('DATA_DIR', default_data_dir), '/tmp/mw/data')
+    os.environ.get('DATA_DIR', default_data_dir), fallback_base_dir / 'data')
 OUT_DIR = _ensure_writable_dir(
-    os.environ.get('OUT_DIR', default_out_dir), '/tmp/mw/output')
+    os.environ.get('OUT_DIR', default_out_dir), fallback_base_dir / 'output')
 
-if str(DATA_DIR).startswith('/tmp'):
+if DATA_DIR.is_relative_to(Path(tempfile.gettempdir())):
     logger.warning(
         'DATA_DIR is %s — this path is ephemeral and data will be lost on container restart. '
         'Set DATA_DIR to a Railway volume mount or use DATABASE_URL for persistent storage.',
@@ -1529,6 +1530,17 @@ def logout():
     return redirect(url_for('login'))
 
 
+def _is_safe_redirect_target(target):
+    """Allow local redirects and exact same-origin absolute URLs only."""
+    if not target:
+        return False
+    parsed = urlsplit(target)
+    if not parsed.netloc:
+        return target.startswith('/') and not target.startswith('//')
+    host = urlsplit(request.host_url)
+    return parsed.scheme in {'http', 'https'} and parsed.scheme == host.scheme and parsed.netloc == host.netloc
+
+
 @app.route('/review-month', methods=['POST'])
 @login_required
 def set_review_month():
@@ -1536,7 +1548,7 @@ def set_review_month():
     if not _set_review_month(month):
         abort(400)
     target = (request.form.get('next') or request.referrer or '').strip()
-    if target and target.startswith(request.host_url.rstrip('/')):
+    if _is_safe_redirect_target(target):
         return redirect(target)
     return redirect(url_for('dashboard', month=month))
 
@@ -2701,7 +2713,7 @@ def download_all():
                      as_attachment=True, download_name='mister_wiz_reports.zip')
 
 
-def _pick_port(preferred):
+def _pick_port(preferred, host):
     """Use preferred port, or the next free one (macOS AirPlay often blocks 5000)."""
     import socket
 
@@ -2709,7 +2721,7 @@ def _pick_port(preferred):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
-                sock.bind(('0.0.0.0', candidate))
+                sock.bind((host, candidate))
             except OSError:
                 continue
             return candidate
@@ -2718,10 +2730,11 @@ def _pick_port(preferred):
 
 if __name__ == '__main__':
     debug = os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes')
+    host = os.environ.get('HOST', '127.0.0.1')
     preferred = int(os.environ.get('PORT', '5000'))
-    port = _pick_port(preferred)
+    port = _pick_port(preferred, host)
     if port != preferred:
-        logger.warning('Port %s is in use; starting on http://127.0.0.1:%s', preferred, port)
+        logger.warning('Port %s is in use; starting on http://%s:%s', preferred, host, port)
     else:
-        logger.info('Starting on http://127.0.0.1:%s', port)
-    app.run(debug=debug, host='0.0.0.0', port=port)
+        logger.info('Starting on http://%s:%s', host, port)
+    app.run(debug=debug, host=host, port=port)

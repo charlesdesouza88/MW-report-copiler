@@ -356,7 +356,7 @@ def test_upload_template_students_download(monkeypatch, tmp_path):
     assert "students_template.csv" in response.headers.get("Content-Disposition", "")
     assert response.data.startswith(b"\xef\xbb\xbf")
     assert b"teacher,turma,turma_display" in response.data
-    assert b"Jane Doe" in response.data
+    assert b"Sample Learner One" in response.data
 
 
 def test_login_page_has_viewport(monkeypatch, tmp_path):
@@ -1050,8 +1050,37 @@ def test_set_review_month_redirects(monkeypatch, tmp_path):
         follow_redirects=False,
     )
     assert response.status_code == 302
+    assert response.headers["Location"] == "http://localhost/students"
     with client.session_transaction() as sess:
         assert sess.get("review_month") == "2026-03"
+
+
+def test_set_review_month_rejects_prefix_open_redirect(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,15/03/2026,Lesson 1,,\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+    response = client.post(
+        "/review-month",
+        data={"review_month": "2026-03", "next": "http://localhost.evil/phish"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/?month=2026-03"
 
 
 def test_monthly_scores_differ_by_review_month(monkeypatch, tmp_path):

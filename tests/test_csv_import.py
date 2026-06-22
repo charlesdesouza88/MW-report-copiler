@@ -45,7 +45,7 @@ def test_parse_students_csv_compiler_format():
     rows, errors = parse_students_csv(text)
     assert not errors
     assert len(rows) == 1
-    assert rows[0]['student_name'] == 'Jane Doe'
+    assert rows[0]['student_name'] == 'Sample Learner One'
 
 
 def test_merge_lessons_replaces_one_turma():
@@ -79,10 +79,10 @@ def test_write_lessons_csv_roundtrip(tmp_path):
 
 SAMPLE_TEACHER_REPORT = """\
 ,,,,,,,,,,,,,
-,Amanda - COMET,,,,,,,,,,,,
+,Teacher One - COMET,,,,,,,,,,,,
 ,Alunos,Participação,Foco,Comportamento,Speaking,Listening,Writing,Reading,Aula extra,Materias,Atrasos,Faltas,Observação
-,Bernardo Souza Barbosa,4,4,5,3,4,4,4,,,,,
-,Lais Machado Castro Neves,2,3,5,1,1,1,1,Reforço,,,,"A aluna nao traz o material"
+,Sample Learner One,4,4,5,3,4,4,4,,,,,
+,Sample Learner Two,2,3,5,1,1,1,1,Reforço,,,,"Synthetic observation"
 ,Nº de alunos: 2,,,,,,,,,,,,
 """
 
@@ -90,27 +90,27 @@ SAMPLE_TEACHER_REPORT = """\
 def test_parse_teacher_student_report_csv():
     rows, errors = parse_teacher_student_report_csv(
         SAMPLE_TEACHER_REPORT,
-        'Amanda',
-        'Amanda - Abril-COMET.csv',
+        'Teacher One',
+        'Teacher One - Abril-COMET.csv',
     )
     assert not errors
     assert len(rows) == 2
-    assert rows[0]['teacher'] == 'Amanda'
+    assert rows[0]['teacher'] == 'Teacher One'
     assert rows[0]['turma'] == 'COMET'
     assert rows[1]['aula_extra'] == 'Reforço'
     assert rows[1]['faltas'] == '0'
 
 
 def test_turma_from_filename_ignores_teacher_and_month():
-    assert turma_from_filename('Bárbara - Março - Rise.csv', 'Barbara') == 'RISE'
-    assert month_sort_key_from_filename('Jaqueline - Maio - Impact.csv') == 5
+    assert turma_from_filename('Teacher One - Março - Rise.csv', 'Teacher One') == 'RISE'
+    assert month_sort_key_from_filename('Teacher Two - Maio - Impact.csv') == 5
 
 
 def test_convert_teacher_folder(tmp_path):
-    teacher_dir = tmp_path / 'Amanda'
+    teacher_dir = tmp_path / 'Teacher One'
     teacher_dir.mkdir()
-    (teacher_dir / 'Amanda - Abril-COMET.csv').write_text(SAMPLE_TEACHER_REPORT, encoding='utf-8')
-    (teacher_dir / 'Amanda - Planejamento de aula - Comet.csv').write_text(
+    (teacher_dir / 'Teacher One - Abril-COMET.csv').write_text(SAMPLE_TEACHER_REPORT, encoding='utf-8')
+    (teacher_dir / 'Teacher One - Planejamento de aula - Comet.csv').write_text(
         """,,,,,,
 ,"COMET - KIDS 2 (Segunda e quarta, 8:00-9:30)",,,,,PRAZO: Semanal - Segunda-feira
 ,,DATA,LIÇÃO + CONTEÚDO,ATIVIDADE EXTRA,HABILIDADES,
@@ -129,16 +129,16 @@ SAMPLE_ATTENDANCE = """\
 MAY,teens 01, MAY,,,,,,,,,,
 Turma,teens 01,,,,,,,,,,,
 Horário,14 as 15,5,7,12,15,19,21,26,28,30,31,OBSERVAÇÕES
-Mentor,JAQUELINE,,,,,,,,,,,
+Mentor,TEACHER ONE,,,,,,,,,,,
 ,ALUNOS,,,,,,,,,,,
-,ARTHUR BOA VENTURA,P,P,A,P,A,A,P,,,,
-,MATEUS G. VIEIRA,P,A,P,P,P,P,P,,,,COLOCAR LIVRO EM DIA
+,SAMPLE LEARNER ONE,P,P,A,P,A,A,P,,,,
+,SAMPLE L. TWO,P,A,P,P,P,P,P,,,,REVIEW UNIT MATERIAL
 """
 
 
 def test_student_name_matches():
-    assert student_name_matches('ARTHUR BOA VENTURA', 'Arthur Boaventura Campos')
-    assert student_name_matches('MATEUS G. VIEIRA', 'Mateus Guerson Juste Azevedo Vieira')
+    assert student_name_matches('SAMPLE LEARNER ONE', 'Sample Learner One')
+    assert student_name_matches('SAMPLE L. TWO', 'Sample Learner Two')
 
 
 def test_parse_attendance_control_csv():
@@ -149,30 +149,30 @@ def test_parse_attendance_control_csv():
     ]
     records, errors = parse_attendance_control_csv(
         SAMPLE_ATTENDANCE,
-        'Jaqueline',
+        'Teacher One',
         'IMPACT',
         lessons,
-        'Jaqueline - ATTENDANCE CONTROL.csv',
+        'Teacher One - ATTENDANCE CONTROL.csv',
     )
     assert not errors
-    arthur = next(r for r in records if 'ARTHUR BOA VENTURA' in r['attendance_name'])
-    assert arthur['faltas'] == '3'
-    assert arthur['missed_aulas'] == '26,28'
+    learner = next(r for r in records if 'SAMPLE LEARNER ONE' in r['attendance_name'])
+    assert learner['faltas'] == '3'
+    assert learner['missed_aulas'] == '26,28'
 
 
 def test_apply_attendance_to_students():
     students = [{
-        'teacher': 'Jaqueline',
+        'teacher': 'Teacher One',
         'turma': 'IMPACT',
-        'student_name': 'Arthur Boaventura Campos',
+        'student_name': 'Sample Learner One',
         'faltas': '0',
         'missed_aulas': '',
         'observacao': 'existing',
     }]
     records = [{
-        'teacher': 'Jaqueline',
+        'teacher': 'Teacher One',
         'turma': 'IMPACT',
-        'attendance_name': 'ARTHUR BOA VENTURA',
+        'attendance_name': 'SAMPLE LEARNER ONE',
         'faltas': '2',
         'missed_aulas': '26,28',
         'notes': 'late once',
@@ -185,7 +185,7 @@ def test_apply_attendance_to_students():
 
 def test_normalize_student_row_fills_gramatica():
     row = normalize_student_row({
-        'teacher': 'Amanda',
+        'teacher': 'Teacher One',
         'turma': 'COMET',
         'student_name': 'Test',
         'speaking': '4',
@@ -199,15 +199,15 @@ def test_normalize_student_row_fills_gramatica():
     assert row['trabalho_equipe'] == '5'
 
 
-def test_parse_upload_csv_amanda_grade_sheet():
+def test_parse_upload_csv_teacher_grade_sheet():
     rows, note, errors = parse_upload_csv(
         'students',
         SAMPLE_TEACHER_REPORT,
-        user={'teacher_name': 'Amanda'},
-        source_filename='Amanda - Abril-COMET.csv',
+        user={'teacher_name': 'Teacher One'},
+        source_filename='Teacher One - Abril-COMET.csv',
     )
     assert not errors
     assert note
-    assert rows[0]['teacher'] == 'Amanda'
+    assert rows[0]['teacher'] == 'Teacher One'
     assert rows[0]['turma'] == 'COMET'
     assert rows[0]['gramatica']
