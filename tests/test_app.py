@@ -356,7 +356,7 @@ def test_upload_template_students_download(monkeypatch, tmp_path):
     assert "students_template.csv" in response.headers.get("Content-Disposition", "")
     assert response.data.startswith(b"\xef\xbb\xbf")
     assert b"teacher,turma,turma_display" in response.data
-    assert b"Jane Doe" in response.data
+    assert b"Sample Learner One" in response.data
 
 
 def test_login_page_has_viewport(monkeypatch, tmp_path):

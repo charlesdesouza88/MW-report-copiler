@@ -45,7 +45,7 @@ def test_parse_students_csv_compiler_format():
     rows, errors = parse_students_csv(text)
     assert not errors
     assert len(rows) == 1
-    assert rows[0]['student_name'] == 'Jane Doe'
+    assert rows[0]['student_name'] == 'Sample Learner One'
 
 
 def test_merge_lessons_replaces_one_turma():
