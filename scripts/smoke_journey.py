@@ -59,6 +59,8 @@ def main():
         return
 
     client = web_app.app.test_client()
+    web_app.app.config['WTF_CSRF_ENABLED'] = False
+    web_app.limiter.reset()
     steps = []
 
     r = client.post('/login', data={'email': email, 'password': password})

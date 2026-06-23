@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -93,6 +94,12 @@ def _pin_test_superadmin(admin_email: str, admin_password: str):
     web_app.SUPERADMIN_SYNC_PASSWORD = False
 
 
+def _disable_test_security():
+    """Match pytest conftest: allow POST journeys without CSRF tokens."""
+    web_app.app.config['WTF_CSRF_ENABLED'] = False
+    web_app.limiter.reset()
+
+
 def _setup_env(tmp: Path, admin_email: str = 'admin@test.local', admin_password: str = 'testpass'):
     """Isolated CSV mode with fixed test accounts (ignores developer .env email)."""
     _pin_test_superadmin(admin_email, admin_password)
@@ -126,6 +133,7 @@ def _setup_env(tmp: Path, admin_email: str = 'admin@test.local', admin_password:
     web_app.db_store = None
     web_app.DB_ENABLED = False
     web_app.user_store = store
+    _disable_test_security()
     return data_dir, out_dir, store
 
 
@@ -322,6 +330,10 @@ def run_live(base: str) -> int:
         http = opener if redir else no_redir
         return http.open(req, timeout=120)
 
+    def csrf_from_html(html: str) -> str:
+        match = re.search(r'name="csrf_token"\s+value="([^"]+)"', html)
+        return match.group(1) if match else ''
+
     print(f'\n=== Live checks ({base}) ===')
     try:
         r = opener.open(f'{base}/health', timeout=15)
@@ -336,7 +348,11 @@ def run_live(base: str) -> int:
     except Exception as exc:
         runner.ok('/health/db', False, str(exc))
 
-    post('/login', {'email': email, 'password': password})
+    post('/login', {
+        'email': email,
+        'password': password,
+        'csrf_token': csrf_from_html(get('/login').read().decode('utf-8', errors='replace')),
+    })
     for path, label in [
         ('/', 'Dashboard'),
         ('/students', 'Students'),
@@ -354,8 +370,11 @@ def run_live(base: str) -> int:
             runner.ok(label, False, str(exc))
 
     try:
-        post('/login', {'email': email, 'password': password})
-        post('/generate', {'report_month': ''}, redir=False)
+        dash_html = get('/').read().decode('utf-8', errors='replace')
+        post('/generate', {
+            'report_month': '',
+            'csrf_token': csrf_from_html(dash_html),
+        }, redir=False)
         gen_ok = False
     except urllib.error.HTTPError as e:
         gen_ok = e.code in (302, 303) and '/reports' in (e.headers.get('Location') or '')

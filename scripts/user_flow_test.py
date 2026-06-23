@@ -129,6 +129,8 @@ def run_inprocess():
         web_app.db_store = None
         web_app.DB_ENABLED = False
         web_app.user_store = store
+        web_app.app.config['WTF_CSRF_ENABLED'] = False
+        web_app.limiter.reset()
 
         client = web_app.app.test_client()
 
@@ -155,10 +157,11 @@ def run_inprocess():
             data=_student_form(new_name, 'FLOW_TEST'),
             follow_redirects=False,
         )
+        loc = r.headers.get('Location', '')
         runner.check(
             'Create student',
-            r.status_code == 302 and r.headers['Location'].endswith('/students'),
-            r.headers.get('Location', ''),
+            r.status_code == 302 and '/students' in loc,
+            loc,
         )
 
         r = client.get('/students')
