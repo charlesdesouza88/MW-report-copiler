@@ -9,6 +9,7 @@ Usage:
 from __future__ import annotations
 
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -18,6 +19,8 @@ sys.path.insert(0, str(ROOT))
 
 import app as web_app  # noqa: E402
 from auth import UserStore  # noqa: E402
+
+CSRF_RE = re.compile(r'name="csrf_token"\s+value="([^"]*)"')
 
 STUDENTS_CSV = (
     'teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,'
@@ -79,6 +82,18 @@ def _student_form(name, turma, teacher='Chuck'):
     return base
 
 
+def _csrf_token(client, form_path: str) -> str:
+    html = client.get(form_path).get_data(as_text=True)
+    match = CSRF_RE.search(html)
+    return match.group(1) if match else ''
+
+
+def _with_csrf(client, form_path: str, data=None):
+    payload = dict(data or {})
+    payload['csrf_token'] = _csrf_token(client, form_path)
+    return payload
+
+
 class FlowRunner:
     def __init__(self, label: str):
         self.label = label
@@ -131,7 +146,10 @@ def run_inprocess():
 
         client = web_app.app.test_client()
 
-        r = client.post('/login', data={'email': email, 'password': password})
+        r = client.post('/login', data=_with_csrf(client, '/login', {
+            'email': email,
+            'password': password,
+        }))
         runner.check('Login', r.status_code == 302, f'status={r.status_code}')
 
         r = client.get('/')
@@ -141,7 +159,11 @@ def run_inprocess():
         r = client.get('/students/new')
         runner.check('New student form', r.status_code == 200 and 'Novo aluno' in r.get_data(as_text=True))
 
-        r = client.post('/students/new', data={'student_name': 'Bad', 'turma': '', 'teacher': 'Chuck'})
+        r = client.post('/students/new', data=_with_csrf(client, '/students/new', {
+            'student_name': 'Bad',
+            'turma': '',
+            'teacher': 'Chuck',
+        }))
         err_html = r.get_data(as_text=True)
         runner.check(
             'New student validation (missing turma)',
@@ -151,7 +173,7 @@ def run_inprocess():
         new_name = 'Flow Test Kid'
         r = client.post(
             '/students/new',
-            data=_student_form(new_name, 'FLOW_TEST'),
+            data=_with_csrf(client, '/students/new', _student_form(new_name, 'FLOW_TEST')),
             follow_redirects=False,
         )
         runner.check(
@@ -169,7 +191,7 @@ def run_inprocess():
         r = client.get('/upload')
         runner.check('Upload page', r.status_code == 200)
 
-        r = client.post('/generate', follow_redirects=False)
+        r = client.post('/generate', data=_with_csrf(client, '/'), follow_redirects=False)
         loc = r.headers.get('Location', '')
         runner.check(
             'Generate reports',
@@ -222,8 +244,15 @@ def run_live(base: str):
     def get(path):
         return opener.open(f'{base}{path}', timeout=60)
 
-    def post(path, data, *, allow_redirect=True):
-        body = urllib.parse.urlencode(data).encode()
+    def token(path):
+        html = get(path).read().decode('utf-8', errors='replace')
+        match = CSRF_RE.search(html)
+        return match.group(1) if match else ''
+
+    def post(path, data, *, allow_redirect=True, form_path=None):
+        payload = dict(data)
+        payload['csrf_token'] = token(form_path or path)
+        body = urllib.parse.urlencode(payload).encode()
         req = Request(f'{base}{path}', data=body, method='POST')
         http = opener if allow_redirect else opener_no_redirect
         try:
@@ -250,7 +279,12 @@ def run_live(base: str):
 
     new_name = 'Live Flow Kid'
     try:
-        post('/students/new', _student_form(new_name, 'LIVE_FLOW'), allow_redirect=False)
+        post(
+            '/students/new',
+            _student_form(new_name, 'LIVE_FLOW'),
+            allow_redirect=False,
+            form_path='/students/new',
+        )
         create_ok = False
         loc = ''
     except urllib.error.HTTPError as e:
@@ -262,7 +296,7 @@ def run_live(base: str):
     runner.check('Students list', new_name in html)
 
     try:
-        post('/generate', {'report_month': '2026-02'}, allow_redirect=False)
+        post('/generate', {'report_month': '2026-02'}, allow_redirect=False, form_path='/')
         gen_ok = False
         gen_loc = ''
     except urllib.error.HTTPError as e:
