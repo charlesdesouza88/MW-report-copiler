@@ -270,7 +270,7 @@ DATA_DIR = _ensure_writable_dir(
 OUT_DIR = _ensure_writable_dir(
     os.environ.get('OUT_DIR', default_out_dir), tmp_root / 'output')
 
-if str(DATA_DIR).startswith('/tmp'):
+if DATA_DIR == tmp_root or tmp_root in DATA_DIR.parents:
     logger.warning(
         'DATA_DIR is %s — this path is ephemeral and data will be lost on container restart. '
         'Set DATA_DIR to a Railway volume mount or use DATABASE_URL for persistent storage.',
