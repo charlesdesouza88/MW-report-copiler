@@ -2,6 +2,7 @@
 """Quick live smoke test — email/password login. Usage: ./scripts/smoke_journey.py [base_url]"""
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -9,6 +10,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import app as web_app  # noqa: E402
+
+CSRF_RE = re.compile(r'name="csrf_token"\s+value="([^"]*)"')
 
 
 def _load_dotenv():
@@ -42,7 +45,13 @@ def main():
         from urllib.request import HTTPCookieProcessor, Request, build_opener
 
         opener = build_opener(HTTPCookieProcessor(jar))
-        data = urllib.parse.urlencode({'email': email, 'password': password}).encode()
+        login_html = opener.open(f'{base}/login').read().decode('utf-8', errors='replace')
+        match = CSRF_RE.search(login_html)
+        data = urllib.parse.urlencode({
+            'email': email,
+            'password': password,
+            'csrf_token': match.group(1) if match else '',
+        }).encode()
         req = Request(f'{base}/login', data=data, method='POST')
         try:
             resp = opener.open(req)
@@ -61,7 +70,13 @@ def main():
     client = web_app.app.test_client()
     steps = []
 
-    r = client.post('/login', data={'email': email, 'password': password})
+    login_html = client.get('/login').get_data(as_text=True)
+    match = CSRF_RE.search(login_html)
+    r = client.post('/login', data={
+        'email': email,
+        'password': password,
+        'csrf_token': match.group(1) if match else '',
+    })
     steps.append(('login', r.status_code == 302))
     for path in ('/', '/students', '/lessons', '/upload', '/admin/teachers', '/reports'):
         r = client.get(path)
