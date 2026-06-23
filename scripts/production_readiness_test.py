@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -22,6 +23,8 @@ sys.path.insert(0, str(ROOT))
 import app as web_app  # noqa: E402
 from auth import UserStore  # noqa: E402
 from teacher_classes import save_registry  # noqa: E402
+
+CSRF_RE = re.compile(r'name="csrf_token"\s+value="([^"]*)"')
 
 STUDENTS_CSV = (
     'teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,'
@@ -81,6 +84,18 @@ def _scores():
         'writing', 'reading', 'gramatica', 'trabalho_equipe', 'organizacao',
         'pontualidade', 'respeito_regras',
     )}
+
+
+def _csrf_token(client, form_path: str) -> str:
+    html = client.get(form_path).get_data(as_text=True)
+    match = CSRF_RE.search(html)
+    return match.group(1) if match else ''
+
+
+def _with_csrf(client, form_path: str, data=None):
+    payload = dict(data or {})
+    payload['csrf_token'] = _csrf_token(client, form_path)
+    return payload
 
 
 def _pin_test_superadmin(admin_email: str, admin_password: str):
@@ -149,7 +164,10 @@ def run_pytest() -> int:
 
 def journey_admin(client, runner: Runner, out_dir: Path | None = None):
     print('\n=== Admin user journey ===')
-    r = client.post('/login', data={'email': 'admin@test.local', 'password': 'testpass'})
+    r = client.post(
+        '/login',
+        data=_with_csrf(client, '/login', {'email': 'admin@test.local', 'password': 'testpass'}),
+    )
     runner.ok('Admin login', r.status_code == 302)
 
     pages = {
@@ -170,20 +188,20 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
 
     r = client.post(
         '/students/new',
-        data={
+        data=_with_csrf(client, '/students/new', {
             'teacher': 'Chuck',
             'turma': 'ADMIN_TEST',
             'student_name': 'Admin Created',
             'nivel': 'TEENS 1',
             **_scores(),
             'faltas': '0',
-        },
+        }),
         follow_redirects=False,
     )
     runner.ok('Admin create student', r.status_code == 302)
     runner.ok('Admin student saved', 'Admin Created' in client.get('/students').get_data(as_text=True))
 
-    r = client.post('/generate', follow_redirects=False)
+    r = client.post('/generate', data=_with_csrf(client, '/'), follow_redirects=False)
     loc = r.headers.get('Location', '')
     runner.ok('Admin generate', r.status_code == 302 and '/reports' in loc)
     reports_dir = out_dir or web_app.OUT_DIR
@@ -199,7 +217,10 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
 def journey_teacher(client, runner: Runner):
     print('\n=== Teacher user journey & visibility ===')
     client.post('/logout')
-    r = client.post('/login', data={'email': 'teacher@test.local', 'password': 'teachpass'})
+    r = client.post(
+        '/login',
+        data=_with_csrf(client, '/login', {'email': 'teacher@test.local', 'password': 'teachpass'}),
+    )
     runner.ok('Teacher login', r.status_code == 302)
 
     students_html = client.get('/students').get_data(as_text=True)
@@ -214,13 +235,13 @@ def journey_teacher(client, runner: Runner):
 
     r = client.post(
         '/turmas/create',
-        data={
+        data=_with_csrf(client, '/', {
             'turma_display': 'Teens class',
             'class_weekday_1': 'Terça-feira',
             'class_weekday_2': 'Quinta-feira',
             'turma_time_start': '18:00',
             'turma_time_end': '19:00',
-        },
+        }),
         follow_redirects=False,
     )
     runner.ok('Teacher create turma on dashboard', r.status_code == 302)
@@ -230,14 +251,14 @@ def journey_teacher(client, runner: Runner):
 
     r = client.post(
         '/students/new',
-        data={
+        data=_with_csrf(client, '/students/new', {
             'teacher': 'Chuck',
             'class_choice': 'TEENS_CLASS',
             'nivel': 'TEENS 3',
             'student_name': 'Teacher New Class Kid',
             **_scores(),
             'faltas': '0',
-        },
+        }),
         follow_redirects=False,
     )
     runner.ok('Teacher add student to turma', r.status_code == 302)
@@ -246,18 +267,21 @@ def journey_teacher(client, runner: Runner):
 
     r = client.post(
         '/students/new',
-        data={
+        data=_with_csrf(client, '/students/new', {
             'teacher': 'Chuck',
             'turma': 'SPARK',
             'student_name': 'Sneaky Bob',
             **_scores(),
             'faltas': '0',
-        },
+        }),
     )
     sneaky_html = r.get_data(as_text=True)
+    csv_after_sneaky = (web_app.DATA_DIR / 'students.csv').read_text(encoding='utf-8')
     runner.ok(
         'Teacher cannot use Ana turma',
-        'Sneaky Bob' not in csv and ('não permitida' in sneaky_html or 'Dashboard' in sneaky_html),
+        'Sneaky Bob' not in csv_after_sneaky and (
+            'não permitida' in sneaky_html or 'Dashboard' in sneaky_html
+        ),
     )
 
 
@@ -317,8 +341,15 @@ def run_live(base: str) -> int:
     def get(path):
         return opener.open(f'{base}{path}', timeout=60)
 
-    def post(path, data, redir=True):
-        req = Request(f'{base}{path}', urllib.parse.urlencode(data).encode(), method='POST')
+    def token(path):
+        html = get(path).read().decode('utf-8', errors='replace')
+        match = CSRF_RE.search(html)
+        return match.group(1) if match else ''
+
+    def post(path, data, redir=True, form_path=None):
+        payload = dict(data)
+        payload['csrf_token'] = token(form_path or path)
+        req = Request(f'{base}{path}', urllib.parse.urlencode(payload).encode(), method='POST')
         http = opener if redir else no_redir
         return http.open(req, timeout=120)
 
@@ -355,7 +386,7 @@ def run_live(base: str) -> int:
 
     try:
         post('/login', {'email': email, 'password': password})
-        post('/generate', {'report_month': ''}, redir=False)
+        post('/generate', {'report_month': ''}, redir=False, form_path='/')
         gen_ok = False
     except urllib.error.HTTPError as e:
         gen_ok = e.code in (302, 303) and '/reports' in (e.headers.get('Location') or '')
