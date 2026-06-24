@@ -14,6 +14,7 @@ import time
 import zipfile
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from flask import (Flask, abort, redirect, render_template, request,
                    send_file, session, url_for)
@@ -42,14 +43,14 @@ from extra_sessions import (AUTO_AULA_EXTRA_MARKER, EXTRA_SESSION_FIELD_LABELS,
                             sync_student_extra_sessions)
 from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
                                ATTENDANCE_LABELS, attendance_map_for_lesson,
-                               normalize_attendance_status, parse_attendance_form,
+                               parse_attendance_form,
                                recompute_faltas_from_attendance,
                                replace_lesson_attendance, students_by_turma,
                                students_for_turma,
                                students_with_attendance_in_month)
 from form_ui import (HABILIDADES_CHOICES, LICAO_CONTEUDO_CHOICES,
                      LICAO_ESPECIAL_CHOICES, NIVEL_CHOICES, WEEKDAY_CHOICES,
-                     date_from_form, format_class_schedule, format_date_for_input,
+                     date_from_form, format_date_for_input,
                      is_valid_nivel, licao_choice_for_value, next_aula_num,
                      normalize_habilidades, storage_date_to_iso,
                      storage_time_to_input, suggest_licao_conteudo,
@@ -68,9 +69,8 @@ from report_periods import (available_report_months, compute_month_trend,
                             month_label, parse_lesson_month,
                             report_month_from_filename,
                             student_composite_score, upsert_month_snapshots)
-from student_reviews import (MONTHLY_REVIEW_FIELDS, ROSTER_FIELDS,
-                             apply_upload_row, extract_roster_fields,
-                             load_monthly_reviews, merge_roster_for_month,
+from student_reviews import (ROSTER_FIELDS,
+                             apply_upload_row, load_monthly_reviews, merge_roster_for_month,
                              migrate_roster_scores_to_month,
                              rows_from_store, save_monthly_reviews,
                              split_student_row, store_from_rows,
@@ -262,14 +262,24 @@ def _database_status():
 
 default_data_dir = str(BASE / 'data')
 default_out_dir = str(BASE / 'output')
+fallback_root = Path(tempfile.gettempdir()) / 'mw'
+
+
+def _path_is_relative_to(path, parent):
+    try:
+        Path(path).resolve().relative_to(Path(parent).resolve())
+    except ValueError:
+        return False
+    return True
+
 
 TMPL_DIR = BASE / 'templates'
 DATA_DIR = _ensure_writable_dir(
-    os.environ.get('DATA_DIR', default_data_dir), '/tmp/mw/data')
+    os.environ.get('DATA_DIR', default_data_dir), fallback_root / 'data')
 OUT_DIR = _ensure_writable_dir(
-    os.environ.get('OUT_DIR', default_out_dir), '/tmp/mw/output')
+    os.environ.get('OUT_DIR', default_out_dir), fallback_root / 'output')
 
-if str(DATA_DIR).startswith('/tmp'):
+if _path_is_relative_to(DATA_DIR, tempfile.gettempdir()):
     logger.warning(
         'DATA_DIR is %s — this path is ephemeral and data will be lost on container restart. '
         'Set DATA_DIR to a Railway volume mount or use DATABASE_URL for persistent storage.',
@@ -306,6 +316,20 @@ limiter = Limiter(
     default_limits=[],
     storage_uri='memory://',
 )
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'DENY')
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.setdefault('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
+    if PRODUCTION_ENV or request.is_secure:
+        response.headers.setdefault(
+            'Strict-Transport-Security',
+            'max-age=31536000; includeSubDomains',
+        )
+    return response
 
 
 @app.errorhandler(CSRFError)
@@ -1091,6 +1115,19 @@ def _redirect_lessons():
     return _redirect_with_list_params('lessons')
 
 
+def _safe_redirect_target(target):
+    if not target:
+        return None
+    parsed = urlsplit(target)
+    if parsed.netloc:
+        if parsed.scheme in ('http', 'https') and parsed.netloc == request.host:
+            return target
+        return None
+    if parsed.path.startswith('/'):
+        return target
+    return None
+
+
 def _sort_lessons(rows):
     def sort_key(row):
         turma = row.get('turma', '')
@@ -1550,8 +1587,9 @@ def set_review_month():
     if not _set_review_month(month):
         abort(400)
     target = (request.form.get('next') or request.referrer or '').strip()
-    if target and target.startswith(request.host_url.rstrip('/')):
-        return redirect(target)
+    safe_target = _safe_redirect_target(target)
+    if safe_target:
+        return redirect(safe_target)
     return redirect(url_for('dashboard', month=month))
 
 
@@ -2731,7 +2769,7 @@ def download_all():
                      as_attachment=True, download_name='mister_wiz_reports.zip')
 
 
-def _pick_port(preferred):
+def _pick_port(preferred, host='127.0.0.1'):
     """Use preferred port, or the next free one (macOS AirPlay often blocks 5000)."""
     import socket
 
@@ -2739,7 +2777,7 @@ def _pick_port(preferred):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
-                sock.bind(('0.0.0.0', candidate))
+                sock.bind((host, candidate))
             except OSError:
                 continue
             return candidate
@@ -2748,10 +2786,11 @@ def _pick_port(preferred):
 
 if __name__ == '__main__':
     debug = os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes')
+    host = os.environ.get('HOST', '127.0.0.1')
     preferred = int(os.environ.get('PORT', '5000'))
-    port = _pick_port(preferred)
+    port = _pick_port(preferred, host)
     if port != preferred:
-        logger.warning('Port %s is in use; starting on http://127.0.0.1:%s', preferred, port)
+        logger.warning('Port %s is in use; starting on http://%s:%s', preferred, host, port)
     else:
-        logger.info('Starting on http://127.0.0.1:%s', port)
-    app.run(debug=debug, host='0.0.0.0', port=port)
+        logger.info('Starting on http://%s:%s', host, port)
+    app.run(debug=debug, host=host, port=port)
