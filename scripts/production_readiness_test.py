@@ -12,7 +12,8 @@ from __future__ import annotations
 import argparse
 import os
 import re
-import subprocess  # nosec B404 - fixed pytest command; no shell/user-controlled executable.
+# Fixed pytest command; no shell or user-controlled executable.
+import subprocess  # nosec B404
 import sys
 import tempfile
 from pathlib import Path
@@ -92,7 +93,7 @@ def _pin_test_superadmin(admin_email: str, admin_credential: str):
     """Keep in-process journeys off developer .env (app.py caches env at import)."""
     os.environ['SUPERADMIN_EMAIL'] = admin_email
     os.environ['SUPERADMIN_PASSWORD'] = admin_credential
-    os.environ['SUPERADMIN_SYNC_PASSWORD'] = ''
+    os.environ['SUPERADMIN_SYNC_PASSWORD'] = '0'
     web_app.SUPERADMIN_EMAIL = admin_email
     web_app.SUPERADMIN_PASSWORD = admin_credential
     web_app.SUPERADMIN_SYNC_PASSWORD = False
@@ -147,7 +148,8 @@ def _setup_env(
 
 def run_pytest() -> int:
     print('\n=== Unit & integration tests (pytest) ===')
-    proc = subprocess.run(  # nosec B603 - constant argv, shell disabled.
+    # Constant argv with shell disabled.
+    proc = subprocess.run(  # nosec B603
         [str(ROOT / '.venv/bin/python'), '-m', 'pytest', '-q', '--tb=line'],
         cwd=ROOT,
         capture_output=True,
