@@ -1,4 +1,4 @@
-from form_ui import format_class_schedule, turma_code_from_display
+from form_ui import turma_code_from_display
 from teacher_classes import (
     add_class,
     count_students_in_turma,
