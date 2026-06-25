@@ -261,14 +261,22 @@ def _database_status():
 
 default_data_dir = str(BASE / 'data')
 default_out_dir = str(BASE / 'output')
+fallback_data_dir = str(Path(tempfile.gettempdir()) / 'mw' / 'data')
+fallback_out_dir = str(Path(tempfile.gettempdir()) / 'mw' / 'output')
 
 TMPL_DIR = BASE / 'templates'
 DATA_DIR = _ensure_writable_dir(
-    os.environ.get('DATA_DIR', default_data_dir), '/tmp/mw/data')
+    os.environ.get('DATA_DIR', default_data_dir), fallback_data_dir)
 OUT_DIR = _ensure_writable_dir(
-    os.environ.get('OUT_DIR', default_out_dir), '/tmp/mw/output')
+    os.environ.get('OUT_DIR', default_out_dir), fallback_out_dir)
 
-if str(DATA_DIR).startswith('/tmp'):
+temp_root = Path(tempfile.gettempdir()).resolve()
+try:
+    data_dir_is_temp = DATA_DIR.resolve().is_relative_to(temp_root)
+except OSError:
+    data_dir_is_temp = False
+
+if data_dir_is_temp:
     logger.warning(
         'DATA_DIR is %s — this path is ephemeral and data will be lost on container restart. '
         'Set DATA_DIR to a Railway volume mount or use DATABASE_URL for persistent storage.',
