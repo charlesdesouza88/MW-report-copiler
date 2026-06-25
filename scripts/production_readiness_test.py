@@ -93,7 +93,7 @@ def _pin_test_superadmin(admin_email: str, admin_credential: str):
     """Keep in-process journeys off developer .env (app.py caches env at import)."""
     os.environ['SUPERADMIN_EMAIL'] = admin_email
     os.environ['SUPERADMIN_PASSWORD'] = admin_credential
-    os.environ['SUPERADMIN_SYNC_PASSWORD'] = '0'
+    os.environ.pop('SUPERADMIN_SYNC_PASSWORD', None)
     web_app.SUPERADMIN_EMAIL = admin_email
     web_app.SUPERADMIN_PASSWORD = admin_credential
     web_app.SUPERADMIN_SYNC_PASSWORD = False
