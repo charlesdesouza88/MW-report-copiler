@@ -89,6 +89,12 @@ def test_health_returns_ok():
     response = client.get("/health")
     assert response.status_code == 200
     assert response.get_data(as_text=True) == "ok"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    assert response.headers["Permissions-Policy"] == (
+        "camera=(), microphone=(), geolocation=()"
+    )
 
 
 def test_health_db_csv_mode():
@@ -108,6 +114,7 @@ def test_health_auth_omits_account_emails(monkeypatch, tmp_path):
     _init_user_store(monkeypatch, web_app.DATA_DIR)
 
     client = web_app.app.test_client()
+    _login(client)
     response = client.get("/health/auth")
 
     assert response.status_code == 200
@@ -116,6 +123,13 @@ def test_health_auth_omits_account_emails(monkeypatch, tmp_path):
     assert "accounts" not in payload
     assert "configured_email" not in payload
     assert "admin@test.local" not in response.get_data(as_text=True)
+
+
+def test_health_auth_requires_login():
+    client = web_app.app.test_client()
+    response = client.get("/health/auth")
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
 
 
 def test_login_success_sets_session(monkeypatch, tmp_path):
