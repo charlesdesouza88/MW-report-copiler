@@ -2,7 +2,6 @@ import io
 
 import app as web_app
 from auth import (
-    ROLE_SUPERADMIN,
     ROLE_TEACHER,
     UserStore,
     filter_lessons_for_user,
