@@ -498,18 +498,18 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
     assert reviews_path.exists()
     reviews_text = reviews_path.read_text(encoding="utf-8")
     assert "99" in reviews_text
-    assert '"faltas": "1"' in reviews_text or '"faltas":"1"' in reviews_text.replace(' ', '')
+    assert '"faltas": "2"' in reviews_text or '"faltas":"2"' in reviews_text.replace(' ', '')
     attendance_text = (data_dir / "lesson_attendance.csv").read_text(encoding="utf-8")
     assert "Jane Doe" in attendance_text
     assert "absent" in attendance_text
 
     students_html = client.get("/students?month=2026-05").get_data(as_text=True)
     assert "Jane Doe" in students_html
-    assert 'Faltas</span><strong>1</strong>' in students_html
+    assert 'Faltas</span><strong>2</strong>' in students_html
 
     edit_html = client.get("/students/0/edit?month=2026-05").get_data(as_text=True)
-    assert 'name="faltas" value="1"' in edit_html
-    assert 'name="missed_aulas" value="99"' in edit_html
+    assert 'name="faltas" value="2"' in edit_html
+    assert 'name="missed_aulas" value="2,99"' in edit_html
 
     blocked = client.post(
         "/lessons/new",
@@ -1108,6 +1108,83 @@ def test_set_review_month_redirects(monkeypatch, tmp_path):
         assert sess.get("review_month") == "2026-03"
 
 
+def test_set_review_month_blocks_open_redirect(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,15/03/2026,Lesson 1,,\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+    response = client.post(
+        "/review-month",
+        data={
+            "review_month": "2026-03",
+            "next": "http://localhost.evil.com/phish",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/?month=2026-03")
+
+
+def test_student_delete_cascades_related_records(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    (data_dir / "lesson_attendance.csv").write_text(
+        "turma,aula_num,student_name,status\n"
+        "MASTER,2,Jane Doe,absent\n",
+        encoding="utf-8",
+    )
+    (data_dir / "extra_sessions.csv").write_text(
+        "teacher,student_name,turma,date,horario,turno,session_type,status,observacao\n"
+        "Chuck,Jane Doe,MASTER,10/02/2026,09:00,Manhã,Reposição,OK,,\n",
+        encoding="utf-8",
+    )
+    reviews = [{
+        "report_month": "2026-02",
+        "turma": "MASTER",
+        "student_name": "Jane Doe",
+        "participacao": "4",
+        "faltas": "1",
+        "missed_aulas": "2",
+    }]
+    (data_dir / "student_monthly_reviews.json").write_text(
+        json.dumps(reviews), encoding="utf-8"
+    )
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+    with client.session_transaction() as sess:
+        sess["review_month"] = "2026-02"
+
+    response = client.post("/students/0/delete", follow_redirects=True)
+    assert response.status_code == 200
+    assert "Jane Doe" not in (data_dir / "students.csv").read_text(encoding="utf-8")
+    assert "Jane Doe" not in (data_dir / "lesson_attendance.csv").read_text(encoding="utf-8")
+    assert "Jane Doe" not in (data_dir / "extra_sessions.csv").read_text(encoding="utf-8")
+    assert json.loads((data_dir / "student_monthly_reviews.json").read_text(encoding="utf-8")) == []
+
+
 def test_monthly_scores_differ_by_review_month(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
@@ -1189,6 +1266,70 @@ def test_upload_template_lessons_download(monkeypatch, tmp_path):
     assert response.data.startswith(b"\xef\xbb\xbf")
     assert b"turma,aula_num,date,licao_conteudo" in response.data
     assert b"MASTER,2," in response.data
+
+
+def test_admin_delete_student_with_merged_monthly_data(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,10/05/2026,Lesson 1,,\n"
+        "MASTER,2,12/05/2026,Lesson 2,,\n",
+        encoding="utf-8",
+    )
+    (data_dir / "lesson_attendance.csv").write_text(
+        "turma,aula_num,student_name,status\n"
+        "MASTER,2,Jane Doe,absent\n",
+        encoding="utf-8",
+    )
+    reviews = [{
+        "teacher": "Chuck",
+        "turma": "MASTER",
+        "student_name": "Jane Doe",
+        "month": "2026-05",
+        "participacao": "5",
+        "comportamento": "4",
+        "speaking": "4",
+        "listening": "4",
+        "foco": "4",
+        "writing": "4",
+        "reading": "4",
+        "gramatica": "4",
+        "trabalho_equipe": "4",
+        "organizacao": "4",
+        "pontualidade": "4",
+        "respeito_regras": "4",
+        "faltas": "1",
+        "missed_aulas": "2",
+        "aula_extra": "",
+        "feedback_participacao": "",
+        "feedback_foco": "",
+        "feedback_trabalho_equipe": "",
+        "recomendacoes": "",
+        "observacao": "",
+    }]
+    (data_dir / "student_monthly_reviews.json").write_text(
+        json.dumps(reviews), encoding="utf-8"
+    )
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+    with client.session_transaction() as sess:
+        sess["review_month"] = "2026-05"
+
+    response = client.post("/students/0/delete", follow_redirects=True)
+
+    assert response.status_code == 200
+    remaining = (data_dir / "students.csv").read_text(encoding="utf-8")
+    assert "Jane Doe" not in remaining
 
 
 def test_admin_delete_students_csv(monkeypatch, tmp_path):

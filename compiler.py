@@ -10,6 +10,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from lesson_attendance import _turma_key
 from report_names import (class_diagnostic_filename, safe_child_path,
                           student_report_filename)
 
@@ -517,22 +518,24 @@ def missed_lessons(student, all_lessons):
     raw = student.get("missed_aulas", "").strip()
     if not raw:
         return []
-    turma = (student.get("turma") or "").strip()
-    if not turma:
+    turma_key = _turma_key(student.get("turma"))
+    if not turma_key:
         return []
     nums = {n.strip() for n in raw.split(",") if n.strip()}
     return [
         lesson
         for lesson in all_lessons
-        if lesson.get("turma") == turma and lesson.get("aula_num", "").strip() in nums
+        if _turma_key(lesson.get("turma")) == turma_key
+        and lesson.get("aula_num", "").strip() in nums
     ]
 
 
 def lessons_for(turma, all_lessons, report_month=None):
+    turma_key = _turma_key(turma)
     rows = [
         lesson
         for lesson in all_lessons
-        if (lesson.get('turma') or '').strip() == turma
+        if _turma_key(lesson.get('turma')) == turma_key
         and (lesson.get('aula_num') or '').strip()
     ]
     if not report_month:

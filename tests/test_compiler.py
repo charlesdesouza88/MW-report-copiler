@@ -5,6 +5,8 @@ from compiler import (
     generate_individual_reports,
     group_by_turma,
     int_score,
+    lessons_for,
+    missed_lessons,
     needs_extra,
     pie_path,
     pres_to_score,
@@ -78,6 +80,13 @@ def test_presence_score_mapping_boundaries():
 
 def test_presence_pct_zero_lessons_defaults_to_100():
     assert presence_pct(0, 0) == 100
+
+
+def test_missed_lessons_and_lessons_for_ignore_turma_case():
+    lessons = _lessons()
+    student = _student(turma="master", missed_aulas="2")
+    assert len(missed_lessons(student, lessons)) == 1
+    assert len(lessons_for("master", lessons)) == 2
 
 
 def test_int_score_clamps_and_defaults():

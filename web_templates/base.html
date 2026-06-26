@@ -682,6 +682,11 @@ body.nav-open .nav-backdrop { display: block; }
       <span class="font-sm text-gray">— notas, faltas e feedback deste mês</span>
     </div>
     {% endif %}
+    {% if save_conflict %}
+    <div class="alert" style="margin-bottom:12px;background:#FADBD8;color:#A93226;" role="alert">
+      ✕ {{ save_conflict }}
+    </div>
+    {% endif %}
     {% block content %}{% endblock %}
   </div>
 </div>

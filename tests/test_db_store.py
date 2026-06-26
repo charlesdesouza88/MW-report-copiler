@@ -1,5 +1,7 @@
 from db_store import DatabaseStore, prepare_database_url
 
+import pytest
+
 
 def test_prepare_database_url_adds_ssl_for_postgres():
     url = prepare_database_url("postgres://user:pass@containers.railway.app:5432/railway")
@@ -40,6 +42,42 @@ def test_database_store_round_trip(tmp_path):
     assert store.load_lessons() == lessons
 
     store.check_connection()
+
+
+def test_database_store_rejects_stale_save(tmp_path):
+    from db_store import StaleDataError
+
+    db_path = tmp_path / "app.db"
+    store = DatabaseStore(f"sqlite:///{db_path}")
+    store.initialize()
+
+    students = [{"student_name": "Jane Doe", "turma": "MASTER"}]
+    _rows, version = store.load_students_versioned()
+    assert version == 0
+
+    store.save_students(students, expected_version=version)
+    with pytest.raises(StaleDataError):
+        store.save_students(students, expected_version=version)
+
+
+def test_database_store_skips_corrupt_json_row(tmp_path, caplog):
+    import json as json_mod
+
+    from db_store import StudentRow
+
+    db_path = tmp_path / "app.db"
+    store = DatabaseStore(f"sqlite:///{db_path}")
+    store.initialize()
+
+    good = {"student_name": "Jane Doe", "turma": "MASTER"}
+    store.save_students([good])
+
+    with store.session() as session:
+        session.add(StudentRow(row_order=99, data_json='{"broken":'))
+        session.flush()
+
+    loaded = store.load_students()
+    assert loaded == [good]
 
 
 def test_database_store_users_round_trip(tmp_path):
