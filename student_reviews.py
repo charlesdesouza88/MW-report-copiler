@@ -151,6 +151,19 @@ def rows_from_store(store):
     return list(store.values())
 
 
+def remove_reviews_for_student(store, turma, student_name):
+    turma = (turma or '').strip()
+    name = (student_name or '').strip()
+    if not turma or not name or not store:
+        return False
+    sid = student_snapshot_id(turma, name)
+    prefix = f'{turma}|{sid}|'
+    keys = [key for key in list(store) if key.startswith(prefix)]
+    for key in keys:
+        del store[key]
+    return bool(keys)
+
+
 def load_monthly_reviews(path):
     if not path.exists():
         return {}

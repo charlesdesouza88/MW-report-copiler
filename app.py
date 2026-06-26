@@ -14,8 +14,9 @@ import time
 import zipfile
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
-from flask import (Flask, abort, redirect, render_template, request,
+from flask import (Flask, abort, g, redirect, render_template, request,
                    send_file, session, url_for)
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_limiter import Limiter
@@ -38,12 +39,14 @@ from extra_sessions import (AUTO_AULA_EXTRA_MARKER, EXTRA_SESSION_FIELD_LABELS,
                             SESSION_TYPE_CHOICES, clear_aula_extra_after_completed_session,
                             coerce_session_status_fields, display_status, is_status_ok,
                             normalize_aula_extra, parse_import_csv,
-                            reconcile_flagged_students, row_from_form,
-                            sync_student_extra_sessions)
+                            reconcile_flagged_students, remove_sessions_for_student,
+                            row_from_form, sync_student_extra_sessions)
 from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
                                ATTENDANCE_LABELS, attendance_map_for_lesson,
                                normalize_attendance_status, parse_attendance_form,
                                recompute_faltas_from_attendance,
+                               remove_attendance_for_lesson,
+                               remove_attendance_for_student,
                                replace_lesson_attendance, students_by_turma,
                                students_for_turma,
                                students_with_attendance_in_month)
@@ -74,12 +77,17 @@ from student_reviews import (MONTHLY_REVIEW_FIELDS, ROSTER_FIELDS,
                              migrate_roster_scores_to_month,
                              rows_from_store, save_monthly_reviews,
                              split_student_row, store_from_rows,
+                             migrate_roster_scores_to_month,
+                             remove_reviews_for_student,
+                             rows_from_store, save_monthly_reviews,
+                             split_student_row, store_from_rows,
                              upsert_monthly_review)
 
 try:
-    from db_store import DatabaseStore
+    from db_store import DatabaseStore, StaleDataError
 except Exception as exc:
     DatabaseStore = None
+    StaleDataError = Exception
     DB_IMPORT_ERROR = exc
 else:
     DB_IMPORT_ERROR = None
@@ -324,6 +332,57 @@ app.jinja_env.globals.update(
     report_month_from_filename=report_month_from_filename,
     parse_lesson_month=parse_lesson_month,
 )
+
+SAVE_CONFLICT_MESSAGE = (
+    'Os dados foram atualizados em outra aba ou por outro usuário. '
+    'Recarregue a página e tente novamente.'
+)
+
+
+@app.context_processor
+def inject_save_conflict():
+    return {'save_conflict': session.pop('save_conflict', None)}
+
+
+def _bind_store_version(store_name, version):
+    if version is None:
+        return
+    versions = getattr(g, 'store_versions', None)
+    if versions is None:
+        versions = {}
+        g.store_versions = versions
+    versions[store_name] = version
+
+
+def _expected_store_version(store_name):
+    versions = getattr(g, 'store_versions', None)
+    if not versions:
+        return None
+    return versions.get(store_name)
+
+
+def _note_save_conflict():
+    session['save_conflict'] = SAVE_CONFLICT_MESSAGE
+
+
+def _safe_redirect_target(target):
+    if not target:
+        return None
+    ref = urlparse(target)
+    if ref.scheme or ref.netloc:
+        host = urlparse(request.host_url)
+        if (
+            ref.scheme.lower() != host.scheme.lower()
+            or ref.netloc.lower() != host.netloc.lower()
+        ):
+            return None
+        path = ref.path or '/'
+        query = f'?{ref.query}' if ref.query else ''
+        fragment = f'#{ref.fragment}' if ref.fragment else ''
+        return f'{path}{query}{fragment}'
+    if not target.startswith('/') or target.startswith('//'):
+        return None
+    return target
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
 SUPERADMIN_EMAIL = os.environ.get('SUPERADMIN_EMAIL', 'admin@misterwiz.local').strip()
 SUPERADMIN_PASSWORD = os.environ.get('SUPERADMIN_PASSWORD', ADMIN_PASSWORD).strip()
@@ -1143,7 +1202,9 @@ def inject_auth():
 
 def _load_roster_students():
     if db_store:
-        return db_store.load_students()
+        rows, version = db_store.load_students_versioned()
+        _bind_store_version('students', version)
+        return rows
     path = DATA_DIR / 'students.csv'
     return load_csv(path) if path.exists() else []
 
@@ -1165,16 +1226,27 @@ def _monthly_reviews_path():
 
 def _load_monthly_review_store():
     if db_store:
-        return store_from_rows(db_store.load_monthly_reviews())
+        rows, version = db_store.load_monthly_reviews_versioned()
+        _bind_store_version('monthly_reviews', version)
+        return store_from_rows(rows)
     return load_monthly_reviews(_monthly_reviews_path())
 
 
 def _save_monthly_review_store(store):
     rows = rows_from_store(store)
     if db_store:
-        db_store.save_monthly_reviews(rows)
-        return
+        try:
+            version = db_store.save_monthly_reviews(
+                rows,
+                expected_version=_expected_store_version('monthly_reviews'),
+            )
+        except StaleDataError:
+            _note_save_conflict()
+            return False
+        _bind_store_version('monthly_reviews', version)
+        return True
     save_monthly_reviews(_monthly_reviews_path(), store)
+    return True
 
 
 def _merged_roster_for_month(roster, month_key):
@@ -1265,39 +1337,70 @@ def _persist_student_create(all_rows, new_row, review_month):
 
 def _load_lessons():
     if db_store:
-        return db_store.load_lessons()
+        rows, version = db_store.load_lessons_versioned()
+        _bind_store_version('lessons', version)
+        return rows
     path = DATA_DIR / 'lessons.csv'
     return load_csv(path) if path.exists() else []
 
 
 def _save_students(students):
     if db_store:
-        db_store.save_students(students)
-        return
+        try:
+            version = db_store.save_students(
+                students,
+                expected_version=_expected_store_version('students'),
+            )
+        except StaleDataError:
+            _note_save_conflict()
+            return False
+        _bind_store_version('students', version)
+        return True
     _atomic_write_csv(DATA_DIR / 'students.csv', STUDENT_FIELDS, students)
+    return True
 
 
 def _save_lessons(lessons):
     if db_store:
-        db_store.save_lessons(lessons)
-        return
+        try:
+            version = db_store.save_lessons(
+                lessons,
+                expected_version=_expected_store_version('lessons'),
+            )
+        except StaleDataError:
+            _note_save_conflict()
+            return False
+        _bind_store_version('lessons', version)
+        return True
     _atomic_write_csv(DATA_DIR / 'lessons.csv', LESSON_FIELDS, lessons)
+    return True
 
 
 def _load_extra_sessions():
     if db_store:
-        rows = db_store.load_extra_sessions()
+        rows, version = db_store.load_extra_sessions_versioned()
+        _bind_store_version('extra_sessions', version)
+        raw_rows = rows
     else:
         path = DATA_DIR / 'extra_sessions.csv'
-        rows = load_csv(path) if path.exists() else []
-    return [coerce_session_status_fields(dict(row)) for row in rows]
+        raw_rows = load_csv(path) if path.exists() else []
+    return [coerce_session_status_fields(dict(row)) for row in raw_rows]
 
 
 def _save_extra_sessions(rows):
     if db_store:
-        db_store.save_extra_sessions(rows)
-        return
+        try:
+            version = db_store.save_extra_sessions(
+                rows,
+                expected_version=_expected_store_version('extra_sessions'),
+            )
+        except StaleDataError:
+            _note_save_conflict()
+            return False
+        _bind_store_version('extra_sessions', version)
+        return True
     _atomic_write_csv(DATA_DIR / 'extra_sessions.csv', EXTRA_SESSION_FIELDS, rows)
+    return True
 
 
 def _sync_student_aula_extra_sessions(student):
@@ -1317,16 +1420,27 @@ def _reconcile_flagged_extra_sessions(students):
 
 def _load_lesson_attendance():
     if db_store:
-        return db_store.load_lesson_attendance()
+        rows, version = db_store.load_lesson_attendance_versioned()
+        _bind_store_version('lesson_attendance', version)
+        return rows
     path = DATA_DIR / 'lesson_attendance.csv'
     return load_csv(path) if path.exists() else []
 
 
 def _save_lesson_attendance(rows):
     if db_store:
-        db_store.save_lesson_attendance(rows)
-        return
+        try:
+            version = db_store.save_lesson_attendance(
+                rows,
+                expected_version=_expected_store_version('lesson_attendance'),
+            )
+        except StaleDataError:
+            _note_save_conflict()
+            return False
+        _bind_store_version('lesson_attendance', version)
+        return True
     _atomic_write_csv(DATA_DIR / 'lesson_attendance.csv', ATTENDANCE_FIELDS, rows)
+    return True
 
 
 def _scoped_extra_sessions():
@@ -1549,8 +1663,8 @@ def set_review_month():
     month = (request.form.get('review_month') or '').strip()
     if not _set_review_month(month):
         abort(400)
-    target = (request.form.get('next') or request.referrer or '').strip()
-    if target and target.startswith(request.host_url.rstrip('/')):
+    target = _safe_redirect_target((request.form.get('next') or request.referrer or '').strip())
+    if target:
         return redirect(target)
     return redirect(url_for('dashboard', month=month))
 
@@ -1913,13 +2027,26 @@ def student_new():
 def student_delete(idx):
     all_rows, visible = _scoped_students()
     if 0 <= idx < len(visible):
-        if has_full_data_access(_current_user()['role']):
-            all_rows.remove(visible[idx])
-        else:
-            global_idx = find_student_global_index(all_rows, visible, idx)
-            if global_idx is not None:
-                all_rows.pop(global_idx)
-        _save_students(all_rows)
+        global_idx = find_student_global_index(all_rows, visible, idx)
+        if global_idx is not None:
+            removed = all_rows[global_idx]
+            remaining = [row for i, row in enumerate(all_rows) if i != global_idx]
+            if _save_students(remaining):
+                attendance = remove_attendance_for_student(
+                    _load_lesson_attendance(),
+                    removed.get('turma'),
+                    removed.get('student_name'),
+                )
+                _save_lesson_attendance(attendance)
+                review_store = _load_monthly_review_store()
+                remove_reviews_for_student(
+                    review_store,
+                    removed.get('turma'),
+                    removed.get('student_name'),
+                )
+                _save_monthly_review_store(review_store)
+                extras = remove_sessions_for_student(_load_extra_sessions(), removed)
+                _save_extra_sessions(extras)
     return _redirect_students()
 
 
@@ -2198,8 +2325,15 @@ def lesson_delete(idx):
     if 0 <= idx < len(visible):
         global_idx = find_lesson_global_index(all_rows, visible, idx)
         if global_idx is not None:
-            all_rows.pop(global_idx)
-            _save_lessons(all_rows)
+            removed = all_rows[global_idx]
+            remaining = [row for i, row in enumerate(all_rows) if i != global_idx]
+            if _save_lessons(remaining):
+                attendance = remove_attendance_for_lesson(
+                    _load_lesson_attendance(),
+                    removed.get('turma'),
+                    removed.get('aula_num'),
+                )
+                _save_lesson_attendance(attendance)
     return _redirect_lessons()
 
 

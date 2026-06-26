@@ -330,6 +330,10 @@ def _row_matches_student(row, student):
     return row_teacher == student_teacher
 
 
+def remove_sessions_for_student(rows, student):
+    return [row for row in rows or [] if not _row_matches_student(row, student)]
+
+
 def has_open_session_for_student(rows, student, session_type):
     """True when a pending or completed session exists for this student and type."""
     target = (session_type or '').strip()

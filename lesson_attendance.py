@@ -136,35 +136,90 @@ def students_with_attendance_in_month(lessons, attendance_rows, month_key):
 
 
 def recompute_faltas_from_attendance(students, lessons, attendance_rows, month_key):
-    """Rebuild missed_aulas/faltas from saved lesson attendance for one review month."""
+    """Rebuild missed_aulas/faltas from saved lesson attendance for one review month.
+
+    Attendance rows override manual missed_aulas only for lessons that were logged.
+    Unlogged lessons keep any manual missed_aulas values.
+    """
     tracked, month_rows = students_with_attendance_in_month(
         lessons, attendance_rows, month_key,
     )
     if not month_rows:
         return students
 
-    missed = {}
+    lesson_keys = _lesson_keys_for_month(lessons, month_key)
+    attendance_by_student = {}
     for row in month_rows:
-        if normalize_attendance_status(row.get('status')) != 'absent':
-            continue
         name = (row.get('student_name') or '').strip()
         if not name:
             continue
         key = (_turma_key(row.get('turma')), name)
-        missed.setdefault(key, set()).add(_aula_key(row.get('aula_num')))
+        aula = _aula_key(row.get('aula_num'))
+        if not aula:
+            continue
+        attendance_by_student.setdefault(key, {})[aula] = normalize_attendance_status(
+            row.get('status'),
+        )
 
     updated = []
     for student in students:
         row = dict(student)
-        key = (_turma_key(row.get('turma')), (row.get('student_name') or '').strip())
+        turma_key = _turma_key(row.get('turma'))
+        name = (row.get('student_name') or '').strip()
+        key = (turma_key, name)
         if key not in tracked:
             updated.append(row)
             continue
-        nums = _sort_aula_nums(missed.get(key, set()))
+
+        result = {
+            num.strip()
+            for num in (row.get('missed_aulas') or '').split(',')
+            if num.strip()
+        }
+        student_attendance = attendance_by_student.get(key, {})
+        for lesson_turma, aula in lesson_keys:
+            if lesson_turma != turma_key:
+                continue
+            if aula not in student_attendance:
+                continue
+            if student_attendance[aula] == 'absent':
+                result.add(aula)
+            else:
+                result.discard(aula)
+
+        nums = _sort_aula_nums(result)
         row['missed_aulas'] = ','.join(nums)
         row['faltas'] = str(len(nums))
         updated.append(row)
     return updated
+
+
+def remove_attendance_for_student(rows, turma, student_name):
+    turma_key = _turma_key(turma)
+    name = (student_name or '').strip()
+    if not turma_key or not name:
+        return list(rows or [])
+    return [
+        row for row in rows or []
+        if not (
+            _turma_key(row.get('turma')) == turma_key
+            and (row.get('student_name') or '').strip() == name
+        )
+    ]
+
+
+def remove_attendance_for_lesson(rows, turma, aula_num):
+    turma_key = _turma_key(turma)
+    aula = _aula_key(aula_num)
+    if not turma_key or not aula:
+        return list(rows or [])
+    return [
+        row for row in rows or []
+        if not (
+            _turma_key(row.get('turma')) == turma_key
+            and _aula_key(row.get('aula_num')) == aula
+        )
+    ]
 
 
 def apply_attendance_to_students(students, turma, aula_num, attendance_by_name):

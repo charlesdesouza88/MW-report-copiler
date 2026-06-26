@@ -147,8 +147,8 @@ def test_recompute_faltas_from_attendance():
     bob = updated[1]
     assert ana['faltas'] == '1'
     assert ana['missed_aulas'] == '1'
-    assert bob['faltas'] == '1'
-    assert bob['missed_aulas'] == '2'
+    assert bob['faltas'] == '3'
+    assert bob['missed_aulas'] == '1,2,3'
 
 
 def test_recompute_faltas_keeps_students_when_no_attendance():
@@ -192,3 +192,43 @@ def test_recompute_faltas_does_not_zero_untracked_students():
     assert live['missed_aulas'] == '6'
     assert comet['faltas'] == '2'
     assert comet['missed_aulas'] == '3,7'
+
+
+def test_recompute_faltas_preserves_manual_when_lesson_not_logged():
+    students = [{
+        'turma': 'STAR',
+        'student_name': 'Bob',
+        'faltas': '2',
+        'missed_aulas': '1,3',
+    }]
+    lessons = [
+        {'turma': 'STAR', 'aula_num': '1', 'date': '10/02/2026'},
+        {'turma': 'STAR', 'aula_num': '2', 'date': '15/02/2026'},
+        {'turma': 'STAR', 'aula_num': '3', 'date': '20/02/2026'},
+    ]
+    attendance_rows = [
+        {'turma': 'STAR', 'aula_num': '2', 'student_name': 'Bob', 'status': 'present'},
+    ]
+    updated = recompute_faltas_from_attendance(
+        students, lessons, attendance_rows, '2026-02',
+    )
+    bob = updated[0]
+    assert bob['missed_aulas'] == '1,3'
+    assert bob['faltas'] == '2'
+
+
+def test_remove_attendance_for_student_and_lesson():
+    from lesson_attendance import remove_attendance_for_lesson, remove_attendance_for_student
+
+    rows = [
+        {'turma': 'MASTER', 'aula_num': '1', 'student_name': 'Jane Doe', 'status': 'absent'},
+        {'turma': 'MASTER', 'aula_num': '2', 'student_name': 'Jane Doe', 'status': 'present'},
+        {'turma': 'MASTER', 'aula_num': '2', 'student_name': 'Bob Smith', 'status': 'absent'},
+    ]
+    after_student = remove_attendance_for_student(rows, 'MASTER', 'Jane Doe')
+    assert len(after_student) == 1
+    assert after_student[0]['student_name'] == 'Bob Smith'
+
+    after_lesson = remove_attendance_for_lesson(rows, 'master', '2')
+    assert len(after_lesson) == 1
+    assert after_lesson[0]['aula_num'] == '1'

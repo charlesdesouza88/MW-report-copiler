@@ -2,6 +2,7 @@
 """Quick live smoke test — email/password login. Usage: ./scripts/smoke_journey.py [base_url]"""
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -42,7 +43,17 @@ def main():
         from urllib.request import HTTPCookieProcessor, Request, build_opener
 
         opener = build_opener(HTTPCookieProcessor(jar))
-        data = urllib.parse.urlencode({'email': email, 'password': password}).encode()
+
+        def csrf_from_html(html: str) -> str:
+            match = re.search(r'name="csrf_token"\s+value="([^"]+)"', html)
+            return match.group(1) if match else ''
+
+        login_page = opener.open(f'{base}/login').read().decode('utf-8', errors='replace')
+        data = urllib.parse.urlencode({
+            'email': email,
+            'password': password,
+            'csrf_token': csrf_from_html(login_page),
+        }).encode()
         req = Request(f'{base}/login', data=data, method='POST')
         try:
             resp = opener.open(req)
