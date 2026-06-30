@@ -6,13 +6,13 @@ import os
 import tempfile
 from pathlib import Path
 
-_MIN_PASSWORD_LEN = 8
-
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from report_names import class_diagnostic_filename, student_report_filename
 
 logger = logging.getLogger(__name__)
+
+_MIN_PASSWORD_LEN = 8
 
 ROLE_SUPERADMIN = 'superadmin'
 ROLE_ADMIN = 'admin'
@@ -311,46 +311,16 @@ class UserStore:
 
     def apply_env_superadmin(self, email, password):
         """
-        Ensure SUPERADMIN_EMAIL exists as an active superadmin with SUPERADMIN_PASSWORD.
-        Runs on every deploy so Railway env vars stay the source of truth.
+        Create the initial superadmin from environment credentials.
+
+        Environment credentials are bootstrap-only: once any active superadmin
+        exists, deploys must not silently promote users or overwrite passwords.
+        Use sync_superadmin_password for the explicit recovery flow.
         """
-        if not email or not password:
-            return False
-
         users = self.list_users()
-        key = normalize_email(email)
-        password_hash = generate_password_hash(password)
-
-        for user in users:
-            if normalize_email(user.get('email')) == key:
-                user['role'] = ROLE_SUPERADMIN
-                user['password_hash'] = password_hash
-                user['active'] = True
-                user['teacher_name'] = user.get('teacher_name') or ''
-                self._save_all(users)
-                logger.info('Superadmin reconciled for existing account %s', key)
-                return True
-
-        supers = [
-            u for u in users
-            if u.get('role') == ROLE_SUPERADMIN and u.get('active', True)
-        ]
-        if len(supers) == 1:
-            supers[0]['email'] = key
-            supers[0]['password_hash'] = password_hash
-            supers[0]['active'] = True
-            self._save_all(users)
-            logger.info('Superadmin email migrated to %s', key)
-            return True
-
-        if not self._has_superadmin(users):
-            return self.ensure_bootstrap_superadmin(email, password)
-
-        logger.warning(
-            'Multiple superadmins in database; could not apply SUPERADMIN_EMAIL=%s',
-            key,
-        )
-        return False
+        if self._has_superadmin(users):
+            return False
+        return self.ensure_bootstrap_superadmin(email, password)
 
     def auth_status(self, bootstrap_email=''):
         """Diagnostics for /health/auth (no secrets)."""

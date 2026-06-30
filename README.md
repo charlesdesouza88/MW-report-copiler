@@ -264,9 +264,10 @@ On the **web service**, set:
 | Variable | Required | Notes |
 |---|---|---|
 | `SUPERADMIN_EMAIL` | Yes | Bootstrap superadmin login email |
-| `SUPERADMIN_PASSWORD` | Yes | Bootstrap superadmin login password |
+| `SUPERADMIN_PASSWORD` | Yes | Bootstrap superadmin login password; used only for first bootstrap unless `SUPERADMIN_SYNC_PASSWORD=1` is set for recovery |
 | `SECRET_KEY` | Yes | Long random string for Flask sessions |
 | `DATABASE_URL` | Recommended | From a Railway PostgreSQL service |
+| `RATELIMIT_STORAGE_URI` | Recommended | Redis or another Flask-Limiter backend for shared production login throttling |
 | `DATA_DIR` | Optional | Path on a mounted volume for CSV files |
 | `OUT_DIR` | Optional | Path on a mounted volume for generated reports |
 

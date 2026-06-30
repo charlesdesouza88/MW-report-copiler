@@ -12,7 +12,8 @@ from __future__ import annotations
 import argparse
 import os
 import re
-import subprocess
+# Fixed pytest command; no shell or user-controlled executable.
+import subprocess  # nosec B404
 import sys
 import tempfile
 from pathlib import Path
@@ -40,6 +41,10 @@ LESSONS_CSV = (
     'MASTER,1,01/02/2026,Lesson 1,,\n'
     'SPARK,1,05/02/2026,Spark lesson,,\n'
 )
+ADMIN_EMAIL = 'admin@test.local'
+ADMIN_CREDENTIAL = 'testpass'
+TEACHER_EMAIL = 'teacher@test.local'
+TEACHER_CREDENTIAL = 'teachpass'
 
 
 def _load_dotenv():
@@ -84,13 +89,13 @@ def _scores():
     )}
 
 
-def _pin_test_superadmin(admin_email: str, admin_password: str):
+def _pin_test_superadmin(admin_email: str, admin_credential: str):
     """Keep in-process journeys off developer .env (app.py caches env at import)."""
     os.environ['SUPERADMIN_EMAIL'] = admin_email
-    os.environ['SUPERADMIN_PASSWORD'] = admin_password
-    os.environ['SUPERADMIN_SYNC_PASSWORD'] = ''
+    os.environ['SUPERADMIN_PASSWORD'] = admin_credential
+    os.environ.pop('SUPERADMIN_SYNC_PASSWORD', None)
     web_app.SUPERADMIN_EMAIL = admin_email
-    web_app.SUPERADMIN_PASSWORD = admin_password
+    web_app.SUPERADMIN_PASSWORD = admin_credential
     web_app.SUPERADMIN_SYNC_PASSWORD = False
 
 
@@ -100,9 +105,13 @@ def _disable_test_security():
     web_app.limiter.reset()
 
 
-def _setup_env(tmp: Path, admin_email: str = 'admin@test.local', admin_password: str = 'testpass'):
+def _setup_env(
+    tmp: Path,
+    admin_email: str = ADMIN_EMAIL,
+    admin_credential: str = ADMIN_CREDENTIAL,
+):
     """Isolated CSV mode with fixed test accounts (ignores developer .env email)."""
-    _pin_test_superadmin(admin_email, admin_password)
+    _pin_test_superadmin(admin_email, admin_credential)
 
     data_dir = tmp / 'data'
     out_dir = tmp / 'output'
@@ -113,8 +122,8 @@ def _setup_env(tmp: Path, admin_email: str = 'admin@test.local', admin_password:
 
     store = UserStore(db_store=None, json_path=data_dir / 'users.json')
     store.initialize()
-    store.ensure_bootstrap_superadmin(admin_email, admin_password)
-    store.create_teacher('teacher@test.local', 'teachpass', 'Chuck')
+    store.ensure_bootstrap_superadmin(admin_email, admin_credential)
+    store.create_teacher(TEACHER_EMAIL, TEACHER_CREDENTIAL, 'Chuck')
 
     web_app.DATA_DIR = data_dir
     web_app.OUT_DIR = out_dir
@@ -139,7 +148,8 @@ def _setup_env(tmp: Path, admin_email: str = 'admin@test.local', admin_password:
 
 def run_pytest() -> int:
     print('\n=== Unit & integration tests (pytest) ===')
-    proc = subprocess.run(
+    # Constant argv with shell disabled.
+    proc = subprocess.run(  # nosec B603
         [str(ROOT / '.venv/bin/python'), '-m', 'pytest', '-q', '--tb=line'],
         cwd=ROOT,
         capture_output=True,
@@ -157,7 +167,7 @@ def run_pytest() -> int:
 
 def journey_admin(client, runner: Runner, out_dir: Path | None = None):
     print('\n=== Admin user journey ===')
-    r = client.post('/login', data={'email': 'admin@test.local', 'password': 'testpass'})
+    r = client.post('/login', data={'email': ADMIN_EMAIL, 'password': ADMIN_CREDENTIAL})
     runner.ok('Admin login', r.status_code == 302)
 
     pages = {
@@ -207,7 +217,7 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
 def journey_teacher(client, runner: Runner):
     print('\n=== Teacher user journey & visibility ===')
     client.post('/logout')
-    r = client.post('/login', data={'email': 'teacher@test.local', 'password': 'teachpass'})
+    r = client.post('/login', data={'email': TEACHER_EMAIL, 'password': TEACHER_CREDENTIAL})
     runner.ok('Teacher login', r.status_code == 302)
 
     students_html = client.get('/students').get_data(as_text=True)
