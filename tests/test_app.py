@@ -1,5 +1,6 @@
 import io
 import json
+import zipfile
 from pathlib import Path
 
 import app as web_app
@@ -1543,3 +1544,87 @@ def test_responsive_layout_markers(monkeypatch, tmp_path):
     upload_html = client.get("/upload").get_data(as_text=True)
     assert "inline-actions" in upload_html
     assert "viewport" in upload_html
+
+
+def test_turma_transfer_page_and_auto_transfer(monkeypatch, tmp_path):
+  data_dir = tmp_path / "data"
+  data_dir.mkdir()
+  (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+  (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+  monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+  monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+  web_app.OUT_DIR.mkdir()
+  _init_user_store(monkeypatch, data_dir)
+  _seed_teacher_classes(
+      data_dir,
+      "Chuck",
+      ("MASTER", "Masters", "Terça-feira", "Quinta-feira", "19:00", "20:00"),
+  )
+  web_app.user_store.create_teacher("paula@test.local", "teachpass", "Paula")
+
+  client = web_app.app.test_client()
+  _login(client)
+
+  page = client.get("/admin/turmas/transfer").get_data(as_text=True)
+  assert "Transferir turma" in page
+  assert "Chuck" in page
+
+  response = client.post(
+      "/admin/turmas/transfer",
+      data={
+          "action": "transfer",
+          "from_teacher": "Chuck",
+          "to_teacher": "Paula",
+          "turma": "MASTER",
+      },
+      follow_redirects=True,
+  )
+  assert response.status_code == 200
+  assert b"transferida" in response.data
+
+  students_text = (data_dir / "students.csv").read_text(encoding="utf-8")
+  assert "Paula" in students_text
+  assert ",Chuck," not in students_text
+
+  registry = json.loads((data_dir / "teacher_classes.json").read_text(encoding="utf-8"))
+  assert "Paula" in registry or any(k.casefold() == "paula" for k in registry)
+  chuck_keys = [k for k in registry if k.casefold() == "chuck"]
+  if chuck_keys:
+      chuck_turmas = {r.get("turma") for r in registry[chuck_keys[0]]}
+      assert "MASTER" not in chuck_turmas
+
+
+def test_turma_transfer_export_zip(monkeypatch, tmp_path):
+  data_dir = tmp_path / "data"
+  data_dir.mkdir()
+  (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+  (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+  monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+  monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+  web_app.OUT_DIR.mkdir()
+  _init_user_store(monkeypatch, data_dir)
+  _seed_teacher_classes(
+      data_dir,
+      "Chuck",
+      ("MASTER", "Masters", "Terça-feira", "Quinta-feira", "19:00", "20:00"),
+  )
+  web_app.user_store.create_teacher("paula@test.local", "teachpass", "Paula")
+
+  client = web_app.app.test_client()
+  _login(client)
+
+  response = client.post(
+      "/admin/turmas/transfer",
+      data={
+          "action": "export",
+          "from_teacher": "Chuck",
+          "to_teacher": "Paula",
+          "turma": "MASTER",
+      },
+  )
+  assert response.status_code == 200
+  assert response.mimetype == "application/zip"
+  zf = zipfile.ZipFile(io.BytesIO(response.data))
+  assert "students.csv" in zf.namelist()
+  assert "lessons.csv" in zf.namelist()
+

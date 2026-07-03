@@ -169,6 +169,66 @@ def remove_class(data, teacher_name, turma, students=None):
     return True, None
 
 
+def move_class_between_teachers(data, from_teacher, to_teacher, turma):
+    """
+    Move a turma registry entry from one teacher to another.
+    Returns (class_row, None) or (None, error_message).
+    """
+    from_name = normalize_teacher_name(from_teacher)
+    to_name = normalize_teacher_name(to_teacher)
+    if not from_name or not to_name:
+        return None, 'Professor de origem ou destino não identificado.'
+    if from_name.casefold() == to_name.casefold():
+        return None, 'Origem e destino devem ser professores diferentes.'
+
+    code = (turma or '').strip()
+    if not code:
+        return None, 'Turma não informada.'
+
+    if code in turma_codes_for_teacher(data, to_name):
+        return None, (
+            f'O professor "{to_name}" já possui a turma "{code}". '
+            'Escolha outro destino ou renomeie a turma antes de transferir.'
+        )
+
+    from_key, from_bucket = _teacher_bucket(data, from_name)
+    if not from_key:
+        return None, 'Professor de origem não identificado.'
+
+    moved_row = None
+    kept = []
+    if isinstance(from_bucket, list):
+        for row in from_bucket:
+            if isinstance(row, dict) and (row.get('turma') or '').strip() == code:
+                moved_row = dict(row)
+            else:
+                kept.append(row)
+
+    if moved_row is None:
+        moved_row = {
+            'turma': code,
+            'turma_display': code.replace('_', ' '),
+            'class_weekdays': [],
+            'class_time_start': '',
+            'class_time_end': '',
+            'horario': '',
+            'legacy_import': True,
+        }
+    elif kept:
+        data[from_key] = kept
+    else:
+        data.pop(from_key, None)
+
+    to_key, to_bucket = _teacher_bucket(data, to_name)
+    if to_key is None:
+        to_key = to_name
+    if not isinstance(to_bucket, list):
+        to_bucket = []
+    to_bucket.append(moved_row)
+    data[to_key] = to_bucket
+    return moved_row, None
+
+
 def add_class(
     data,
     teacher_name,

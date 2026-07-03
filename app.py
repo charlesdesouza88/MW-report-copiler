@@ -64,6 +64,9 @@ from teacher_classes import (add_class as register_teacher_class,
                              save_registry, sync_teacher_classes_from_students,
                              turma_codes_for_teacher,
                              update_class as update_teacher_class)
+from class_transfer import (apply_transfer, build_transfer_export_zip,
+                            list_teachers_from_students, preview_transfer,
+                            turmas_for_teacher)
 from report_periods import (available_report_months, compute_month_trend,
                             default_report_month, filter_lessons_by_month,
                             filter_report_files_by_month,
@@ -2768,6 +2771,102 @@ def manage_teachers():
         messages=messages,
         errors=errors,
         roles_manageable=[ROLE_ADMIN, ROLE_TEACHER] if actor['role'] == ROLE_SUPERADMIN else [ROLE_TEACHER],
+    )
+
+
+@app.route('/admin/turmas/transfer', methods=['GET', 'POST'])
+@role_required(ROLE_SUPERADMIN, ROLE_ADMIN)
+def turma_transfer():
+    students = _load_students()
+    lessons = _load_lessons()
+    extra_sessions = _load_extra_sessions()
+    registry = _load_teacher_class_registry()
+
+    teacher_names = list_teachers_from_students(students)
+    for entry in user_store.list_users():
+        name = normalize_teacher_name(entry.get('teacher_name', ''))
+        if name and name not in teacher_names:
+            teacher_names.append(name)
+    teacher_names = sorted(set(teacher_names), key=str.casefold)
+
+    from_teacher = (request.values.get('from_teacher') or '').strip()
+    to_teacher = (request.values.get('to_teacher') or '').strip()
+    turma = (request.values.get('turma') or '').strip()
+
+    turma_options = turmas_for_teacher(registry, students, from_teacher) if from_teacher else []
+    preview = None
+    messages = []
+    errors = []
+
+    if from_teacher and to_teacher and turma:
+        preview, preview_err = preview_transfer(
+            students, lessons, extra_sessions, registry,
+            from_teacher, to_teacher, turma,
+        )
+        if preview_err:
+            errors.append(preview_err)
+
+    if request.method == 'POST':
+        action = (request.form.get('action') or '').strip()
+        if action == 'export':
+            payload, filename, export_err = build_transfer_export_zip(
+                students, lessons, registry, from_teacher, to_teacher, turma,
+            )
+            if export_err:
+                errors.append(export_err)
+            else:
+                data = io.BytesIO(payload)
+                data.seek(0)
+                return send_file(
+                    data,
+                    as_attachment=True,
+                    download_name=filename,
+                    mimetype='application/zip',
+                )
+        elif action == 'transfer':
+            if not preview:
+                errors.append(errors[-1] if errors else 'Não foi possível validar a transferência.')
+            else:
+                summary, transfer_err = apply_transfer(
+                    students, lessons, extra_sessions, registry,
+                    from_teacher, to_teacher, turma,
+                )
+                if transfer_err:
+                    errors.append(transfer_err)
+                else:
+                    if not _save_students(students):
+                        errors.append(
+                            'Outro usuário alterou os alunos ao mesmo tempo. '
+                            'Recarregue a página e tente novamente.'
+                        )
+                    elif not _save_extra_sessions(extra_sessions):
+                        errors.append(
+                            'Outro usuário alterou atendimentos ao mesmo tempo. '
+                            'Recarregue a página e tente novamente.'
+                        )
+                    else:
+                        _save_teacher_class_registry(registry)
+                        messages.append(
+                            f'Turma "{summary["turma_display"]}" transferida de '
+                            f'{summary["from_teacher"]} para {summary["to_teacher"]}: '
+                            f'{summary["students_updated"]} aluno(s), '
+                            f'{summary["lesson_count"]} aula(s) vinculada(s), '
+                            f'{summary["extra_sessions_updated"]} atendimento(s) atualizado(s).'
+                        )
+                        from_teacher = to_teacher = turma = ''
+                        turma_options = []
+                        preview = None
+
+    return render_template(
+        'turma_transfer.html',
+        teacher_names=teacher_names,
+        from_teacher=from_teacher,
+        to_teacher=to_teacher,
+        turma=turma,
+        turma_options=turma_options,
+        preview=preview,
+        messages=messages,
+        errors=errors,
     )
 
 
