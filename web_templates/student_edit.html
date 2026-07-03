@@ -9,6 +9,15 @@
 {% endblock %}
 
 {% block content %}
+<style>
+  .draft-restore-banner { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; }
+  .draft-restore-banner[hidden] { display:none !important; }
+  #autosave-status[data-kind="ok"] { color:#1A5E33; }
+  #autosave-status[data-kind="warn"] { color:#7D6608; }
+  #autosave-status[data-kind="error"] { color:#A93226; }
+  #autosave-status[data-kind="dirty"] { color:#5A1A64; }
+  #autosave-status[data-kind="pending"] { color:#5A1A64; opacity:0.8; }
+</style>
 {% if review_month %}
 <div class="review-banner">
   Editando revisão de <strong>{{ review_month_label }}</strong>
@@ -22,7 +31,21 @@
   ⚠ &nbsp;Crie uma turma no <a href="{{ url_for('dashboard') }}#criar-turma">Dashboard</a> antes de cadastrar alunos.
 </div>
 {% endif %}
-<form method="post" style="max-width: 860px;"{% if no_teacher_classes %} class="disabled-form"{% endif %}>
+<div id="draft-restore-banner" class="alert draft-restore-banner" hidden style="background:#FEF9E7; color:#7D6608; border:1px solid #F4D03F; margin-bottom:12px;">
+  <span>Rascunho encontrado neste dispositivo (<span data-draft-when></span>). Restaurar alterações não sincronizadas?</span>
+  <span style="display:flex; gap:8px;">
+    <button type="button" class="btn btn-primary btn-sm" id="draft-restore-btn">Restaurar</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="draft-discard-btn">Descartar</button>
+  </span>
+</div>
+<div id="autosave-status" class="font-sm" style="margin-bottom:12px; color:#5A1A64;" data-kind="ok">Salvamento automático ativo</div>
+<form method="post" id="student-edit-form"
+      style="max-width: 860px;"
+      {% if no_teacher_classes %}class="disabled-form"{% endif %}
+      data-autosave-user="{{ current_user.id if current_user else '' }}"
+      data-autosave-idx="{{ 'new' if is_new else idx }}"
+      data-autosave-month="{{ review_month or return_month or '' }}"
+      data-autosave-url="{{ '' if is_new else url_for('student_autosave', idx=idx) }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% if return_turma %}
   <input type="hidden" name="return_turma" value="{{ return_turma }}">
@@ -233,6 +256,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/student_autosave.js') }}"></script>
 <script>
 document.querySelectorAll('.score-picker').forEach(picker => {
   const fieldId = picker.id.replace('picker-', '');
@@ -242,6 +266,7 @@ document.querySelectorAll('.score-picker').forEach(picker => {
       picker.querySelectorAll('.score-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       hidden.value = btn.dataset.val;
+      hidden.dispatchEvent(new Event('change', { bubbles: true }));
     });
   });
 });
