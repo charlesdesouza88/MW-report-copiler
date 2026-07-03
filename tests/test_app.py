@@ -997,6 +997,107 @@ def test_teacher_edits_csv_student_with_turma_dropdown(monkeypatch, tmp_path):
     assert "Selecione a turma" not in client.get("/students/0/edit").get_data(as_text=True)
 
 
+def _student_form_payload(**overrides):
+    data = {
+        "teacher": "Chuck",
+        "class_choice": "MASTER",
+        "nivel": "TEENS 4",
+        "student_name": "Jane Doe",
+        "participacao": "3",
+        "comportamento": "3",
+        "speaking": "3",
+        "listening": "3",
+        "foco": "3",
+        "writing": "3",
+        "reading": "3",
+        "gramatica": "3",
+        "trabalho_equipe": "3",
+        "organizacao": "3",
+        "pontualidade": "3",
+        "respeito_regras": "3",
+        "faltas": "0",
+        "observacao": "",
+        "recomendacoes": "",
+        "feedback_participacao": "",
+        "feedback_foco": "",
+        "feedback_trabalho_equipe": "",
+    }
+    data.update(overrides)
+    return data
+
+
+def test_student_edit_page_includes_autosave_assets(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_teacher_store(monkeypatch, data_dir, teacher_name="Chuck")
+
+    client = web_app.app.test_client()
+    _login(client, email="teacher@test.local", password="teachpass")
+    html = client.get("/students/0/edit").get_data(as_text=True)
+    assert 'id="student-edit-form"' in html
+    assert "student_autosave.js" in html
+    assert "/students/0/autosave" in html
+
+
+def test_student_autosave_persists_observations(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_teacher_store(monkeypatch, data_dir, teacher_name="Chuck")
+
+    client = web_app.app.test_client()
+    _login(client, email="teacher@test.local", password="teachpass")
+    response = client.post(
+        "/students/0/autosave",
+        data=_student_form_payload(
+            student_name="Jane Doe",
+            observacao="Precisa reforço em speaking",
+            recomendacoes="Praticar em casa",
+            speaking="2",
+        ),
+        headers={"Accept": "application/json"},
+    )
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["ok"] is True
+    assert "saved_at" in body
+
+    reviews_path = data_dir / "student_monthly_reviews.json"
+    if reviews_path.exists():
+        stored = json.loads(reviews_path.read_text(encoding="utf-8"))
+        rows = stored.get("rows") if isinstance(stored, dict) else stored
+        assert any(
+            (row.get("observacao") or "").startswith("Precisa reforço")
+            for row in rows
+        )
+
+
+def test_student_autosave_requires_login(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+
+    client = web_app.app.test_client()
+    response = client.post(
+        "/students/0/autosave",
+        data=_student_form_payload(),
+        headers={"Accept": "application/json"},
+    )
+    assert response.status_code == 401
+    assert response.get_json()["login_required"] is True
+
+
 def test_teacher_new_student_form_lists_dashboard_turmas(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()

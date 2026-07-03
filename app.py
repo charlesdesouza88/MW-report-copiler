@@ -12,11 +12,11 @@ import tempfile
 import threading
 import time
 import zipfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
-from flask import (Flask, abort, g, redirect, render_template, request,
+from flask import (Flask, abort, g, jsonify, redirect, render_template, request,
                    send_file, session, url_for)
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_limiter import Limiter
@@ -783,6 +783,20 @@ def login_required(f):
     return decorated
 
 
+def login_required_json(f):
+    """Like login_required, but returns JSON 401 for autosave / fetch clients."""
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        if not _current_user():
+            return jsonify({
+                'ok': False,
+                'login_required': True,
+                'error': 'Sessão expirada. Faça login novamente.',
+            }), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
 def role_required(*roles):
     def decorator(f):
         @functools.wraps(f)
@@ -937,12 +951,19 @@ def _resolve_teacher_class_choice(row):
     return row
 
 
-def _validate_student_row(row, all_students, user):
+def _validate_student_row(row, all_students, user, *, autosave=False):
     """Return a user-facing error message, or None when the row can be saved."""
     name = (row.get('student_name') or '').strip()
     turma = (row.get('turma') or '').strip()
     nivel = (row.get('nivel') or '').strip()
     class_choice = (request.form.get('class_choice') or '').strip()
+
+    if autosave:
+        if not name or not turma:
+            return 'Informe o nome do aluno e a turma.'
+        if not _teacher_may_use_student_turma(turma, all_students, user, nivel=nivel):
+            return 'Turma não permitida.'
+        return None
 
     if (
         user['role'] == ROLE_TEACHER
@@ -1323,10 +1344,13 @@ def _url_with_month(endpoint, **kwargs):
 def _persist_student_save(all_rows, global_idx, updated, review_month):
     profile, _ = split_student_row(updated)
     all_rows[global_idx] = _roster_row_for_storage(profile)
-    _save_students(all_rows)
+    if not _save_students(all_rows):
+        return False
     store = _load_monthly_review_store()
     upsert_monthly_review(store, updated, review_month)
-    _save_monthly_review_store(store)
+    if not _save_monthly_review_store(store):
+        return False
+    return True
 
 
 def _persist_student_create(all_rows, new_row, review_month):
@@ -1980,13 +2004,54 @@ def student_edit(idx):
         if global_idx is None:
             abort(404)
         review_month = _get_review_month()
-        _persist_student_save(all_rows, global_idx, updated, review_month)
+        if not _persist_student_save(all_rows, global_idx, updated, review_month):
+            return render_template(
+                'student_edit.html',
+                **_student_form_context(
+                    all_rows, user, False, updated, idx,
+                    form_error=SAVE_CONFLICT_MESSAGE,
+                ),
+            )
         _sync_student_aula_extra_sessions(updated)
         return _redirect_students()
     return render_template(
         'student_edit.html',
         **_student_form_context(all_rows, user, False, visible[idx], idx),
     )
+
+
+@app.route('/students/<int:idx>/autosave', methods=['POST'])
+@login_required_json
+def student_autosave(idx):
+    """Save student edits in the background (grades, feedback, observations)."""
+    all_rows, visible = _scoped_students()
+    if idx < 0 or idx >= len(visible):
+        return jsonify({'ok': False, 'error': 'Aluno não encontrado.'}), 404
+    user = _current_user()
+    if user and user['role'] == ROLE_TEACHER:
+        _sync_teacher_registry(user, all_rows)
+    updated = _student_row_from_form()
+    if user['role'] == ROLE_TEACHER:
+        updated['teacher'] = user.get('teacher_name') or updated.get('teacher', '')
+    form_error = _validate_student_row(updated, all_rows, user, autosave=True)
+    if form_error:
+        return jsonify({'ok': False, 'error': form_error}), 400
+    global_idx = find_student_global_index(all_rows, visible, idx)
+    if global_idx is None:
+        return jsonify({'ok': False, 'error': 'Aluno não encontrado.'}), 404
+    review_month = _get_review_month()
+    if not _persist_student_save(all_rows, global_idx, updated, review_month):
+        return jsonify({
+            'ok': False,
+            'conflict': True,
+            'error': SAVE_CONFLICT_MESSAGE,
+        }), 409
+    _sync_student_aula_extra_sessions(updated)
+    return jsonify({
+        'ok': True,
+        'saved_at': datetime.now(timezone.utc).strftime('%H:%M'),
+        'review_month': review_month,
+    })
 
 
 @app.route('/students/new', methods=['GET', 'POST'])
