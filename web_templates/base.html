@@ -639,6 +639,9 @@ body.nav-open .nav-backdrop { display: block; }
   <a href="{{ url_for('manage_teachers') }}" class="nav-link {% if request.endpoint == 'manage_teachers' %}active{% endif %}">
     <span class="nav-icon">◎</span> Usuários
   </a>
+  <a href="{{ url_for('turma_transfer') }}" class="nav-link {% if request.endpoint == 'turma_transfer' %}active{% endif %}">
+    <span class="nav-icon">⇄</span> Transferir turma
+  </a>
   {% endif %}
   <a href="{{ url_with_month('reports') }}" class="nav-link {% if request.endpoint in ('reports','preview') %}active{% endif %}">
     <span class="nav-icon">◈</span> Relatórios
