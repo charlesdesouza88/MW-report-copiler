@@ -87,7 +87,9 @@ def month_label(month_key):
 
 
 def student_composite_score(ctx):
-    return round(
+    from compiler import round_half_up
+
+    return round_half_up(
         (ctx['dev_overall'] + ctx['part_overall'] + ctx['comp_overall'] + ctx['pres_score']) / 4
     )
 

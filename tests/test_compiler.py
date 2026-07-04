@@ -326,3 +326,23 @@ def test_report_generation_escapes_text_and_sanitizes_filename(tmp_path):
     assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
     assert "<img src=x" not in html
+
+
+# ── audit regression tests ────────────────────────────────────────────────────
+
+def test_avg_score_rounds_half_up():
+    from compiler import avg_score
+
+    # Python's built-in round() is banker's rounding (2.5 → 2); scores must
+    # always round .5 up so equivalent averages land on the same grade.
+    assert avg_score([2, 3]) == 3
+    assert avg_score([3, 4]) == 4
+    assert avg_score([1, 2]) == 2
+    assert avg_score([4, 5]) == 5
+
+
+def test_composite_score_rounds_half_up():
+    from report_periods import student_composite_score
+
+    ctx = {'dev_overall': 3, 'part_overall': 2, 'comp_overall': 2, 'pres_score': 3}
+    assert student_composite_score(ctx) == 3  # 2.5 rounds up, not to even
