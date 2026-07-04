@@ -24,7 +24,7 @@ from flask_limiter.util import get_remote_address
 
 from compiler import (build_student_ctx, create_report_environment,
                       generate_class_diagnostics, generate_individual_reports,
-                      group_by_turma, load_csv)
+                      group_by_turma, load_csv, turmas_without_lessons)
 
 from auth import (ROLE_ADMIN, ROLE_LABELS, ROLE_SUPERADMIN, ROLE_TEACHER,
                   UserStore, can_manage_teachers, filter_extra_sessions_for_user,
@@ -2803,6 +2803,14 @@ def _validate_generation_inputs(students, lessons):
             break
     if missing:
         return 'Dados de alunos incompletos: ' + '; '.join(missing) + '.'
+    turmas_sem_aula = turmas_without_lessons(students, lessons)
+    if turmas_sem_aula:
+        return (
+            'Nenhuma aula cadastrada para a(s) turma(s): '
+            + ', '.join(turmas_sem_aula)
+            + '. Sem aulas, a presença sairia como 100% para todos os alunos. '
+            'Cadastre as aulas dessas turmas antes de gerar.'
+        )
     return None
 
 

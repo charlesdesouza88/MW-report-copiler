@@ -373,3 +373,25 @@ def test_attendance_calendar_accepts_legacy_ddmm_dates():
     assert cal["has_class"]
     statuses = [cell["status"] for week in cal["weeks"] for cell in week if cell["day"] == 5]
     assert statuses == ["present"]
+
+
+def test_missed_unknown_lessons_are_flagged():
+    student = _student(missed_aulas="2,99")
+    lessons = [
+        {"turma": "MASTER", "aula_num": "1", "date": "01/03/2026", "licao_conteudo": "L1"},
+        {"turma": "MASTER", "aula_num": "2", "date": "08/03/2026", "licao_conteudo": "L2"},
+    ]
+    ctx = build_student_ctx(student, lessons)
+    assert ctx["missed_unknown"] == ["99"]
+    assert [m["aula_num"] for m in ctx["missed"]] == ["2"]
+
+
+def test_turmas_without_lessons_detected():
+    from compiler import turmas_without_lessons
+
+    students = [_student(), _student(turma="NOVA", student_name="Beto")]
+    lessons = [{"turma": "MASTER", "aula_num": "1", "date": "01/03/2026"}]
+    assert turmas_without_lessons(students, lessons) == ["NOVA"]
+    assert turmas_without_lessons(students, lessons + [
+        {"turma": "nova", "aula_num": "1", "date": "01/03/2026"},
+    ]) == []
