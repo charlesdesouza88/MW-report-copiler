@@ -671,6 +671,11 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
     turma_lessons = lessons_for(turma, all_lessons, report_month=report_month)
     total = len(turma_lessons)
     missed = missed_lessons(s, all_lessons)
+    # missed_aulas numbers with no matching lesson row would silently drop out
+    # of the faltas count — surface them so the caller can warn.
+    requested_nums = {n.strip() for n in (s.get('missed_aulas') or '').split(',') if n.strip()}
+    matched_nums = {str(m.get('aula_num', '')).strip() for m in missed}
+    missed_unknown = sorted(requested_nums - matched_nums)
     if report_month:
         from report_periods import lesson_in_month
         missed = [m for m in missed if lesson_in_month(m, report_month)]
@@ -785,6 +790,7 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
         comparison=None,
         composite_sparkline=None,
         attendance_calendar=attendance_calendar,
+        missed_unknown=missed_unknown,
     )
     if report_month:
         ctx['comparison'] = build_month_comparison(
@@ -873,6 +879,12 @@ def generate_individual_reports(students, lessons, env, out_dir, report_month=No
         )
         if report_month:
             ctx['report_month_label'] = month_label(report_month)
+        if ctx.get('missed_unknown'):
+            print(
+                f"  ⚠ {turma}/{student_name}: missed_aulas "
+                f"{', '.join(ctx['missed_unknown'])} sem aula correspondente em "
+                f"lessons — não contadas como faltas"
+            )
         html = tpl.render(**ctx)
         fname = student_report_filename(turma, student_name, report_month)
         safe_child_path(out_dir, fname).write_text(html, encoding="utf-8")
@@ -892,12 +904,34 @@ def generate_class_diagnostics(students, lessons, env, out_dir, report_month=Non
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
+def turmas_without_lessons(students, lessons):
+    """Turma codes present in students but with no lesson rows (→ bogus 100% presence)."""
+    lesson_turmas = {_turma_key(l.get('turma')) for l in lessons if (l.get('aula_num') or '').strip()}
+    return sorted(
+        turma for turma in group_by_turma(students)
+        if _turma_key(turma) not in lesson_turmas
+    )
+
+
 def main():
+    import argparse
+
     base = Path(__file__).parent
-    data_dir = base / "data"
-    tmpl_dir = base / "templates"
-    out_dir = base / "output"
-    out_dir.mkdir(exist_ok=True)
+    parser = argparse.ArgumentParser(
+        description="Generate Mister Wiz student and class reports from CSV data",
+    )
+    parser.add_argument("--data-dir", type=Path, default=base / "data",
+                        help="Directory containing students.csv and lessons.csv")
+    parser.add_argument("--templates-dir", type=Path, default=base / "templates",
+                        help="Directory containing the report templates")
+    parser.add_argument("--out-dir", type=Path, default=base / "output",
+                        help="Directory to write generated reports")
+    args = parser.parse_args()
+
+    data_dir = args.data_dir
+    tmpl_dir = args.templates_dir
+    out_dir = args.out_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     students_file = data_dir / "students.csv"
     lessons_file = data_dir / "lessons.csv"
@@ -911,6 +945,21 @@ def main():
 
     students = load_csv(students_file)
     lessons = load_csv(lessons_file)
+
+    if not students:
+        print(f"ERROR: {students_file} has no student rows.", file=sys.stderr)
+        sys.exit(1)
+
+    missing_lessons = turmas_without_lessons(students, lessons)
+    if missing_lessons:
+        print(
+            "ERROR: no lessons found for turma(s): "
+            + ", ".join(missing_lessons)
+            + ". Presence would be reported as 100% for every student. "
+            "Add the lesson rows to lessons.csv (matching the turma code) and rerun.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     env = create_report_environment(tmpl_dir)
 
