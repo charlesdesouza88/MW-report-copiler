@@ -346,3 +346,30 @@ def test_composite_score_rounds_half_up():
 
     ctx = {'dev_overall': 3, 'part_overall': 2, 'comp_overall': 2, 'pres_score': 3}
     assert student_composite_score(ctx) == 3  # 2.5 rounds up, not to even
+
+
+def test_presence_pct_clamped_to_0_100():
+    assert presence_pct(5, 3) == 0  # more faltas than lessons can't go negative
+    assert presence_pct(-1, 4) == 100  # negative faltas can't exceed 100
+
+
+def test_load_csv_strips_excel_bom(tmp_path):
+    from compiler import load_csv
+
+    path = tmp_path / "students.csv"
+    path.write_bytes("turma,student_name\nMASTER,Àna Çedilha\n".encode("utf-8-sig"))
+    rows = load_csv(path)
+    assert rows[0]["turma"] == "MASTER"
+    assert rows[0]["student_name"] == "Àna Çedilha"
+
+
+def test_attendance_calendar_accepts_legacy_ddmm_dates():
+    from datetime import datetime
+    from compiler import build_attendance_calendar
+
+    year = datetime.now().year
+    lessons = [{"turma": "MASTER", "aula_num": "1", "date": "05/03"}]
+    cal = build_attendance_calendar(lessons, [], set(), f"{year}-03")
+    assert cal["has_class"]
+    statuses = [cell["status"] for week in cal["weeks"] for cell in week if cell["day"] == 5]
+    assert statuses == ["present"]
