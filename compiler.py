@@ -334,7 +334,7 @@ def class_summary_charts(student_data):
         for k in keys
     ]
     bars = comparison_bar_chart(
-        [dict(label=l, current=max(1, min(5, int(round(a)))), prior=None) for l, a in zip(labels, avgs)],
+        [dict(label=l, current=max(1, min(5, round_half_up(a))), prior=None) for l, a in zip(labels, avgs)],
         bar_max_w=200,
         bar_h=12,
         row_gap=4,
@@ -355,7 +355,7 @@ def class_summary_charts(student_data):
         sl['x'] = x
         x += sl['w']
     column_chart = column_bar_chart(
-        [dict(label=l, score=max(1, min(5, int(round(a))))) for l, a in zip(labels, avgs)],
+        [dict(label=l, score=max(1, min(5, round_half_up(a)))) for l, a in zip(labels, avgs)],
         title='Médias da turma',
         bar_w=32,
         gap=14,
@@ -366,7 +366,7 @@ def class_summary_charts(student_data):
         bars=bars,
         column_chart=column_chart,
         dimension_rings=score_ring_row([
-            dict(label=l, score=max(1, min(5, int(round(a)))))
+            dict(label=l, score=max(1, min(5, round_half_up(a))))
             for l, a in zip(labels, avgs)
         ], ring_size=52, stroke=6, gap=10),
         attendance_bar=dict(width=bar_w, height=14, slices=slices),
@@ -374,9 +374,9 @@ def class_summary_charts(student_data):
             sum(student_composite_score(sd) for sd in student_data) / total, 1,
         ),
         composite_donut=composite_donut_chart(
-            max(1, min(5, int(round(
+            max(1, min(5, round_half_up(
                 sum(student_composite_score(sd) for sd in student_data) / total,
-            )))),
+            ))),
             size=88,
             stroke=9,
         ),
@@ -479,6 +479,11 @@ def pie_path(percentage, cx=58, cy=58, r=48):
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
 
+def round_half_up(value):
+    """Round with .5 always going up (2.5 → 3), unlike Python's banker's rounding."""
+    return math.floor(float(value) + 0.5)
+
+
 def load_csv(path):
     with open(path, encoding="utf-8") as f:
         return list(csv.DictReader(f))
@@ -493,7 +498,7 @@ def int_score(val, default=3):
 
 def avg_score(scores):
     vals = [float(s) for s in scores if str(s).strip()]
-    return round(sum(vals) / len(vals)) if vals else 0
+    return round_half_up(sum(vals) / len(vals)) if vals else 0
 
 
 def presence_pct(faltas, total_lessons):
