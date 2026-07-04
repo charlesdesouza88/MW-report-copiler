@@ -485,7 +485,8 @@ def round_half_up(value):
 
 
 def load_csv(path):
-    with open(path, encoding="utf-8") as f:
+    # utf-8-sig: strip Excel's BOM so the first header never becomes '﻿turma'
+    with open(path, encoding="utf-8-sig") as f:
         return list(csv.DictReader(f))
 
 
@@ -504,7 +505,8 @@ def avg_score(scores):
 def presence_pct(faltas, total_lessons):
     if total_lessons == 0:
         return 100
-    return round(((total_lessons - int(faltas or 0)) / total_lessons) * 100)
+    pct = round(((total_lessons - int(faltas or 0)) / total_lessons) * 100)
+    return max(0, min(100, pct))
 
 
 def pres_to_score(pct):
@@ -589,21 +591,26 @@ def build_attendance_calendar(turma_lessons, missed, tardy_aula_nums, report_mon
     except (ValueError, IndexError):
         return None
 
-    # Build lookup: aula_num → date for this turma in this month
+    # Build lookup: aula_num → date for this turma in this month.
+    # Same parser as the month filter (storage_date_to_iso) so a lesson counted
+    # in the month can never be silently missing from the calendar.
+    from form_ui import storage_date_to_iso
+
     aula_to_date = {}
     for lesson in turma_lessons:
         raw_date = lesson.get('date', '').strip()
         aula_num = str(lesson.get('aula_num', '')).strip()
         if not raw_date or not aula_num:
             continue
-        for fmt in ('%d/%m/%Y', '%Y-%m-%d'):
-            try:
-                d = _datetime.strptime(raw_date, fmt).date()
-                if d.year == year and d.month == mon:
-                    aula_to_date[aula_num] = d
-                break
-            except ValueError:
-                continue
+        iso = storage_date_to_iso(raw_date)
+        if not iso:
+            continue
+        try:
+            d = _datetime.strptime(iso, '%Y-%m-%d').date()
+        except ValueError:
+            continue
+        if d.year == year and d.month == mon:
+            aula_to_date[aula_num] = d
 
     # missed lesson aula_nums → dates (from pre-computed missed list + attendance_rows)
     missed_dates = set()
