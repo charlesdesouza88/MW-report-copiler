@@ -19,7 +19,16 @@
 
 <form method="post" style="max-width: 640px;">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if teacher_name %}
+  <input type="hidden" name="teacher" value="{{ teacher_name }}">
+  {% endif %}
   <div class="form-section">
+    {% if teacher_name and can_edit_all_data %}
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Professor</label>
+      <input type="text" value="{{ teacher_name }}" readonly style="background:#f4f4f4;">
+    </div>
+    {% endif %}
     <div class="form-group" style="margin-bottom:12px;">
       <label>Identificador da turma</label>
       <input type="text" value="{{ turma_code }}" readonly style="background:#f4f4f4;">

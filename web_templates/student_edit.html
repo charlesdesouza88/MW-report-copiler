@@ -82,8 +82,12 @@
           {% endfor %}
         </select>
         <p class="font-sm text-gray" style="margin-top:6px;">
+          {% if current_user and current_user.role == 'teacher' %}
           Turmas do Dashboard — dias e horário vêm da turma escolhida.
           <a href="{{ url_for('dashboard') }}#criar-turma">+ Criar turma</a>
+          {% else %}
+          Turmas cadastradas do professor — dias e horário vêm da turma escolhida.
+          {% endif %}
         </p>
       </div>
       {% elif current_user and current_user.role == 'teacher' %}
