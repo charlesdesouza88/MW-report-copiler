@@ -14,7 +14,7 @@ import time
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 from flask import (Flask, abort, g, jsonify, redirect, render_template, request,
                    send_file, session, url_for)
@@ -388,6 +388,22 @@ def _safe_redirect_target(target):
     if not target.startswith('/') or target.startswith('//'):
         return None
     return target
+
+
+def _redirect_with_review_month(target, month):
+    """Return a safe redirect path with ?month= updated to the selected review month."""
+    safe = _safe_redirect_target(target)
+    if not safe:
+        return url_for('dashboard', month=month)
+    parsed = urlparse(safe)
+    query = parse_qs(parsed.query, keep_blank_values=True)
+    query['month'] = [month]
+    new_query = urlencode(query, doseq=True)
+    fragment = f'#{parsed.fragment}' if parsed.fragment else ''
+    path = parsed.path or '/'
+    if new_query:
+        return f'{path}?{new_query}{fragment}'
+    return f'{path}{fragment}'
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
 SUPERADMIN_EMAIL = os.environ.get('SUPERADMIN_EMAIL', 'admin@misterwiz.local').strip()
 SUPERADMIN_PASSWORD = os.environ.get('SUPERADMIN_PASSWORD', ADMIN_PASSWORD).strip()
@@ -1356,7 +1372,12 @@ def _get_review_month(lessons=None):
     if lessons is None:
         lessons = _load_lessons()
     available = _available_review_months(lessons)
-    raw = (request.args.get('month') or session.get('review_month') or '').strip()
+    raw = (
+        request.args.get('month')
+        or request.form.get('return_month')
+        or session.get('review_month')
+        or ''
+    ).strip()
     if raw in available:
         session['review_month'] = raw
         return raw
@@ -1738,7 +1759,7 @@ def set_review_month():
         abort(400)
     target = _safe_redirect_target((request.form.get('next') or request.referrer or '').strip())
     if target:
-        return redirect(target)
+        return redirect(_redirect_with_review_month(target, month))
     return redirect(url_for('dashboard', month=month))
 
 

@@ -45,7 +45,7 @@
       data-autosave-user="{{ current_user.id if current_user else '' }}"
       data-autosave-idx="{{ 'new' if is_new else idx }}"
       data-autosave-month="{{ review_month or return_month or '' }}"
-      data-autosave-url="{{ '' if is_new else url_for('student_autosave', idx=idx) }}">
+      data-autosave-url="{{ '' if is_new else url_for('student_autosave', idx=idx, month=return_month) if return_month else url_for('student_autosave', idx=idx) }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% if return_turma %}
   <input type="hidden" name="return_turma" value="{{ return_turma }}">

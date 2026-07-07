@@ -1206,8 +1206,106 @@ def test_set_review_month_redirects(monkeypatch, tmp_path):
         follow_redirects=False,
     )
     assert response.status_code == 302
+    assert response.headers["Location"].endswith("/students?month=2026-03")
     with client.session_transaction() as sess:
         assert sess.get("review_month") == "2026-03"
+
+
+def test_set_review_month_replaces_month_query_on_redirect(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,15/05/2026,Lesson 1,,\n"
+        "MASTER,2,15/07/2026,Lesson 2,,\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+
+    switch = client.post(
+        "/review-month",
+        data={
+            "review_month": "2026-05",
+            "next": "http://localhost/students?month=2026-07&turma=MASTER",
+        },
+        follow_redirects=False,
+    )
+    assert switch.status_code == 302
+    assert "month=2026-05" in switch.headers["Location"]
+    assert "month=2026-07" not in switch.headers["Location"]
+
+    follow = client.get(switch.headers["Location"])
+    assert follow.status_code == 200
+    with client.session_transaction() as sess:
+        assert sess.get("review_month") == "2026-05"
+
+
+def test_faltas_saved_to_return_month_when_session_differs(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,15/05/2026,Lesson 1,,\n"
+        "MASTER,2,15/07/2026,Lesson 2,,\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    reviews_path = data_dir / "student_monthly_reviews.json"
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", reviews_path)
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+
+    with client.session_transaction() as sess:
+        sess["review_month"] = "2026-07"
+
+    base_form = {
+        "teacher": "Chuck",
+        "turma": "MASTER",
+        "student_name": "Jane Doe",
+        "participacao": "4",
+        "comportamento": "3",
+        "speaking": "4",
+        "listening": "5",
+        "foco": "4",
+        "writing": "3",
+        "reading": "4",
+        "gramatica": "2",
+        "trabalho_equipe": "3",
+        "organizacao": "3",
+        "pontualidade": "3",
+        "respeito_regras": "3",
+        "faltas": "4",
+        "missed_aulas": "",
+        "aula_extra": "",
+        "return_month": "2026-05",
+    }
+
+    client.post("/students/0/edit", data=base_form, follow_redirects=False)
+
+    reviews = json.loads(reviews_path.read_text(encoding="utf-8"))
+    may_rows = [r for r in reviews if r.get("report_month") == "2026-05"]
+    july_rows = [r for r in reviews if r.get("report_month") == "2026-07"]
+    assert len(may_rows) == 1
+    assert may_rows[0]["faltas"] == "4"
+    assert not july_rows
+
+    may_html = client.get("/students?month=2026-05").get_data(as_text=True)
+    assert 'Faltas</span><strong>4</strong>' in may_html
 
 
 def test_set_review_month_blocks_open_redirect(monkeypatch, tmp_path):
