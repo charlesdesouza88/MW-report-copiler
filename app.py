@@ -928,6 +928,23 @@ def _student_row_from_form():
     row = {field: (request.form.get(field, '') or '').strip() for field in STUDENT_FIELDS}
     row = _resolve_teacher_class_choice(row)
     row['aula_extra'] = normalize_aula_extra(row.get('aula_extra'))
+    return _normalize_presence_fields(row)
+
+
+def _normalize_presence_fields(row):
+    """Keep faltas and missed_aulas consistent when teachers save presence data."""
+    missed_raw = (row.get('missed_aulas') or '').strip()
+    nums = [num.strip() for num in missed_raw.split(',') if num.strip()]
+    try:
+        faltas = max(0, int((row.get('faltas') or '0').strip() or 0))
+    except (TypeError, ValueError):
+        faltas = 0
+    if nums:
+        row['missed_aulas'] = ','.join(nums)
+        row['faltas'] = str(len(nums))
+    else:
+        row['missed_aulas'] = ''
+        row['faltas'] = str(faltas)
     return row
 
 
@@ -2942,10 +2959,11 @@ def _trend_for_report_file(path, month, students, lessons, snapshots):
 @app.route('/generate', methods=['POST'])
 @login_required
 def generate():
-    all_students, students = _scoped_students()
+    all_students, _ = _scoped_students(merge=False)
     _, lessons = _scoped_lessons(all_students)
     user = _current_user()
     report_month = _report_month_from_request(lessons)
+    _, students = _scoped_students(review_month=report_month)
 
     if has_full_data_access(user['role']) and not db_store:
         students_file = DATA_DIR / 'students.csv'
