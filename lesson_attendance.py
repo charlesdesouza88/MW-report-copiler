@@ -189,7 +189,15 @@ def recompute_faltas_from_attendance(students, lessons, attendance_rows, month_k
 
         nums = _sort_aula_nums(result)
         row['missed_aulas'] = ','.join(nums)
-        row['faltas'] = str(len(nums))
+        try:
+            stored_faltas = max(0, int((student.get('faltas') or '0').strip() or 0))
+        except (TypeError, ValueError):
+            stored_faltas = 0
+        had_manual_missed = bool((student.get('missed_aulas') or '').strip())
+        if had_manual_missed:
+            row['faltas'] = str(len(nums))
+        else:
+            row['faltas'] = str(max(stored_faltas, len(nums)))
         updated.append(row)
     return updated
 

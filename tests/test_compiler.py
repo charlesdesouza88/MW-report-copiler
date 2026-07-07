@@ -1,4 +1,5 @@
 from compiler import (
+    build_attendance_calendar,
     build_student_ctx,
     composite_donut_chart,
     create_report_environment,
@@ -133,6 +134,67 @@ def test_build_student_ctx_month_scopes_presence():
     ctx = build_student_ctx(_student(faltas="1", missed_aulas="2"), lessons, report_month="2026-03")
     assert ctx["pct"] == 0
     assert len(ctx["missed"]) == 1
+
+
+def test_build_student_ctx_uses_manual_faltas_without_missed_aulas():
+    lessons = [
+        {
+            "turma": "MASTER",
+            "aula_num": "1",
+            "date": "01/03/2026",
+            "licao_conteudo": "L1",
+            "atividade_extra": "",
+            "habilidades": "",
+        },
+        {
+            "turma": "MASTER",
+            "aula_num": "2",
+            "date": "08/03/2026",
+            "licao_conteudo": "L2",
+            "atividade_extra": "",
+            "habilidades": "",
+        },
+    ]
+    ctx = build_student_ctx(
+        _student(faltas="3", missed_aulas=""),
+        lessons,
+        report_month="2026-03",
+    )
+    assert len(ctx["missed"]) == 0
+    assert ctx["pct"] == 0
+    assert ctx["pres_score"] == 1
+
+
+def test_build_attendance_calendar_supports_dd_mm_dates():
+    lessons = [
+        {
+            "turma": "MASTER",
+            "aula_num": "1",
+            "date": "15/03",
+            "licao_conteudo": "L1",
+            "atividade_extra": "",
+            "habilidades": "",
+        },
+        {
+            "turma": "MASTER",
+            "aula_num": "2",
+            "date": "22/03",
+            "licao_conteudo": "L2",
+            "atividade_extra": "",
+            "habilidades": "",
+        },
+    ]
+    calendar = build_attendance_calendar(lessons, [], set(), "2026-03")
+    assert calendar is not None
+    assert calendar["has_class"] is True
+    present_days = [
+        cell["day"]
+        for week in calendar["weeks"]
+        for cell in week
+        if cell.get("status") == "present"
+    ]
+    assert 15 in present_days
+    assert 22 in present_days
 
 
 def test_needs_extra_accepts_accented_and_unaccented_values():

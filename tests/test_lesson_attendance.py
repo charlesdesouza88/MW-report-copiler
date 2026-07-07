@@ -217,6 +217,26 @@ def test_recompute_faltas_preserves_manual_when_lesson_not_logged():
     assert bob['faltas'] == '2'
 
 
+def test_recompute_preserves_manual_faltas_without_missed_aulas():
+    students = [{
+        'turma': 'STAR',
+        'student_name': 'Ana',
+        'faltas': '3',
+        'missed_aulas': '',
+    }]
+    lessons = [
+        {'turma': 'STAR', 'aula_num': '1', 'date': '10/02/2026'},
+    ]
+    attendance_rows = [
+        {'turma': 'STAR', 'aula_num': '1', 'student_name': 'Ana', 'status': 'present'},
+    ]
+    updated = recompute_faltas_from_attendance(
+        students, lessons, attendance_rows, '2026-02',
+    )
+    assert updated[0]['faltas'] == '3'
+    assert updated[0]['missed_aulas'] == ''
+
+
 def test_remove_attendance_for_student_and_lesson():
     from lesson_attendance import remove_attendance_for_lesson, remove_attendance_for_student
 

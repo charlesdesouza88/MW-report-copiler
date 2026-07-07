@@ -584,6 +584,8 @@ def build_attendance_calendar(turma_lessons, missed, tardy_aula_nums, report_mon
           'has_class': bool,  # any class day exists in this month
         }
     """
+    from form_ui import storage_date_to_iso
+
     if not report_month:
         return None
     try:
@@ -594,8 +596,6 @@ def build_attendance_calendar(turma_lessons, missed, tardy_aula_nums, report_mon
     # Build lookup: aula_num → date for this turma in this month.
     # Same parser as the month filter (storage_date_to_iso) so a lesson counted
     # in the month can never be silently missing from the calendar.
-    from form_ui import storage_date_to_iso
-
     aula_to_date = {}
     for lesson in turma_lessons:
         raw_date = lesson.get('date', '').strip()
@@ -679,7 +679,11 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
     if report_month:
         from report_periods import lesson_in_month
         missed = [m for m in missed if lesson_in_month(m, report_month)]
-        faltas = len(missed)
+        try:
+            stored_faltas = max(0, int(float(s.get("faltas") or 0)))
+        except (TypeError, ValueError):
+            stored_faltas = 0
+        faltas = max(len(missed), stored_faltas)
     else:
         try:
             faltas = max(0, int(float(s.get("faltas") or 0)))
@@ -721,10 +725,16 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
     # Tardy + extra absent lessons from per-lesson attendance records
     tardy_aula_nums = set()
     extra_absent_aula_nums = set()
-    if attendance_rows:
+    month_attendance_rows = attendance_rows
+    if attendance_rows and report_month:
+        from lesson_attendance import _attendance_rows_for_month
+        month_attendance_rows = _attendance_rows_for_month(
+            all_lessons, attendance_rows, report_month,
+        )
+    if month_attendance_rows:
         student_name_key = (s.get('student_name') or '').strip().lower()
         turma_key = turma.upper()
-        for row in attendance_rows:
+        for row in month_attendance_rows:
             if (row.get('turma', '').strip().upper() == turma_key
                     and row.get('student_name', '').strip().lower() == student_name_key):
                 status = row.get('status', '').strip()
