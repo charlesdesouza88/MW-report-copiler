@@ -17,6 +17,9 @@ MONTHLY_REVIEW_FIELDS = (
     'recomendacoes', 'observacao',
 )
 
+# Presence resets each month — never copy from a previous month's review.
+PRESENCE_FIELDS = frozenset({'faltas', 'missed_aulas', 'aula_extra'})
+
 DEFAULT_MONTHLY_VALUES = {
     'participacao': '3',
     'comportamento': '3',
@@ -83,7 +86,12 @@ def merge_student_for_month(roster_row, store, month_key):
     if prev:
         prev_key = review_key(turma, name, prev)
         if prev_key in store:
-            merged.update({k: store[prev_key].get(k, '') for k in MONTHLY_REVIEW_FIELDS})
+            prev_row = store[prev_key]
+            for field in MONTHLY_REVIEW_FIELDS:
+                if field in PRESENCE_FIELDS:
+                    merged[field] = DEFAULT_MONTHLY_VALUES[field]
+                else:
+                    merged[field] = prev_row.get(field, '')
             return merged
 
     legacy = extract_monthly_fields(roster_row)

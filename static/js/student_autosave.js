@@ -220,4 +220,11 @@
   maybeOfferDraftRestore();
   if (autosaveUrl) setStatus('Salvamento automático ativo', 'ok');
   else setStatus('Rascunho local ativo (novo aluno)', 'local');
+
+  window.mwStudentFormGuard = function () {
+    if (!dirty) return true;
+    return window.confirm(
+      'Você tem alterações não salvas neste aluno. Trocar o mês de revisão mesmo assim?'
+    );
+  };
 })();

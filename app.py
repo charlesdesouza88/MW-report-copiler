@@ -44,6 +44,7 @@ from extra_sessions import (AUTO_AULA_EXTRA_MARKER, EXTRA_SESSION_FIELD_LABELS,
 from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
                                ATTENDANCE_LABELS, attendance_map_for_lesson,
                                normalize_attendance_status, parse_attendance_form,
+                               reconcile_presence_after_lesson_removed,
                                recompute_faltas_from_attendance,
                                remove_attendance_for_lesson,
                                remove_attendance_for_student,
@@ -828,7 +829,7 @@ def role_required(*roles):
     return decorator
 
 
-def _scoped_students(review_month=None, merge=True):
+def _scoped_students(review_month=None, merge=True, apply_attendance=False):
     _ensure_monthly_migration()
     roster = _load_roster_students()
     user = _current_user()
@@ -841,7 +842,7 @@ def _scoped_students(review_month=None, merge=True):
         review_month = _get_review_month(_load_lessons())
     store = _load_monthly_review_store()
     visible = merge_roster_for_month(visible_roster, store, review_month)
-    if review_month:
+    if review_month and apply_attendance:
         visible = recompute_faltas_from_attendance(
             visible,
             _load_lessons(),
@@ -957,7 +958,7 @@ def _normalize_presence_fields(row):
         faltas = 0
     if nums:
         row['missed_aulas'] = ','.join(nums)
-        row['faltas'] = str(len(nums))
+        row['faltas'] = str(max(faltas, len(nums)))
     else:
         row['missed_aulas'] = ''
         row['faltas'] = str(faltas)
@@ -1136,7 +1137,6 @@ def _persist_lesson_attendance(lesson, roster):
         if key in tracked:
             upsert_monthly_review(store, row, month_key)
     _save_monthly_review_store(store)
-    _set_review_month(month_key, lessons)
 
 
 def _lesson_edit_context(lesson, all_rows, all_students, allowed_turmas, is_new,
@@ -2646,6 +2646,24 @@ def lesson_delete(idx):
                     removed.get('aula_num'),
                 )
                 _save_lesson_attendance(attendance)
+                month_key = parse_lesson_month(removed.get('date', ''))
+                if month_key:
+                    store = _load_monthly_review_store()
+                    merged = merge_roster_for_month(all_students, store, month_key)
+                    updated = reconcile_presence_after_lesson_removed(
+                        merged,
+                        remaining,
+                        attendance,
+                        month_key,
+                        removed.get('turma'),
+                        removed.get('aula_num'),
+                    )
+                    turma_key = (removed.get('turma') or '').strip().upper()
+                    for row in updated:
+                        if (row.get('turma') or '').strip().upper() != turma_key:
+                            continue
+                        upsert_monthly_review(store, row, month_key)
+                    _save_monthly_review_store(store)
     return _redirect_lessons()
 
 
@@ -2984,7 +3002,7 @@ def generate():
     _, lessons = _scoped_lessons(all_students)
     user = _current_user()
     report_month = _report_month_from_request(lessons)
-    _, students = _scoped_students(review_month=report_month)
+    _, students = _scoped_students(review_month=report_month, apply_attendance=True)
 
     if has_full_data_access(user['role']) and not db_store:
         students_file = DATA_DIR / 'students.csv'

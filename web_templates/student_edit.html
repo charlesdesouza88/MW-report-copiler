@@ -42,6 +42,9 @@
 <form method="post" id="student-edit-form"
       style="max-width: 860px;"
       {% if no_teacher_classes %}class="disabled-form"{% endif %}
+      {% if not is_new %}
+      action="{% if return_turma and return_month %}{{ url_for('student_edit', idx=idx, month=return_month, turma=return_turma) }}{% elif return_month %}{{ url_for('student_edit', idx=idx, month=return_month) }}{% elif return_turma %}{{ url_for('student_edit', idx=idx, turma=return_turma) }}{% else %}{{ url_for('student_edit', idx=idx) }}{% endif %}"
+      {% endif %}
       data-autosave-user="{{ current_user.id if current_user else '' }}"
       data-autosave-idx="{{ 'new' if is_new else idx }}"
       data-autosave-month="{{ review_month or return_month or '' }}"
@@ -253,7 +256,7 @@
     {% if not no_teacher_classes %}
     <button type="submit" class="btn btn-primary">✓ &nbsp;{{ 'Criar aluno' if is_new else 'Salvar alterações' }}</button>
     {% endif %}
-    <a href="{{ url_for('students', turma=return_turma) if return_turma else url_for('students') }}" class="btn btn-ghost">Cancelar</a>
+    <a href="{{ url_with_month('students', turma=return_turma) if return_turma else url_with_month('students') }}" class="btn btn-ghost">Cancelar</a>
   </div>
 
 </form>

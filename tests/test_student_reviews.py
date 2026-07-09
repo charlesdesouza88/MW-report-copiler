@@ -80,6 +80,21 @@ def test_merge_seeds_from_previous_month():
     assert merged[0]['participacao'] == '4'
 
 
+def test_merge_presence_resets_from_previous_month():
+    roster = [_student()]
+    store = {}
+    upsert_monthly_review(
+        store,
+        {**_student(), 'faltas': '3', 'missed_aulas': '1,2', 'aula_extra': 'Reposição'},
+        '2026-04',
+    )
+    merged = merge_roster_for_month(roster, store, '2026-05')
+    assert merged[0]['faltas'] == '0'
+    assert merged[0]['missed_aulas'] == ''
+    assert merged[0]['aula_extra'] == ''
+    assert merged[0]['participacao'] == '4'
+
+
 def test_merge_falls_back_to_roster_legacy():
     roster = [_student(participacao='3')]
     store = {}
