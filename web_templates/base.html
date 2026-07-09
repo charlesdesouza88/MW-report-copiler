@@ -667,7 +667,7 @@ body.nav-open .nav-backdrop { display: block; }
       <form class="review-month-form" method="post" action="{{ url_for('set_review_month') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="review-month-select">Mês em revisão</label>
-        <select id="review-month-select" name="review_month" aria-label="Mês em revisão" onchange="this.form.submit()">
+        <select id="review-month-select" name="review_month" aria-label="Mês em revisão" data-current="{{ review_month }}" onchange="if (window.mwStudentFormGuard && !window.mwStudentFormGuard()) { this.value = this.dataset.current; return; } this.dataset.current = this.value; this.form.submit()">
           {% for m in available_review_months %}
           <option value="{{ m }}" {% if m == review_month %}selected{% endif %}>{{ month_label(m) }}</option>
           {% endfor %}
