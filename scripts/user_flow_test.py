@@ -9,7 +9,6 @@ Usage:
 from __future__ import annotations
 
 import os
-import re
 import sys
 import tempfile
 from pathlib import Path
@@ -181,7 +180,7 @@ def run_inprocess():
             loc,
         )
 
-        r = client.get(loc if loc.startswith('/') else f'/reports')
+        r = client.get(loc if loc.startswith('/') else '/reports')
         rep_html = r.get_data(as_text=True)
         runner.check(
             'Reports page after generate',
