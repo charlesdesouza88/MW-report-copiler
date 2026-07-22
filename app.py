@@ -43,7 +43,7 @@ from extra_sessions import (AUTO_AULA_EXTRA_MARKER, EXTRA_SESSION_FIELD_LABELS,
                             row_from_form, sync_student_extra_sessions)
 from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
                                ATTENDANCE_LABELS, attendance_map_for_lesson,
-                               normalize_attendance_status, parse_attendance_form,
+                               parse_attendance_form,
                                reconcile_presence_after_lesson_removed,
                                recompute_faltas_from_attendance,
                                remove_attendance_for_lesson,
@@ -53,7 +53,7 @@ from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
                                students_with_attendance_in_month)
 from form_ui import (HABILIDADES_CHOICES, LICAO_CONTEUDO_CHOICES,
                      LICAO_ESPECIAL_CHOICES, NIVEL_CHOICES, WEEKDAY_CHOICES,
-                     date_from_form, format_class_schedule, format_date_for_input,
+                     date_from_form, format_date_for_input,
                      is_valid_nivel, licao_choice_for_value, next_aula_num,
                      normalize_habilidades, parse_time_range_from_horario,
                      storage_date_to_iso,
@@ -77,16 +77,12 @@ from report_periods import (available_report_months, compute_month_trend,
                             month_label, parse_lesson_month,
                             report_month_from_filename,
                             student_composite_score, upsert_month_snapshots)
-from student_reviews import (MONTHLY_REVIEW_FIELDS, ROSTER_FIELDS,
-                             apply_upload_row, extract_roster_fields,
-                             load_monthly_reviews, merge_roster_for_month,
+from student_reviews import (ROSTER_FIELDS,
+                             apply_upload_row, load_monthly_reviews, merge_roster_for_month,
                              migrate_roster_scores_to_month,
                              rows_from_store, save_monthly_reviews,
                              split_student_row, store_from_rows,
-                             migrate_roster_scores_to_month,
                              remove_reviews_for_student,
-                             rows_from_store, save_monthly_reviews,
-                             split_student_row, store_from_rows,
                              upsert_monthly_review)
 
 try:
@@ -270,20 +266,29 @@ def _database_status():
             'configured': True,
             'connected': False,
             'mode': 'postgresql',
-            'message': f'Database ping failed: {exc}',
+            'message': 'Database health check failed.',
         }
 
 
 default_data_dir = str(BASE / 'data')
 default_out_dir = str(BASE / 'output')
+TEMP_DATA_ROOT = Path(tempfile.gettempdir()) / 'mw'
+
+
+def _path_is_under_temp(path):
+    try:
+        Path(path).resolve().relative_to(Path(tempfile.gettempdir()).resolve())
+    except ValueError:
+        return False
+    return True
 
 TMPL_DIR = BASE / 'templates'
 DATA_DIR = _ensure_writable_dir(
-    os.environ.get('DATA_DIR', default_data_dir), '/tmp/mw/data')
+    os.environ.get('DATA_DIR', default_data_dir), TEMP_DATA_ROOT / 'data')
 OUT_DIR = _ensure_writable_dir(
-    os.environ.get('OUT_DIR', default_out_dir), '/tmp/mw/output')
+    os.environ.get('OUT_DIR', default_out_dir), TEMP_DATA_ROOT / 'output')
 
-if str(DATA_DIR).startswith('/tmp'):
+if _path_is_under_temp(DATA_DIR):
     logger.warning(
         'DATA_DIR is %s — this path is ephemeral and data will be lost on container restart. '
         'Set DATA_DIR to a Railway volume mount or use DATABASE_URL for persistent storage.',
@@ -314,12 +319,24 @@ app.config.update(
 )
 
 csrf = CSRFProtect(app)
+RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
 limiter = Limiter(
     key_func=get_remote_address,
     app=app,
     default_limits=[],
-    storage_uri='memory://',
+    storage_uri=RATELIMIT_STORAGE_URI,
 )
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'DENY')
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.setdefault('Permissions-Policy', 'camera=(), geolocation=(), microphone=()')
+    if app.config.get('SESSION_COOKIE_SECURE'):
+        response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    return response
 
 
 @app.errorhandler(CSRFError)
@@ -3085,11 +3102,12 @@ def manage_teachers():
                     password=password or None,
                     teacher_name=request.form.get('teacher_name'),
                     active=request.form.get('active') == '1',
+                    actor_role=actor['role'],
                 )
                 messages.append('Usuário atualizado.')
             elif action == 'delete':
                 user_id = int(request.form.get('user_id', '0'))
-                user_store.delete_user(user_id, actor_id=actor['id'])
+                user_store.delete_user(user_id, actor_id=actor['id'], actor_role=actor['role'])
                 messages.append('Usuário removido.')
         except (ValueError, TypeError) as exc:
             errors.append(str(exc))
@@ -3300,7 +3318,7 @@ def download_all():
                      as_attachment=True, download_name='mister_wiz_reports.zip')
 
 
-def _pick_port(preferred):
+def _pick_port(preferred, host):
     """Use preferred port, or the next free one (macOS AirPlay often blocks 5000)."""
     import socket
 
@@ -3308,7 +3326,7 @@ def _pick_port(preferred):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
-                sock.bind(('0.0.0.0', candidate))
+                sock.bind((host, candidate))
             except OSError:
                 continue
             return candidate
@@ -3317,10 +3335,11 @@ def _pick_port(preferred):
 
 if __name__ == '__main__':
     debug = os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes')
+    host = os.environ.get('HOST', '127.0.0.1')
     preferred = int(os.environ.get('PORT', '5000'))
-    port = _pick_port(preferred)
+    port = _pick_port(preferred, host)
     if port != preferred:
-        logger.warning('Port %s is in use; starting on http://127.0.0.1:%s', preferred, port)
+        logger.warning('Port %s is in use; starting on http://%s:%s', preferred, host, port)
     else:
-        logger.info('Starting on http://127.0.0.1:%s', port)
-    app.run(debug=debug, host='0.0.0.0', port=port)
+        logger.info('Starting on http://%s:%s', host, port)
+    app.run(debug=debug, host=host, port=port)

@@ -6,13 +6,13 @@ import os
 import tempfile
 from pathlib import Path
 
-_MIN_PASSWORD_LEN = 8
-
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from report_names import class_diagnostic_filename, student_report_filename
 
 logger = logging.getLogger(__name__)
+
+_MIN_PASSWORD_LEN = 8
 
 ROLE_SUPERADMIN = 'superadmin'
 ROLE_ADMIN = 'admin'
@@ -311,20 +311,21 @@ class UserStore:
 
     def apply_env_superadmin(self, email, password):
         """
-        Ensure SUPERADMIN_EMAIL exists as an active superadmin with SUPERADMIN_PASSWORD.
-        Runs on every deploy so Railway env vars stay the source of truth.
+        Ensure SUPERADMIN_EMAIL exists as an active superadmin.
+        Passwords are only set during initial bootstrap; use sync_superadmin_password
+        for explicit recovery flows.
         """
         if not email or not password:
             return False
 
         users = self.list_users()
         key = normalize_email(email)
-        password_hash = generate_password_hash(password)
 
         for user in users:
             if normalize_email(user.get('email')) == key:
                 user['role'] = ROLE_SUPERADMIN
-                user['password_hash'] = password_hash
+                if not user.get('password_hash'):
+                    user['password_hash'] = generate_password_hash(password)
                 user['active'] = True
                 user['teacher_name'] = user.get('teacher_name') or ''
                 self._save_all(users)
@@ -337,7 +338,8 @@ class UserStore:
         ]
         if len(supers) == 1:
             supers[0]['email'] = key
-            supers[0]['password_hash'] = password_hash
+            if not supers[0].get('password_hash'):
+                supers[0]['password_hash'] = generate_password_hash(password)
             supers[0]['active'] = True
             self._save_all(users)
             logger.info('Superadmin email migrated to %s', key)
@@ -413,35 +415,65 @@ class UserStore:
         self._save_all(users)
         return next_id
 
-    def update_user(self, user_id, *, email=None, password=None, teacher_name=None, active=None):
+    def update_user(
+        self,
+        user_id,
+        *,
+        email=None,
+        password=None,
+        teacher_name=None,
+        active=None,
+        actor_role=None,
+    ):
         users = self.list_users()
         found = False
         for user in users:
             if user.get('id') != user_id:
                 continue
             found = True
+            if (
+                actor_role is not None
+                and user.get('role') == ROLE_SUPERADMIN
+                and actor_role != ROLE_SUPERADMIN
+            ):
+                raise ValueError('Somente superadmins podem alterar superadmins.')
             if email is not None:
                 other = self.get_by_email(email)
                 if other and other.get('id') != user_id:
                     raise ValueError('Este e-mail já está em uso.')
                 user['email'] = normalize_email(email)
             if password:
+                if len(password) < _MIN_PASSWORD_LEN:
+                    raise ValueError(f'A senha deve ter pelo menos {_MIN_PASSWORD_LEN} caracteres.')
                 user['password_hash'] = generate_password_hash(password)
             if teacher_name is not None:
                 user['teacher_name'] = normalize_teacher_name(teacher_name)
             if active is not None:
+                if (
+                    not active
+                    and user.get('role') == ROLE_SUPERADMIN
+                    and user.get('active', True)
+                ):
+                    active_superadmins = [
+                        u for u in users
+                        if u.get('role') == ROLE_SUPERADMIN and u.get('active', True)
+                    ]
+                    if len(active_superadmins) <= 1:
+                        raise ValueError('Não é possível desativar o único superadmin ativo.')
                 user['active'] = bool(active)
             break
         if not found:
             raise ValueError('Usuário não encontrado.')
         self._save_all(users)
 
-    def delete_user(self, user_id, *, actor_id=None):
+    def delete_user(self, user_id, *, actor_id=None, actor_role=None):
         users = self.list_users()
         target = next((u for u in users if u.get('id') == user_id), None)
         if not target:
             raise ValueError('Usuário não encontrado.')
         if target.get('role') == ROLE_SUPERADMIN:
+            if actor_role is not None and actor_role != ROLE_SUPERADMIN:
+                raise ValueError('Somente superadmins podem remover superadmins.')
             superadmins = [u for u in users if u.get('role') == ROLE_SUPERADMIN and u.get('active', True)]
             if len(superadmins) <= 1:
                 raise ValueError('Não é possível remover o único superadmin ativo.')

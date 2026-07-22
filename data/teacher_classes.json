@@ -1,37 +1,28 @@
 {
+  "Amanda": [
+    {
+      "turma": "COMET",
+      "turma_display": "Comet",
+      "class_weekdays": [
+        "Segunda-feira",
+        "Quarta-feira"
+      ],
+      "class_time_start": "08:00",
+      "class_time_end": "09:30",
+      "horario": "Segunda-feira e Quarta-feira 08:00 - 09:30"
+    }
+  ],
   "Chuck": [
-    {
-      "turma": "TEENS_1",
-      "turma_display": "Prize",
-      "class_weekdays": [
-        "Quarta-feira",
-        "Sexta-feira"
-      ],
-      "class_time_start": "22:00",
-      "class_time_end": "23:00",
-      "horario": "Quarta-feira e Sexta-feira 22:00 - 23:00"
-    },
-    {
-      "turma": "LIVE_FLOW",
-      "turma_display": "Test class",
-      "class_weekdays": [
-        "Terça-feira",
-        "Quinta-feira"
-      ],
-      "class_time_start": "20:00",
-      "class_time_end": "21:00",
-      "horario": "Terça-feira e Quinta-feira 20:00 - 21:00"
-    },
     {
       "turma": "MASTER",
       "turma_display": "Masters",
       "class_weekdays": [
-        "Terça-feira",
-        "Sexta-feira"
+        "Terca-feira",
+        "Quinta-feira"
       ],
-      "class_time_start": "13:00",
-      "class_time_end": "14:00",
-      "horario": "Terça-feira e Sexta-feira 13:00 - 14:00"
+      "class_time_start": "19:00",
+      "class_time_end": "20:00",
+      "horario": "Terca-feira e Quinta-feira 19:00 - 20:00"
     }
   ]
 }

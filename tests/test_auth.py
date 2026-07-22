@@ -2,6 +2,7 @@ import io
 
 import app as web_app
 from auth import (
+    ROLE_ADMIN,
     ROLE_SUPERADMIN,
     ROLE_TEACHER,
     UserStore,
@@ -160,7 +161,8 @@ def test_apply_env_superadmin_migrates_sole_superadmin_email(tmp_path):
     store.initialize()
     store.ensure_bootstrap_superadmin('old@test.local', 'old-pass')
     store.apply_env_superadmin('new@test.local', 'new-pass')
-    assert store.authenticate('new@test.local', 'new-pass') is not None
+    assert store.authenticate('new@test.local', 'old-pass') is not None
+    assert store.authenticate('new@test.local', 'new-pass') is None
     assert store.get_by_email('old@test.local') is None
 
 
@@ -169,9 +171,10 @@ def test_apply_env_superadmin_upgrades_existing_email(tmp_path):
     store.initialize()
     store.create_teacher('boss@test.local', 'teacher-pass', 'Chuck')
     store.apply_env_superadmin('boss@test.local', 'admin-pass')
-    user = store.authenticate('boss@test.local', 'admin-pass')
+    user = store.authenticate('boss@test.local', 'teacher-pass')
     assert user is not None
-    assert store.authenticate('boss@test.local', 'admin-pass')['role'] == ROLE_SUPERADMIN
+    assert store.authenticate('boss@test.local', 'admin-pass') is None
+    assert user['role'] == ROLE_SUPERADMIN
 
 
 def test_sync_superadmin_password(tmp_path):
@@ -182,3 +185,57 @@ def test_sync_superadmin_password(tmp_path):
     store.sync_superadmin_password('boss@test.local', 'new-pass')
     assert store.authenticate('boss@test.local', 'new-pass') is not None
     assert store.authenticate('boss@test.local', 'old-pass') is None
+
+
+def test_update_user_requires_minimum_password_length(tmp_path):
+    store = UserStore(json_path=tmp_path / 'users.json')
+    store.initialize()
+    teacher_id = store.create_teacher('teacher@test.local', 'teacher-pass', 'Chuck')
+
+    try:
+        store.update_user(teacher_id, password='short')
+    except ValueError as exc:
+        assert 'pelo menos 8' in str(exc)
+    else:
+        raise AssertionError('Expected short password update to fail')
+
+    assert store.authenticate('teacher@test.local', 'teacher-pass') is not None
+    assert store.authenticate('teacher@test.local', 'short') is None
+
+
+def test_admin_cannot_change_or_remove_superadmin(tmp_path):
+    store = UserStore(json_path=tmp_path / 'users.json')
+    store.initialize()
+    store.ensure_bootstrap_superadmin('boss@test.local', 'boss-pass')
+    super_id = store.get_by_email('boss@test.local')['id']
+    admin_id = store.create_admin('admin@test.local', 'admin-pass', ROLE_ADMIN)
+
+    for operation in (
+        lambda: store.update_user(super_id, email='owned@test.local', actor_role=ROLE_ADMIN),
+        lambda: store.delete_user(super_id, actor_id=admin_id, actor_role=ROLE_ADMIN),
+    ):
+        try:
+            operation()
+        except ValueError as exc:
+            assert 'Somente superadmins' in str(exc)
+        else:
+            raise AssertionError('Expected admin operation on superadmin to fail')
+
+    assert store.get_by_email('boss@test.local') is not None
+    assert store.get_by_email('owned@test.local') is None
+
+
+def test_cannot_deactivate_only_active_superadmin(tmp_path):
+    store = UserStore(json_path=tmp_path / 'users.json')
+    store.initialize()
+    store.ensure_bootstrap_superadmin('boss@test.local', 'boss-pass')
+    super_id = store.get_by_email('boss@test.local')['id']
+
+    try:
+        store.update_user(super_id, active=False, actor_role=ROLE_SUPERADMIN)
+    except ValueError as exc:
+        assert 'único superadmin ativo' in str(exc)
+    else:
+        raise AssertionError('Expected last active superadmin deactivation to fail')
+
+    assert store.get_by_id(super_id)['active'] is True

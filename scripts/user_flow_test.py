@@ -9,7 +9,6 @@ Usage:
 from __future__ import annotations
 
 import os
-import re
 import sys
 import tempfile
 from pathlib import Path
@@ -154,7 +153,7 @@ def run_inprocess():
         new_name = 'Flow Test Kid'
         r = client.post(
             '/students/new',
-            data=_student_form(new_name, 'FLOW_TEST'),
+            data=_student_form(new_name, 'MASTER'),
             follow_redirects=False,
         )
         loc = r.headers.get('Location', '')
@@ -181,7 +180,7 @@ def run_inprocess():
             loc,
         )
 
-        r = client.get(loc if loc.startswith('/') else f'/reports')
+        r = client.get(loc if loc.startswith('/') else '/reports')
         rep_html = r.get_data(as_text=True)
         runner.check(
             'Reports page after generate',

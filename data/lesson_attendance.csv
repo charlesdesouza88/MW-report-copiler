@@ -1,11 +1,9 @@
 turma,aula_num,student_name,status
-LIVE_FLOW,1,Live Flow Kid,present
-LIVE_FLOW,1,Live Flow Kid,present
-LIVE_FLOW,1,Live Flow Kid,present
-LIVE_FLOW,1,Live Flow Kid,present
-LIVE_FLOW,1,Live Flow Kid,present
-LIVE_FLOW,1,Live Flow Kid,present
-LIVE_FLOW,1,Live Flow Kid,present
-LIVE_FLOW,1,Live Flow Kid,present
-LIVE_FLOW,4,Live Flow Kid,tardy
-LIVE_FLOW,6,Live Flow Kid,absent
+MASTER,1,Jane Example,present
+MASTER,2,Jane Example,absent
+MASTER,1,John Example,present
+MASTER,2,John Example,present
+COMET,1,Alex Example,present
+COMET,2,Alex Example,present
+COMET,1,Taylor Example,absent
+COMET,2,Taylor Example,present
