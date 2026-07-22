@@ -90,6 +90,9 @@ def test_health_returns_ok():
     response = client.get("/health")
     assert response.status_code == 200
     assert response.get_data(as_text=True) == "ok"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
 
 
 def test_health_db_csv_mode():
@@ -99,6 +102,43 @@ def test_health_db_csv_mode():
     payload = response.get_json()
     assert payload["configured"] is False
     assert payload["mode"] == "csv"
+
+
+def test_admin_manage_teachers_cannot_update_superadmin(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    out_dir = tmp_path / "output"
+    data_dir.mkdir()
+    out_dir.mkdir()
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", out_dir)
+
+    store = UserStore(db_store=None, json_path=data_dir / "users.json")
+    store.initialize()
+    store.ensure_bootstrap_superadmin("admin@test.local", "testpass")
+    store.create_admin("manager@test.local", "managerpass")
+    monkeypatch.setattr(web_app, "user_store", store)
+
+    client = web_app.app.test_client()
+    _login(client, "manager@test.local", "managerpass")
+    super_id = store.get_by_email("admin@test.local")["id"]
+
+    response = client.post(
+        "/admin/teachers",
+        data={
+            "action": "update",
+            "user_id": str(super_id),
+            "email": "owned@test.local",
+            "password": "",
+            "teacher_name": "",
+            "active": "1",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "Somente superadmins" in response.get_data(as_text=True)
+    assert store.get_by_email("admin@test.local") is not None
+    assert store.get_by_email("owned@test.local") is None
 
 
 def test_health_auth_omits_account_emails(monkeypatch, tmp_path):

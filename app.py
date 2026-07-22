@@ -83,10 +83,7 @@ from student_reviews import (MONTHLY_REVIEW_FIELDS, ROSTER_FIELDS,
                              migrate_roster_scores_to_month,
                              rows_from_store, save_monthly_reviews,
                              split_student_row, store_from_rows,
-                             migrate_roster_scores_to_month,
                              remove_reviews_for_student,
-                             rows_from_store, save_monthly_reviews,
-                             split_student_row, store_from_rows,
                              upsert_monthly_review)
 
 try:
@@ -270,7 +267,7 @@ def _database_status():
             'configured': True,
             'connected': False,
             'mode': 'postgresql',
-            'message': f'Database ping failed: {exc}',
+            'message': 'Database health check failed.',
         }
 
 
@@ -314,12 +311,24 @@ app.config.update(
 )
 
 csrf = CSRFProtect(app)
+RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
 limiter = Limiter(
     key_func=get_remote_address,
     app=app,
     default_limits=[],
-    storage_uri='memory://',
+    storage_uri=RATELIMIT_STORAGE_URI,
 )
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'DENY')
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.setdefault('Permissions-Policy', 'camera=(), geolocation=(), microphone=()')
+    if app.config.get('SESSION_COOKIE_SECURE'):
+        response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    return response
 
 
 @app.errorhandler(CSRFError)
@@ -3085,11 +3094,12 @@ def manage_teachers():
                     password=password or None,
                     teacher_name=request.form.get('teacher_name'),
                     active=request.form.get('active') == '1',
+                    actor_role=actor['role'],
                 )
                 messages.append('Usuário atualizado.')
             elif action == 'delete':
                 user_id = int(request.form.get('user_id', '0'))
-                user_store.delete_user(user_id, actor_id=actor['id'])
+                user_store.delete_user(user_id, actor_id=actor['id'], actor_role=actor['role'])
                 messages.append('Usuário removido.')
         except (ValueError, TypeError) as exc:
             errors.append(str(exc))
