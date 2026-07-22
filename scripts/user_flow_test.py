@@ -153,7 +153,7 @@ def run_inprocess():
         new_name = 'Flow Test Kid'
         r = client.post(
             '/students/new',
-            data=_student_form(new_name, 'FLOW_TEST'),
+            data=_student_form(new_name, 'MASTER'),
             follow_redirects=False,
         )
         loc = r.headers.get('Location', '')
