@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
-import subprocess
+import subprocess  # nosec B404 - local readiness harness runs fixed-argv pytest only.
 import sys
 import tempfile
 from pathlib import Path
@@ -88,7 +88,7 @@ def _pin_test_superadmin(admin_email: str, admin_password: str):
     """Keep in-process journeys off developer .env (app.py caches env at import)."""
     os.environ['SUPERADMIN_EMAIL'] = admin_email
     os.environ['SUPERADMIN_PASSWORD'] = admin_password
-    os.environ['SUPERADMIN_SYNC_PASSWORD'] = ''
+    os.environ['SUPERADMIN_SYNC_PASSWORD'] = ''  # nosec B105 - clears test-only recovery flag.
     web_app.SUPERADMIN_EMAIL = admin_email
     web_app.SUPERADMIN_PASSWORD = admin_password
     web_app.SUPERADMIN_SYNC_PASSWORD = False
@@ -100,7 +100,11 @@ def _disable_test_security():
     web_app.limiter.reset()
 
 
-def _setup_env(tmp: Path, admin_email: str = 'admin@test.local', admin_password: str = 'testpass'):
+def _setup_env(  # nosec B107 - deterministic local test credentials only.
+    tmp: Path,
+    admin_email: str = 'admin@test.local',
+    admin_password: str = 'testpass',
+):
     """Isolated CSV mode with fixed test accounts (ignores developer .env email)."""
     _pin_test_superadmin(admin_email, admin_password)
 
@@ -139,7 +143,7 @@ def _setup_env(tmp: Path, admin_email: str = 'admin@test.local', admin_password:
 
 def run_pytest() -> int:
     print('\n=== Unit & integration tests (pytest) ===')
-    proc = subprocess.run(
+    proc = subprocess.run(  # nosec B603 - fixed argv, no shell, local pytest executable.
         [str(ROOT / '.venv/bin/python'), '-m', 'pytest', '-q', '--tb=line'],
         cwd=ROOT,
         capture_output=True,
@@ -157,7 +161,7 @@ def run_pytest() -> int:
 
 def journey_admin(client, runner: Runner, out_dir: Path | None = None):
     print('\n=== Admin user journey ===')
-    r = client.post('/login', data={'email': 'admin@test.local', 'password': 'testpass'})
+    r = client.post('/login', data={'email': 'admin@test.local', 'password': 'testpass'})  # nosec B105
     runner.ok('Admin login', r.status_code == 302)
 
     pages = {
@@ -207,7 +211,7 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
 def journey_teacher(client, runner: Runner):
     print('\n=== Teacher user journey & visibility ===')
     client.post('/logout')
-    r = client.post('/login', data={'email': 'teacher@test.local', 'password': 'teachpass'})
+    r = client.post('/login', data={'email': 'teacher@test.local', 'password': 'teachpass'})  # nosec B105
     runner.ok('Teacher login', r.status_code == 302)
 
     students_html = client.get('/students').get_data(as_text=True)
