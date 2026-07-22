@@ -5,6 +5,11 @@ __pycache__
 .git
 .env
 .tmp-mobile-debug
+data/*.csv
 data/imported
+data/teacher_classes.json
 data/teachers
+data/users.json
+data/student_monthly_reviews.json
+data/student_snapshots.json
 *.DS_Store
