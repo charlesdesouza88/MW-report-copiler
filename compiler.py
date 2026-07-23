@@ -334,7 +334,10 @@ def class_summary_charts(student_data):
         for k in keys
     ]
     bars = comparison_bar_chart(
-        [dict(label=l, current=max(1, min(5, round_half_up(a))), prior=None) for l, a in zip(labels, avgs)],
+        [
+            dict(label=label, current=max(1, min(5, round_half_up(avg))), prior=None)
+            for label, avg in zip(labels, avgs)
+        ],
         bar_max_w=200,
         bar_h=12,
         row_gap=4,
@@ -355,7 +358,10 @@ def class_summary_charts(student_data):
         sl['x'] = x
         x += sl['w']
     column_chart = column_bar_chart(
-        [dict(label=l, score=max(1, min(5, round_half_up(a)))) for l, a in zip(labels, avgs)],
+        [
+            dict(label=label, score=max(1, min(5, round_half_up(avg))))
+            for label, avg in zip(labels, avgs)
+        ],
         title='Médias da turma',
         bar_w=32,
         gap=14,
@@ -366,8 +372,8 @@ def class_summary_charts(student_data):
         bars=bars,
         column_chart=column_chart,
         dimension_rings=score_ring_row([
-            dict(label=l, score=max(1, min(5, round_half_up(a))))
-            for l, a in zip(labels, avgs)
+            dict(label=label, score=max(1, min(5, round_half_up(avg))))
+            for label, avg in zip(labels, avgs)
         ], ring_size=52, stroke=6, gap=10),
         attendance_bar=dict(width=bar_w, height=14, slices=slices),
         composite_avg=round(
@@ -916,7 +922,11 @@ def generate_class_diagnostics(students, lessons, env, out_dir, report_month=Non
 
 def turmas_without_lessons(students, lessons):
     """Turma codes present in students but with no lesson rows (→ bogus 100% presence)."""
-    lesson_turmas = {_turma_key(l.get('turma')) for l in lessons if (l.get('aula_num') or '').strip()}
+    lesson_turmas = {
+        _turma_key(lesson.get('turma'))
+        for lesson in lessons
+        if (lesson.get('aula_num') or '').strip()
+    }
     return sorted(
         turma for turma in group_by_turma(students)
         if _turma_key(turma) not in lesson_turmas
