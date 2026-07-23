@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from extra_sessions import (
-    AUTO_AULA_EXTRA_MARKER,
     ATENDIMENTOS_CSV_HEADERS,
     build_atendimentos_template_csv,
     clear_aula_extra_after_completed_session,

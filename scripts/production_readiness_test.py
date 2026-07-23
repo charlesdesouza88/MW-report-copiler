@@ -12,7 +12,8 @@ from __future__ import annotations
 import argparse
 import os
 import re
-import subprocess
+# The readiness harness runs a fixed local pytest command without shell=True.
+import subprocess  # nosec B404
 import sys
 import tempfile
 from pathlib import Path
@@ -23,6 +24,10 @@ sys.path.insert(0, str(ROOT))
 import app as web_app  # noqa: E402
 from auth import UserStore  # noqa: E402
 from teacher_classes import save_registry  # noqa: E402
+
+# Fixed local credentials for isolated in-process journeys.
+TEST_ADMIN_PASSWORD = 'testpass'  # nosec B105
+TEST_TEACHER_PASSWORD = 'teachpass'  # nosec B105
 
 STUDENTS_CSV = (
     'teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,'
@@ -88,7 +93,7 @@ def _pin_test_superadmin(admin_email: str, admin_password: str):
     """Keep in-process journeys off developer .env (app.py caches env at import)."""
     os.environ['SUPERADMIN_EMAIL'] = admin_email
     os.environ['SUPERADMIN_PASSWORD'] = admin_password
-    os.environ['SUPERADMIN_SYNC_PASSWORD'] = ''
+    os.environ.pop('SUPERADMIN_SYNC_PASSWORD', None)
     web_app.SUPERADMIN_EMAIL = admin_email
     web_app.SUPERADMIN_PASSWORD = admin_password
     web_app.SUPERADMIN_SYNC_PASSWORD = False
@@ -100,7 +105,7 @@ def _disable_test_security():
     web_app.limiter.reset()
 
 
-def _setup_env(tmp: Path, admin_email: str = 'admin@test.local', admin_password: str = 'testpass'):
+def _setup_env(tmp: Path, admin_email: str = 'admin@test.local', admin_password: str = TEST_ADMIN_PASSWORD):
     """Isolated CSV mode with fixed test accounts (ignores developer .env email)."""
     _pin_test_superadmin(admin_email, admin_password)
 
@@ -114,7 +119,7 @@ def _setup_env(tmp: Path, admin_email: str = 'admin@test.local', admin_password:
     store = UserStore(db_store=None, json_path=data_dir / 'users.json')
     store.initialize()
     store.ensure_bootstrap_superadmin(admin_email, admin_password)
-    store.create_teacher('teacher@test.local', 'teachpass', 'Chuck')
+    store.create_teacher('teacher@test.local', TEST_TEACHER_PASSWORD, 'Chuck')
 
     web_app.DATA_DIR = data_dir
     web_app.OUT_DIR = out_dir
@@ -144,7 +149,7 @@ def run_pytest() -> int:
         cwd=ROOT,
         capture_output=True,
         text=True,
-    )
+    )  # nosec B603
     print(proc.stdout)
     if proc.stderr:
         print(proc.stderr, file=sys.stderr)
@@ -157,7 +162,7 @@ def run_pytest() -> int:
 
 def journey_admin(client, runner: Runner, out_dir: Path | None = None):
     print('\n=== Admin user journey ===')
-    r = client.post('/login', data={'email': 'admin@test.local', 'password': 'testpass'})
+    r = client.post('/login', data={'email': 'admin@test.local', 'password': TEST_ADMIN_PASSWORD})
     runner.ok('Admin login', r.status_code == 302)
 
     pages = {
@@ -207,7 +212,7 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
 def journey_teacher(client, runner: Runner):
     print('\n=== Teacher user journey & visibility ===')
     client.post('/logout')
-    r = client.post('/login', data={'email': 'teacher@test.local', 'password': 'teachpass'})
+    r = client.post('/login', data={'email': 'teacher@test.local', 'password': TEST_TEACHER_PASSWORD})
     runner.ok('Teacher login', r.status_code == 302)
 
     students_html = client.get('/students').get_data(as_text=True)

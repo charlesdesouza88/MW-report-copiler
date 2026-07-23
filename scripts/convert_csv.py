@@ -17,7 +17,6 @@ from csv_import import (  # noqa: E402
     parse_lesson_plan_csv,
     parse_lessons_csv,
     parse_students_csv,
-    parse_upload_csv,
     write_extra_sessions_csv,
     write_lessons_csv,
     write_students_csv,

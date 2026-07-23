@@ -43,7 +43,7 @@ from extra_sessions import (AUTO_AULA_EXTRA_MARKER, EXTRA_SESSION_FIELD_LABELS,
                             row_from_form, sync_student_extra_sessions)
 from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
                                ATTENDANCE_LABELS, attendance_map_for_lesson,
-                               normalize_attendance_status, parse_attendance_form,
+                               parse_attendance_form,
                                reconcile_presence_after_lesson_removed,
                                recompute_faltas_from_attendance,
                                remove_attendance_for_lesson,
@@ -53,7 +53,7 @@ from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
                                students_with_attendance_in_month)
 from form_ui import (HABILIDADES_CHOICES, LICAO_CONTEUDO_CHOICES,
                      LICAO_ESPECIAL_CHOICES, NIVEL_CHOICES, WEEKDAY_CHOICES,
-                     date_from_form, format_class_schedule, format_date_for_input,
+                     date_from_form, format_date_for_input,
                      is_valid_nivel, licao_choice_for_value, next_aula_num,
                      normalize_habilidades, parse_time_range_from_horario,
                      storage_date_to_iso,
@@ -77,12 +77,8 @@ from report_periods import (available_report_months, compute_month_trend,
                             month_label, parse_lesson_month,
                             report_month_from_filename,
                             student_composite_score, upsert_month_snapshots)
-from student_reviews import (MONTHLY_REVIEW_FIELDS, ROSTER_FIELDS,
-                             apply_upload_row, extract_roster_fields,
-                             load_monthly_reviews, merge_roster_for_month,
-                             migrate_roster_scores_to_month,
-                             rows_from_store, save_monthly_reviews,
-                             split_student_row, store_from_rows,
+from student_reviews import (ROSTER_FIELDS,
+                             apply_upload_row, load_monthly_reviews, merge_roster_for_month,
                              migrate_roster_scores_to_month,
                              remove_reviews_for_student,
                              rows_from_store, save_monthly_reviews,
@@ -276,14 +272,15 @@ def _database_status():
 
 default_data_dir = str(BASE / 'data')
 default_out_dir = str(BASE / 'output')
+ephemeral_fallback_root = Path(tempfile.gettempdir()) / 'mw'
 
 TMPL_DIR = BASE / 'templates'
 DATA_DIR = _ensure_writable_dir(
-    os.environ.get('DATA_DIR', default_data_dir), '/tmp/mw/data')
+    os.environ.get('DATA_DIR', default_data_dir), ephemeral_fallback_root / 'data')
 OUT_DIR = _ensure_writable_dir(
-    os.environ.get('OUT_DIR', default_out_dir), '/tmp/mw/output')
+    os.environ.get('OUT_DIR', default_out_dir), ephemeral_fallback_root / 'output')
 
-if str(DATA_DIR).startswith('/tmp'):
+if DATA_DIR.resolve().is_relative_to(Path(tempfile.gettempdir()).resolve()):
     logger.warning(
         'DATA_DIR is %s — this path is ephemeral and data will be lost on container restart. '
         'Set DATA_DIR to a Railway volume mount or use DATABASE_URL for persistent storage.',
@@ -305,6 +302,11 @@ if PRODUCTION_ENV and not SECRET_KEY:
     logger.critical('SECRET_KEY is not set — set it in Railway service variables.')
     raise RuntimeError('SECRET_KEY must be set in production.')
 app.secret_key = SECRET_KEY or 'mw-dev-change-in-prod'
+RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://').strip() or 'memory://'
+if PRODUCTION_ENV and RATELIMIT_STORAGE_URI == 'memory://':
+    logger.warning(
+        'RATELIMIT_STORAGE_URI is memory://; configure shared storage for multi-worker production rate limits.',
+    )
 app.config.update(
     MAX_CONTENT_LENGTH=int(os.environ.get('MAX_UPLOAD_MB', '5')) * 1024 * 1024,
     SESSION_COOKIE_HTTPONLY=True,
@@ -318,7 +320,7 @@ limiter = Limiter(
     key_func=get_remote_address,
     app=app,
     default_limits=[],
-    storage_uri='memory://',
+    storage_uri=RATELIMIT_STORAGE_URI,
 )
 
 
@@ -3300,7 +3302,7 @@ def download_all():
                      as_attachment=True, download_name='mister_wiz_reports.zip')
 
 
-def _pick_port(preferred):
+def _pick_port(preferred, host):
     """Use preferred port, or the next free one (macOS AirPlay often blocks 5000)."""
     import socket
 
@@ -3308,7 +3310,7 @@ def _pick_port(preferred):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
-                sock.bind(('0.0.0.0', candidate))
+                sock.bind((host, candidate))
             except OSError:
                 continue
             return candidate
@@ -3318,9 +3320,10 @@ def _pick_port(preferred):
 if __name__ == '__main__':
     debug = os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes')
     preferred = int(os.environ.get('PORT', '5000'))
-    port = _pick_port(preferred)
+    host = os.environ.get('HOST', '127.0.0.1').strip() or '127.0.0.1'
+    port = _pick_port(preferred, host)
     if port != preferred:
-        logger.warning('Port %s is in use; starting on http://127.0.0.1:%s', preferred, port)
+        logger.warning('Port %s is in use; starting on http://%s:%s', preferred, host, port)
     else:
-        logger.info('Starting on http://127.0.0.1:%s', port)
-    app.run(debug=debug, host='0.0.0.0', port=port)
+        logger.info('Starting on http://%s:%s', host, port)
+    app.run(debug=debug, host=host, port=port)

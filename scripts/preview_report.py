@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate sample report HTML and open in the default browser (local design preview)."""
 
-import subprocess
 import sys
+import webbrowser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -65,10 +65,7 @@ def main():
 
     to_open = individual.resolve().as_uri()
     print(f'  {to_open}')
-    if sys.platform == 'darwin':
-        subprocess.run(['open', str(individual)], check=False)
-    elif sys.platform.startswith('linux'):
-        subprocess.run(['xdg-open', str(individual)], check=False)
+    webbrowser.open(to_open)
 
 
 if __name__ == '__main__':

@@ -61,7 +61,6 @@ def test_database_store_rejects_stale_save(tmp_path):
 
 
 def test_database_store_skips_corrupt_json_row(tmp_path, caplog):
-    import json as json_mod
 
     from db_store import StudentRow
 
