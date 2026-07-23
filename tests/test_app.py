@@ -463,7 +463,8 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     assert "MASTER" in html
-    assert "L9" not in html
+    assert 'data-turma="OTHER"' not in html
+    assert ">L9<" not in html
 
     new_form = client.get("/lessons/new")
     new_html = new_form.get_data(as_text=True)
