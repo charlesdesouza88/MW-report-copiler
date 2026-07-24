@@ -10,6 +10,13 @@
 
 {% block content %}
 
+{% if student_flash_ok %}
+<div class="alert alert-success" style="margin-bottom:14px;">✓ &nbsp;{{ student_flash_ok }}</div>
+{% endif %}
+{% if student_flash_error %}
+<div class="alert" style="background:#FADBD8; color:#A93226; border:1px solid #F1948A; margin-bottom:14px;">✕ &nbsp;{{ student_flash_error }}</div>
+{% endif %}
+
 {% if students %}
 {% call page_toolbar('Ações') %}
   {% if current_user and current_user.role == 'teacher' %}
@@ -45,7 +52,7 @@
     </div>
     <div class="student-card-scores">
       <div class="student-card-score"><span class="font-sm text-gray">Fala</span><strong>{{ s.speaking or '—' }}</strong></div>
-      <div class="student-card-score"><span class="font-sm text-gray">Audio</span><strong>{{ s.listening or '—' }}</strong></div>
+      <div class="student-card-score"><span class="font-sm text-gray">Áudio</span><strong>{{ s.listening or '—' }}</strong></div>
       <div class="student-card-score"><span class="font-sm text-gray">Escrita</span><strong>{{ s.writing or '—' }}</strong></div>
       <div class="student-card-score"><span class="font-sm text-gray">Leitura</span><strong>{{ s.reading or '—' }}</strong></div>
       <div class="student-card-score"><span class="font-sm text-gray">Gram.</span><strong>{{ s.gramatica or '—' }}</strong></div>
@@ -75,7 +82,7 @@
         <th>Turma</th>
         <th>Livro / nível</th>
         <th>Fala</th>
-        <th>Audio</th>
+        <th>Áudio</th>
         <th>Escrita</th>
         <th>Leitura</th>
         <th>Gramática</th>
@@ -130,7 +137,7 @@
   {% if can_manage_teachers %}
   <a href="{{ url_for('upload') }}" class="btn btn-primary">↑ Fazer upload de CSV</a>
   {% else %}
-  <a href="{{ url_for('lesson_new') }}" class="btn btn-primary">+ Cadastrar aula</a>
+  <a href="{{ url_with_month('student_new') }}" class="btn btn-primary">+ Novo aluno</a>
   {% endif %}
 </div>
 {% endif %}

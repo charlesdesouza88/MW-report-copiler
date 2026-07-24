@@ -138,15 +138,15 @@
           {% if c.horario %}<span class="font-sm text-gray" style="margin-left:8px;">{{ c.horario }}</span>{% elif c.needs_schedule %}<span class="font-sm text-gray" style="margin-left:8px;">— complete dias/horário</span>{% endif %}
         </div>
         <div class="list-row-actions">
-          <a href="{{ url_for('student_new') }}?turma={{ c.turma }}" class="btn btn-ghost btn-xs">+ Aluno</a>
-          <a href="{{ url_for('students') }}?turma={{ c.turma }}" class="btn btn-ghost btn-xs">Alunos</a>
-          <a href="{{ url_for('lessons') }}?turma={{ c.turma }}" class="btn btn-ghost btn-xs">Aulas</a>
+          <a href="{{ url_with_month('student_new', turma=c.turma) }}" class="btn btn-ghost btn-xs">+ Aluno</a>
+          <a href="{{ url_with_month('students', turma=c.turma) }}" class="btn btn-ghost btn-xs">Alunos</a>
+          <a href="{{ url_with_month('lessons', turma=c.turma) }}" class="btn btn-ghost btn-xs">Aulas</a>
           <a href="{{ url_for('turma_edit', turma=c.turma) }}" class="btn btn-ghost btn-xs">Editar</a>
           <form method="post" action="{{ url_for('turma_delete') }}"
                 onsubmit="return confirm({{ ('Excluir a turma «' ~ c.turma_display ~ '»? Só é possível se não houver alunos vinculados.')|tojson }})">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="turma" value="{{ c.turma }}">
-            <button type="submit" class="btn btn-ghost btn-xs" style="color:#A93226;">Excluir</button>
+            <button type="submit" class="btn btn-danger btn-xs">Excluir</button>
           </form>
         </div>
       </div>
@@ -215,8 +215,8 @@
           {% if c.horario %}<span class="font-sm text-gray" style="margin-left:8px;">{{ c.horario }}</span>{% endif %}
         </div>
         <div class="list-row-actions">
-          <a href="{{ url_for('students') }}?turma={{ c.turma }}" class="btn btn-ghost btn-xs">Alunos</a>
-          <a href="{{ url_for('lessons') }}?turma={{ c.turma }}" class="btn btn-ghost btn-xs">Aulas</a>
+          <a href="{{ url_with_month('students', turma=c.turma) }}" class="btn btn-ghost btn-xs">Alunos</a>
+          <a href="{{ url_with_month('lessons', turma=c.turma) }}" class="btn btn-ghost btn-xs">Aulas</a>
           {% if c.teacher %}
           <a href="{{ url_for('turma_edit', turma=c.turma, teacher=c.teacher) }}" class="btn btn-ghost btn-xs">Editar</a>
           <form method="post" action="{{ url_for('turma_delete') }}"
@@ -224,7 +224,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="turma" value="{{ c.turma }}">
             <input type="hidden" name="teacher" value="{{ c.teacher }}">
-            <button type="submit" class="btn btn-ghost btn-xs" style="color:#A93226;">Excluir</button>
+            <button type="submit" class="btn btn-danger btn-xs">Excluir</button>
           </form>
           {% endif %}
         </div>
@@ -243,8 +243,8 @@
           <span style="font-weight:900; font-size:13px;">{{ t }}</span>
         </div>
         <div class="list-row-actions">
-          <a href="{{ url_for('students') }}?turma={{ t }}" class="btn btn-ghost btn-xs">Alunos</a>
-          <a href="{{ url_for('lessons') }}?turma={{ t }}" class="btn btn-ghost btn-xs">Aulas</a>
+          <a href="{{ url_with_month('students', turma=t) }}" class="btn btn-ghost btn-xs">Alunos</a>
+          <a href="{{ url_with_month('lessons', turma=t) }}" class="btn btn-ghost btn-xs">Aulas</a>
         </div>
       </div>
       {% endfor %}

@@ -75,8 +75,11 @@ from report_periods import (available_report_months, compute_month_trend,
                             filter_report_files_by_month,
                             individual_report_filename, load_snapshots,
                             month_label, parse_lesson_month,
-                            report_month_from_filename,
+                            report_month_from_filename, save_snapshots,
                             student_composite_score, upsert_month_snapshots)
+from student_transfer import (load_transfer_log, save_transfer_log,
+                              students_with_transfer_aliases,
+                              transfer_students, transfers_for_student)
 from student_reviews import (MONTHLY_REVIEW_FIELDS, ROSTER_FIELDS,
                              apply_upload_row, extract_roster_fields,
                              load_monthly_reviews, merge_roster_for_month,
@@ -712,19 +715,35 @@ def _validate_teacher_lesson_rows(rows, user, students):
 
 
 def _merge_teacher_students(new_rows, user):
+    """Replace only the turmas present in the upload — never the teacher's other turmas."""
     teacher_key = normalize_teacher_name(user.get('teacher_name', '')).casefold()
+    upload_turmas = {
+        row.get('turma', '').strip().casefold()
+        for row in new_rows
+        if row.get('turma', '').strip()
+    }
     kept = [
         row for row in _load_roster_students()
         if normalize_teacher_name(row.get('teacher', '')).casefold() != teacher_key
+        or row.get('turma', '').strip().casefold() not in upload_turmas
     ]
     return kept + new_rows
 
 
 def _merge_teacher_lessons(new_rows, user, students):
-    turmas = teacher_turmas(students, user.get('teacher_name', ''))
+    """Replace only the teacher's turmas that appear in the upload."""
+    turma_keys = {
+        t.casefold() for t in teacher_turmas(students, user.get('teacher_name', ''))
+    }
+    upload_turmas = {
+        row.get('turma', '').strip().casefold()
+        for row in new_rows
+        if row.get('turma', '').strip()
+    }
+    replaced = turma_keys & upload_turmas
     kept = [
         row for row in _load_lessons()
-        if row.get('turma', '').strip() not in turmas
+        if row.get('turma', '').strip().casefold() not in replaced
     ]
     return kept + new_rows
 
@@ -995,6 +1014,55 @@ def _resolve_teacher_class_choice(row):
     return row
 
 
+def _duplicate_student_error(all_students, turma, name):
+    """Error message when saving would create two same-named students in a turma.
+
+    Duplicate names share review/report keys, so the second student would
+    silently overwrite the first one's history.
+    """
+    key = (turma.strip().casefold(), name.strip().casefold())
+    matches = sum(
+        1 for row in all_students
+        if ((row.get('turma') or '').strip().casefold(),
+            (row.get('student_name') or '').strip().casefold()) == key
+    )
+    is_new_student = request.endpoint == 'student_new'
+    orig_name = (request.form.get('orig_student_name') or '').strip()
+    orig_turma = (request.form.get('orig_turma') or '').strip()
+    if is_new_student:
+        duplicate = matches >= 1
+    elif orig_name:
+        same_identity = (orig_turma.casefold(), orig_name.casefold()) == key
+        duplicate = matches > 1 if same_identity else matches >= 1
+    else:
+        # Legacy form without original identity: assume the row itself matches.
+        duplicate = matches > 1
+    if duplicate:
+        return (
+            f'Já existe um aluno chamado "{name}" na turma {turma}. '
+            'Use um sobrenome ou inicial para diferenciar.'
+        )
+    return None
+
+
+def _student_identity_conflict(visible_row, form):
+    """True when the row at this index is no longer the student the form was opened for."""
+    orig_name = (form.get('orig_student_name') or '').strip()
+    if not orig_name:
+        return False
+    orig_turma = (form.get('orig_turma') or '').strip()
+    return (
+        orig_name.casefold() != (visible_row.get('student_name') or '').strip().casefold()
+        or orig_turma.casefold() != (visible_row.get('turma') or '').strip().casefold()
+    )
+
+
+STUDENT_LIST_CHANGED_MESSAGE = (
+    'A lista de alunos mudou desde que você abriu esta página. '
+    'Recarregue a página e tente novamente.'
+)
+
+
 def _validate_student_row(row, all_students, user, *, autosave=False):
     """Return a user-facing error message, or None when the row can be saved."""
     name = (row.get('student_name') or '').strip()
@@ -1007,7 +1075,7 @@ def _validate_student_row(row, all_students, user, *, autosave=False):
             return 'Informe o nome do aluno e a turma.'
         if not _teacher_may_use_student_turma(turma, all_students, user, nivel=nivel):
             return 'Turma não permitida.'
-        return None
+        return _duplicate_student_error(all_students, turma, name)
 
     if (
         user['role'] == ROLE_TEACHER
@@ -1044,7 +1112,7 @@ def _validate_student_row(row, all_students, user, *, autosave=False):
                 f'({", ".join(registered)}).'
             )
         return 'Crie uma turma no Dashboard antes de cadastrar alunos.'
-    return None
+    return _duplicate_student_error(all_students, turma, name)
 
 
 def _student_form_context(all_rows, user, is_new, student, idx, form_error=None):
@@ -1088,6 +1156,13 @@ def _student_form_context(all_rows, user, is_new, student, idx, form_error=None)
         ),
     )
 
+    transfer_history = []
+    if not is_new and student and (student.get('student_name') or '').strip():
+        entries = load_transfer_log(_student_transfers_path())
+        transfer_history = transfers_for_student(
+            entries, student.get('student_name'), student.get('turma'),
+        )
+
     return dict(
         student=student,
         idx=idx,
@@ -1099,6 +1174,7 @@ def _student_form_context(all_rows, user, is_new, student, idx, form_error=None)
         class_choice=class_choice,
         no_teacher_classes=no_teacher_classes,
         allow_teacher_class_pick=allow_class_pick,
+        transfer_history=transfer_history,
     )
 
 
@@ -1227,7 +1303,11 @@ def _redirect_with_list_params(endpoint):
     return redirect(url_for(endpoint, **kwargs))
 
 
-def _redirect_students():
+def _redirect_students(flash_ok=None, flash_error=None):
+    if flash_ok:
+        session['student_flash_ok'] = flash_ok
+    if flash_error:
+        session['student_flash_error'] = flash_error
     return _redirect_with_list_params('students')
 
 
@@ -1308,6 +1388,11 @@ def _roster_row_for_storage(profile):
 def _monthly_reviews_path():
     """Resolve monthly reviews file from DATA_DIR (supports test monkeypatching)."""
     return DATA_DIR / 'student_monthly_reviews.json'
+
+
+def _student_transfers_path():
+    """Resolve the student transfer log from DATA_DIR (supports test monkeypatching)."""
+    return DATA_DIR / 'student_transfers.json'
 
 
 def _load_monthly_review_store():
@@ -1771,7 +1856,11 @@ def dashboard():
     user = _current_user()
     all_students, students = _scoped_students()
     _, lessons = _scoped_lessons(all_students)
-    reports = filter_reports_for_user(sorted(OUT_DIR.glob('*.html')), all_students, user)
+    reports = filter_reports_for_user(
+        sorted(OUT_DIR.glob('*.html')),
+        _students_with_report_aliases(all_students),
+        user,
+    )
     turmas = group_by_turma(students) if students else {}
     individual = [f for f in reports if 'class_diagnostic' not in f.name]
     if db_store:
@@ -2220,6 +2309,8 @@ def students():
         students=rows,
         turma_filters=turma_filters,
         turma_labels=turma_labels,
+        student_flash_ok=session.pop('student_flash_ok', None),
+        student_flash_error=session.pop('student_flash_error', None),
     )
 
 
@@ -2244,6 +2335,14 @@ def student_edit(idx):
                     all_rows, user, False, updated, idx, form_error=form_error,
                 ),
             )
+        if _student_identity_conflict(visible[idx], request.form):
+            return render_template(
+                'student_edit.html',
+                **_student_form_context(
+                    all_rows, user, False, updated, idx,
+                    form_error=STUDENT_LIST_CHANGED_MESSAGE,
+                ),
+            )
         global_idx = find_student_global_index(all_rows, visible, idx)
         if global_idx is None:
             abort(404)
@@ -2257,7 +2356,7 @@ def student_edit(idx):
                 ),
             )
         _sync_student_aula_extra_sessions(updated)
-        return _redirect_students()
+        return _redirect_students(flash_ok=f'Aluno "{updated.get("student_name", "")}" salvo.')
     return render_template(
         'student_edit.html',
         **_student_form_context(all_rows, user, False, visible[idx], idx),
@@ -2280,6 +2379,12 @@ def student_autosave(idx):
     form_error = _validate_student_row(updated, all_rows, user, autosave=True)
     if form_error:
         return jsonify({'ok': False, 'error': form_error}), 400
+    if _student_identity_conflict(visible[idx], request.form):
+        return jsonify({
+            'ok': False,
+            'conflict': True,
+            'error': STUDENT_LIST_CHANGED_MESSAGE,
+        }), 409
     global_idx = find_student_global_index(all_rows, visible, idx)
     if global_idx is None:
         return jsonify({'ok': False, 'error': 'Aluno não encontrado.'}), 404
@@ -2320,7 +2425,7 @@ def student_new():
         review_month = _get_review_month()
         _persist_student_create(all_rows, new_row, review_month)
         _sync_student_aula_extra_sessions(new_row)
-        return _redirect_students()
+        return _redirect_students(flash_ok=f'Aluno "{new_row.get("student_name", "")}" cadastrado.')
     defaults = dict(visible[0]) if visible else dict(all_rows[0]) if all_rows else {}
     defaults['student_name'] = ''
     defaults['turma'] = ''
@@ -2357,8 +2462,25 @@ def student_delete(idx):
                     removed.get('student_name'),
                 )
                 _save_monthly_review_store(review_store)
+                # Snapshots live in a separate store — purge them too so a
+                # recreated student with the same name doesn't inherit trends.
+                from report_periods import student_snapshot_id as _sid
+                snaps = load_snapshots(SNAPSHOTS_PATH)
+                old_prefix = (
+                    f'{(removed.get("turma") or "").strip()}|'
+                    f'{_sid(removed.get("turma"), removed.get("student_name"))}|'
+                )
+                cleaned = {
+                    key: row for key, row in snaps.items()
+                    if not key.startswith(old_prefix)
+                }
+                if len(cleaned) != len(snaps):
+                    save_snapshots(SNAPSHOTS_PATH, list(cleaned.values()))
                 extras = remove_sessions_for_student(_load_extra_sessions(), removed)
                 _save_extra_sessions(extras)
+                return _redirect_students(
+                    flash_ok=f'Aluno "{removed.get("student_name", "")}" excluído.',
+                )
     return _redirect_students()
 
 
@@ -2378,6 +2500,7 @@ def lessons():
         turma_filters=turma_filters,
         habilidades=habilidades,
         lesson_field_labels=LESSON_FIELD_LABELS,
+        turma_labels=_turma_display_map(all_students, user),
     )
 
 
@@ -2910,6 +3033,17 @@ def _turma_from_diagnostic_filename(filename):
     return ''
 
 
+def _students_with_report_aliases(students):
+    """Students plus past identities from the transfer log, for report matching.
+
+    Keeps historical HTML reports (named with the old turma) visible and
+    correctly attributed after a student is promoted to another turma.
+    """
+    return students_with_transfer_aliases(
+        students, load_transfer_log(_student_transfers_path()),
+    )
+
+
 def _build_report_rows(individual, diagnostics, students, lessons, snapshots):
     """Unified report list entries for the Relatórios page (newest month first)."""
     rows = []
@@ -2979,6 +3113,8 @@ def _trend_for_report_file(path, month, students, lessons, snapshots):
     else:
         student = None
         for row in students:
+            if row.get('_transfer_alias'):
+                continue
             if row.get('turma', '').strip() == turma and row.get('student_name', '').strip() == name:
                 student = row
                 break
@@ -3206,6 +3342,142 @@ def turma_transfer():
     )
 
 
+def _student_transfer_options(students, registry):
+    """Origin turmas (from roster) and destination turmas (registry + roster)."""
+    from_by_code = {}
+    for row in students:
+        code = (row.get('turma') or '').strip()
+        if not code:
+            continue
+        opt = from_by_code.setdefault(code, {
+            'turma': code,
+            'turma_display': (row.get('turma_display') or '').strip() or code,
+            'teacher': normalize_teacher_name(row.get('teacher', '')),
+            'count': 0,
+        })
+        opt['count'] += 1
+    from_options = sorted(
+        from_by_code.values(), key=lambda o: o['turma_display'].casefold(),
+    )
+
+    dest_options = []
+    seen = set()
+    for teacher in sorted(registry.keys(), key=str.casefold):
+        for row in list_for_teacher(registry, teacher):
+            teacher_name = normalize_teacher_name(teacher)
+            pair = (teacher_name.casefold(), row['turma'])
+            if pair in seen:
+                continue
+            seen.add(pair)
+            dest_options.append({
+                'key': f'{teacher_name}||{row["turma"]}',
+                'teacher': teacher_name,
+                'turma': row['turma'],
+                'turma_display': row['turma_display'],
+                'horario': row.get('horario', ''),
+            })
+    for opt in from_options:
+        pair = (opt['teacher'].casefold(), opt['turma'])
+        if not opt['teacher'] or pair in seen:
+            continue
+        seen.add(pair)
+        dest_options.append({
+            'key': f'{opt["teacher"]}||{opt["turma"]}',
+            'teacher': opt['teacher'],
+            'turma': opt['turma'],
+            'turma_display': opt['turma_display'],
+            'horario': '',
+        })
+    dest_options.sort(key=lambda o: (o['turma_display'].casefold(), o['teacher'].casefold()))
+    return from_options, dest_options
+
+
+@app.route('/admin/alunos/transfer', methods=['GET', 'POST'])
+@role_required(ROLE_SUPERADMIN, ROLE_ADMIN)
+def student_transfer_page():
+    students = _load_students()
+    registry = _load_teacher_class_registry()
+    log_entries = load_transfer_log(_student_transfers_path())
+    messages = []
+    errors = []
+
+    from_turma = (request.values.get('from_turma') or '').strip()
+    dest_key = (request.values.get('dest') or '').strip()
+
+    if request.method == 'POST' and (request.form.get('action') or '').strip() == 'transfer':
+        selected = [n.strip() for n in request.form.getlist('students') if n.strip()]
+        dest_teacher, _, dest_code = dest_key.partition('||')
+        dest_teacher = normalize_teacher_name(dest_teacher)
+        dest_code = dest_code.strip()
+        dest_class = find_class(registry, dest_teacher, dest_code) or {}
+        dest_info = {
+            'turma': dest_code,
+            'teacher': dest_teacher,
+            'turma_display': (dest_class.get('turma_display') or '').strip(),
+            'horario': (dest_class.get('horario') or '').strip(),
+        }
+        if not dest_info['turma_display']:
+            sample = [
+                r for r in students
+                if (r.get('turma') or '').strip() == dest_code
+            ]
+            dest_info['turma_display'] = (
+                class_display_from_student_rows(sample, dest_code) if sample else dest_code
+            )
+
+        monthly_store = _load_monthly_review_store()
+        snapshot_store = load_snapshots(SNAPSHOTS_PATH)
+        extra_rows = _load_extra_sessions()
+        summary, err = transfer_students(
+            students, selected, from_turma, dest_info,
+            monthly_store, snapshot_store, extra_rows, log_entries,
+        )
+        if err:
+            errors.append(err)
+        elif not _save_students(students):
+            errors.append(SAVE_CONFLICT_MESSAGE)
+        else:
+            history_ok = _save_monthly_review_store(monthly_store)
+            save_snapshots(SNAPSHOTS_PATH, list(snapshot_store.values()))
+            extras_ok = _save_extra_sessions(extra_rows)
+            save_transfer_log(_student_transfers_path(), log_entries)
+            if not history_ok or not extras_ok:
+                errors.append(
+                    'Os alunos foram movidos, mas parte do histórico não pôde ser '
+                    'salva. Recarregue a página e confira os alunos transferidos.'
+                )
+            else:
+                messages.append(
+                    f'{summary["count"]} aluno(s) transferido(s) para '
+                    f'{summary["to_turma_display"]} ({summary["to_teacher"]}). '
+                    'O histórico de relatórios e evolução foi mantido.'
+                )
+            students = _load_students()
+            from_turma = ''
+            dest_key = ''
+
+    from_options, dest_options = _student_transfer_options(students, registry)
+    turma_students = []
+    if from_turma:
+        turma_students = sorted(
+            (row for row in students if (row.get('turma') or '').strip() == from_turma),
+            key=lambda r: (r.get('student_name') or '').casefold(),
+        )
+
+    recent_transfers = list(reversed(log_entries))[:30]
+    return render_template(
+        'student_transfer.html',
+        from_options=from_options,
+        dest_options=dest_options,
+        from_turma=from_turma,
+        dest_key=dest_key,
+        turma_students=turma_students,
+        recent_transfers=recent_transfers,
+        messages=messages,
+        errors=errors,
+    )
+
+
 @app.route('/reports')
 @login_required
 def reports():
@@ -3219,13 +3491,17 @@ def reports():
         elif selected_month not in available_months:
             selected_month = _get_review_month(lessons)
 
-        files = filter_reports_for_user(sorted(OUT_DIR.glob('*.html')), all_students, _current_user())
+        students_for_reports = _students_with_report_aliases(all_students)
+        files = filter_reports_for_user(
+            sorted(OUT_DIR.glob('*.html')), students_for_reports, _current_user())
         individual = [f for f in files if 'class_diagnostic' not in f.name]
         diagnostics = [f for f in files if 'class_diagnostic' in f.name]
 
         snapshots = load_snapshots(SNAPSHOTS_PATH)
         user = _current_user()
-        report_rows = _build_report_rows(individual, diagnostics, students, lessons, snapshots)
+        report_rows = _build_report_rows(
+            individual, diagnostics,
+            _students_with_report_aliases(students), lessons, snapshots)
         report_turma_filters = _report_turma_filters(report_rows, students, user)
         months_in_reports = sorted(
             {row['month'] for row in report_rows if row.get('month')},
@@ -3258,7 +3534,8 @@ def _allowed_report_path(filename):
     if not path.exists() or path.suffix != '.html':
         return None
     all_students, _ = _scoped_students()
-    allowed = filter_reports_for_user([path], all_students, _current_user())
+    allowed = filter_reports_for_user(
+        [path], _students_with_report_aliases(all_students), _current_user())
     return path if allowed else None
 
 
@@ -3289,7 +3566,11 @@ def download_all():
     available_months = available_report_months(lessons)
     if selected_month and selected_month not in available_months:
         selected_month = ''
-    files = filter_reports_for_user(sorted(OUT_DIR.glob('*.html')), all_students, _current_user())
+    files = filter_reports_for_user(
+        sorted(OUT_DIR.glob('*.html')),
+        _students_with_report_aliases(all_students),
+        _current_user(),
+    )
     files = filter_report_files_by_month(files, selected_month)
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:

@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block title %}Transferir alunos{% endblock %}
+{% block page_title %}Transferir alunos{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('dashboard') }}" class="btn btn-ghost btn-sm">← Início</a>
+{% endblock %}
+
+{% block content %}
+<p class="text-muted" style="font-size:13px;color:#666;margin-bottom:20px;">
+  Mova alunos de uma turma para outra (ex.: progressão de nível Teens 1 → Teens 2).
+  Todo o histórico de notas mensais, evolução e relatórios acompanha o aluno,
+  e cada movimentação fica registrada abaixo.
+</p>
+
+{% for msg in messages %}
+<div class="alert alert-success" style="background:#D5F5E3;border:1px solid #82E0AA;color:#1E8449;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;">{{ msg }}</div>
+{% endfor %}
+{% for err in errors %}
+<div class="alert alert-error" style="background:#FADBD8;border:1px solid #F1948A;color:#C0392B;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;">{{ err }}</div>
+{% endfor %}
+
+<div class="card" style="margin-bottom:20px;">
+  <h2 style="font-size:15px;font-weight:900;margin-bottom:14px;">1. Turma de origem</h2>
+  <form method="get" action="{{ url_for('student_transfer_page') }}" id="transfer-origin-form">
+    <div class="form-group" style="max-width:420px;">
+      <label for="from-turma-select" style="display:block;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:6px;">Turma atual dos alunos</label>
+      <select id="from-turma-select" name="from_turma" required style="width:100%;padding:10px 12px;border:1px solid #E2E2E2;border-radius:8px;">
+        <option value="">— Selecione —</option>
+        {% for opt in from_options %}
+        <option value="{{ opt.turma }}" {% if opt.turma == from_turma %}selected{% endif %}>
+          {{ opt.turma_display }}{% if opt.teacher %} — {{ opt.teacher }}{% endif %} ({{ opt.count }} aluno{% if opt.count != 1 %}s{% endif %})
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-outline" style="margin-top:12px;">Carregar alunos</button>
+  </form>
+</div>
+
+{% if from_turma and turma_students %}
+<div class="card" style="margin-bottom:20px;background:#F9F7FC;border-color:#D8C8EB;">
+  <h2 style="font-size:15px;font-weight:900;margin-bottom:10px;">2. Alunos e destino</h2>
+  <form method="post" action="{{ url_for('student_transfer_page') }}"
+        onsubmit="return confirm('Confirmar transferência? O histórico dos alunos selecionados será movido junto.');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="transfer">
+    <input type="hidden" name="from_turma" value="{{ from_turma }}">
+
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:8px;">
+        Alunos a transferir
+        <button type="button" class="btn btn-ghost btn-xs" id="toggle-all-students" style="margin-left:8px;">Marcar/desmarcar todos</button>
+      </label>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;">
+        {% for student in turma_students %}
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:8px 10px;background:#fff;border:1px solid #E7E0F0;border-radius:8px;cursor:pointer;">
+          <input type="checkbox" name="students" value="{{ student.student_name }}" checked class="student-check">
+          {{ student.student_name }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="form-group" style="max-width:420px;margin-bottom:16px;">
+      <label for="dest-select" style="display:block;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:6px;">Turma de destino</label>
+      <select id="dest-select" name="dest" required style="width:100%;padding:10px 12px;border:1px solid #E2E2E2;border-radius:8px;">
+        <option value="">— Selecione —</option>
+        {% for opt in dest_options %}
+        {% if opt.turma != from_turma %}
+        <option value="{{ opt.key }}" {% if opt.key == dest_key %}selected{% endif %}>
+          {{ opt.turma_display }} — {{ opt.teacher }}{% if opt.horario %} ({{ opt.horario }}){% endif %}
+        </option>
+        {% endif %}
+        {% endfor %}
+      </select>
+      <p style="font-size:12px;color:#666;margin-top:6px;">
+        A turma de destino precisa existir. Crie-a no painel inicial antes, se necessário.
+      </p>
+    </div>
+
+    <button type="submit" class="btn btn-primary">⇄ Transferir alunos selecionados</button>
+  </form>
+</div>
+{% elif from_turma %}
+<div class="card" style="margin-bottom:20px;">
+  <p style="font-size:13px;color:#666;">Nenhum aluno encontrado na turma selecionada.</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2 style="font-size:15px;font-weight:900;margin-bottom:10px;">Histórico de transferências</h2>
+  {% if recent_transfers %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Aluno</th>
+          <th>De</th>
+          <th>Para</th>
+          <th>Professor destino</th>
+          <th>Meses migrados</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in recent_transfers %}
+        <tr>
+          <td>{{ entry.date }}</td>
+          <td>{{ entry.student_name }}</td>
+          <td>{{ entry.from_turma }}</td>
+          <td>{{ entry.to_turma_display or entry.to_turma }}</td>
+          <td>{{ entry.to_teacher }}</td>
+          <td>{{ entry.months_moved }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="font-size:13px;color:#666;">Nenhuma transferência registrada ainda.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var originSelect = document.getElementById('from-turma-select');
+  if (originSelect) {
+    originSelect.addEventListener('change', function () {
+      document.getElementById('transfer-origin-form').submit();
+    });
+  }
+  var toggle = document.getElementById('toggle-all-students');
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      var boxes = document.querySelectorAll('.student-check');
+      var anyUnchecked = Array.prototype.some.call(boxes, function (b) { return !b.checked; });
+      boxes.forEach(function (b) { b.checked = anyUnchecked; });
+    });
+  }
+})();
+</script>
+{% endblock %}
