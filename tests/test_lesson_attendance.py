@@ -238,7 +238,10 @@ def test_recompute_preserves_manual_faltas_without_missed_aulas():
 
 
 def test_remove_attendance_for_student_and_lesson():
-    from lesson_attendance import remove_attendance_for_lesson, remove_attendance_for_student
+    from lesson_attendance import (
+        remove_attendance_for_lesson,
+        remove_attendance_for_student,
+    )
 
     rows = [
         {'turma': 'MASTER', 'aula_num': '1', 'student_name': 'Jane Doe', 'status': 'absent'},
