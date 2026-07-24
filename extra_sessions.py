@@ -327,7 +327,15 @@ def _row_matches_student(row, student):
         return False
     row_teacher = normalize_teacher_name(row.get('teacher', '')).casefold()
     student_teacher = normalize_teacher_name(student.get('teacher', '')).casefold()
-    return row_teacher == student_teacher
+    if row_teacher != student_teacher:
+        return False
+    # Prefer matching on turma when both sides declare one — two students with
+    # the same name under the same teacher but different turmas must not mix.
+    row_turma = (row.get('turma') or '').strip().upper()
+    student_turma = (student.get('turma') or '').strip().upper()
+    if row_turma and student_turma:
+        return row_turma == student_turma
+    return True
 
 
 def remove_sessions_for_student(rows, student):

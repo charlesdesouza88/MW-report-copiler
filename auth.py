@@ -82,8 +82,11 @@ def filter_students_for_user(students, user):
 def filter_lessons_for_user(lessons, students, user):
     if has_full_data_access(user['role']):
         return list(lessons)
-    turmas = teacher_turmas(students, user.get('teacher_name', ''))
-    return [lesson for lesson in lessons if lesson.get('turma', '').strip() in turmas]
+    turmas = {t.casefold() for t in teacher_turmas(students, user.get('teacher_name', ''))}
+    return [
+        lesson for lesson in lessons
+        if lesson.get('turma', '').strip().casefold() in turmas
+    ]
 
 
 def filter_extra_sessions_for_user(sessions, user):

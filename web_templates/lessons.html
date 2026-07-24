@@ -44,7 +44,7 @@
         <strong style="font-size:15px;">Aula {{ lesson.aula_num or '—' }}</strong>
         <div class="font-sm text-gray" style="margin-top:4px;">{{ lesson.date or '—' }}</div>
       </div>
-      <span class="tag">{{ lesson.turma }}</span>
+      <span class="tag">{{ turma_labels.get(lesson.turma, lesson.turma) }}</span>
     </div>
     <p class="font-sm" style="margin:10px 0 6px;"><strong>{{ lesson.licao_conteudo or '—' }}</strong></p>
     {% if lesson.atividade_extra %}
@@ -89,7 +89,7 @@
           data-habilidades="{{ lesson.habilidades or '' }}"
           data-search="{{ (lesson.turma ~ ' ' ~ (lesson.aula_num or '') ~ ' ' ~ (lesson.date or '') ~ ' ' ~ (lesson.licao_conteudo or '') ~ ' ' ~ (lesson.habilidades or '') ~ ' ' ~ (lesson.atividade_extra or ''))|lower }}">
         <td class="text-gray font-sm">{{ loop.index }}</td>
-        <td><span class="tag">{{ lesson.turma }}</span></td>
+        <td><span class="tag">{{ turma_labels.get(lesson.turma, lesson.turma) }}</span></td>
         <td><strong>{{ lesson.aula_num or '—' }}</strong></td>
         <td class="font-sm">{{ lesson.date or '—' }}</td>
         <td class="font-sm">{{ lesson.licao_conteudo or '—' }}</td>

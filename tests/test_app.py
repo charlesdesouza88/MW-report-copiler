@@ -1703,6 +1703,68 @@ def test_teacher_upload_merges_without_wiping_other_teachers(monkeypatch, tmp_pa
     assert "Bob Smith" in text
 
 
+def test_teacher_students_upload_keeps_sibling_turmas(monkeypatch, tmp_path):
+    """Uploading a CSV with only one turma must not delete the teacher's other turmas."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    kids_row = _students_csv().splitlines()[1].replace(
+        "MASTER,Masters", "KIDS,Kids").replace("Jane Doe", "Kid One")
+    (data_dir / "students.csv").write_text(
+        _students_csv() + kids_row + "\n", encoding="utf-8",
+    )
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_teacher_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client, email="teacher@test.local", password="teachpass")
+    response = client.post(
+        "/upload",
+        data={"students": (io.BytesIO(_students_csv().encode()), "students.csv")},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    text = (data_dir / "students.csv").read_text(encoding="utf-8")
+    assert "Jane Doe" in text
+    assert "Kid One" in text  # sibling turma survives the partial upload
+
+
+def test_teacher_lessons_upload_keeps_sibling_turma_lessons(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    kids_student = _students_csv().splitlines()[1].replace(
+        "MASTER,Masters", "KIDS,Kids").replace("Jane Doe", "Kid One")
+    (data_dir / "students.csv").write_text(
+        _students_csv() + kids_student + "\n", encoding="utf-8",
+    )
+    (data_dir / "lessons.csv").write_text(
+        _lessons_csv() + "KIDS,1,02/01,Kids lesson,,\n", encoding="utf-8",
+    )
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_teacher_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client, email="teacher@test.local", password="teachpass")
+    response = client.post(
+        "/upload",
+        data={"lessons": (io.BytesIO(_lessons_csv().encode()), "lessons.csv")},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    text = (data_dir / "lessons.csv").read_text(encoding="utf-8")
+    assert "Lesson 1" in text
+    assert "Kids lesson" in text  # sibling turma lessons survive
+
+
 def test_responsive_layout_markers(monkeypatch, tmp_path):
     """List pages expose table + card views and action columns use shared layout classes."""
     data_dir = tmp_path / "data"
@@ -1856,7 +1918,7 @@ def test_superadmin_dashboard_shows_class_display_names(monkeypatch, tmp_path):
 
     assert "Prize" in html
     assert ">TEENS_1<" not in html
-    assert 'href="/students?turma=TEENS_1"' in html
+    assert 'href="/students?turma=TEENS_1' in html
 
 
 def test_superadmin_dashboard_includes_registry_only_class(monkeypatch, tmp_path):
@@ -1885,7 +1947,7 @@ def test_superadmin_dashboard_includes_registry_only_class(monkeypatch, tmp_path
     html = client.get("/").get_data(as_text=True)
 
     assert "Masters" in html
-    assert 'href="/students?turma=MASTER"' in html
+    assert 'href="/students?turma=MASTER' in html
 
 
 def test_admin_can_edit_turma(monkeypatch, tmp_path):

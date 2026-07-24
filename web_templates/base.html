@@ -343,7 +343,9 @@ table td.col-actions { width: 1%; white-space: nowrap; text-align: right; vertic
 }
 .attendance-row-status { flex: 1 1 140px; min-width: 0; max-width: 100%; }
 .attendance-row-status select { width: 100%; min-height: 44px; }
-.content form[style*="max-width"] { width: 100%; max-width: 100% !important; }
+.content form.form-narrow { width: 100%; max-width: 860px; }
+.content form[style*="max-width"] { width: 100%; }
+.disabled-form { pointer-events: none; opacity: 0.6; }
 
 /* ── List filters ── */
 .filter-panel { padding: 16px 18px; animation: filterPanelIn 0.4s ease backwards; }
@@ -623,7 +625,7 @@ body.nav-open .nav-backdrop { display: block; }
   <a href="{{ url_with_month('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
     <span class="nav-icon">▦</span> Dashboard
   </a>
-  <a href="{{ url_with_month('students') }}" class="nav-link {% if 'student' in request.endpoint %}active{% endif %}">
+  <a href="{{ url_with_month('students') }}" class="nav-link {% if 'student' in request.endpoint and request.endpoint != 'student_transfer_page' %}active{% endif %}">
     <span class="nav-icon">◉</span> Alunos
   </a>
   <a href="{{ url_with_month('lessons') }}" class="nav-link {% if 'lesson' in request.endpoint %}active{% endif %}">
@@ -641,6 +643,9 @@ body.nav-open .nav-backdrop { display: block; }
   </a>
   <a href="{{ url_for('turma_transfer') }}" class="nav-link {% if request.endpoint == 'turma_transfer' %}active{% endif %}">
     <span class="nav-icon">⇄</span> Transferir turma
+  </a>
+  <a href="{{ url_for('student_transfer_page') }}" class="nav-link {% if request.endpoint == 'student_transfer_page' %}active{% endif %}">
+    <span class="nav-icon">➜</span> Transferir alunos
   </a>
   {% endif %}
   <a href="{{ url_with_month('reports') }}" class="nav-link {% if request.endpoint in ('reports','preview') %}active{% endif %}">

@@ -40,8 +40,8 @@
 </div>
 <div id="autosave-status" class="font-sm" style="margin-bottom:12px; color:#5A1A64;" data-kind="ok">Salvamento automático ativo</div>
 <form method="post" id="student-edit-form"
+      class="form-narrow{% if no_teacher_classes %} disabled-form{% endif %}"
       style="max-width: 860px;"
-      {% if no_teacher_classes %}class="disabled-form"{% endif %}
       {% if not is_new %}
       action="{% if return_turma and return_month %}{{ url_for('student_edit', idx=idx, month=return_month, turma=return_turma) }}{% elif return_month %}{{ url_for('student_edit', idx=idx, month=return_month) }}{% elif return_turma %}{{ url_for('student_edit', idx=idx, turma=return_turma) }}{% else %}{{ url_for('student_edit', idx=idx) }}{% endif %}"
       {% endif %}
@@ -55,6 +55,10 @@
   {% endif %}
   {% if return_month %}
   <input type="hidden" name="return_month" value="{{ return_month }}">
+  {% endif %}
+  {% if not is_new %}
+  <input type="hidden" name="orig_student_name" value="{{ student.student_name or '' }}">
+  <input type="hidden" name="orig_turma" value="{{ student.turma or '' }}">
   {% endif %}
 
   <!-- Info básica -->
@@ -125,12 +129,30 @@
     </div>
   </div>
 
+  {% if transfer_history %}
+  <!-- Histórico de turmas (progressão de nível) -->
+  <div class="form-section">
+    <div class="form-section-title">Histórico de turmas</div>
+    <ul style="font-size:13px; line-height:1.9; margin:0; padding-left:1.2em; color:#444;">
+      {% for entry in transfer_history %}
+      <li>
+        <strong>{{ entry.from_turma }}</strong> → <strong>{{ entry.to_turma_display or entry.to_turma }}</strong>
+        em {{ entry.date }}{% if entry.to_teacher %} (professor: {{ entry.to_teacher }}){% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="font-sm text-gray" style="margin-top:8px;">
+      Todo o histórico de notas e relatórios acompanhou o aluno em cada transferência.
+    </p>
+  </div>
+  {% endif %}
+
   <!-- Habilidades linguísticas -->
   <div class="form-section">
     <div class="form-section-title">Habilidades linguísticas (1–5)</div>
     {% set skill_fields = [
       ('speaking',  'Fala (Speaking)'),
-      ('listening', 'Audio (Listening)'),
+      ('listening', 'Áudio (Listening)'),
       ('writing',   'Escrita (Writing)'),
       ('reading',   'Leitura (Reading)'),
       ('gramatica', 'Gramática'),
