@@ -16,7 +16,6 @@ from csv_import import (
     write_lessons_csv,
 )
 
-
 SAMPLE_PLAN = """\
 ,,,,,,
 ,"SPARK - KIDS 1 (Segunda e quarta, 8:00-9:30)",,,,,PRAZO: Semanal - Segunda-feira

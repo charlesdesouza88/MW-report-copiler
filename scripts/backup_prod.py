@@ -29,7 +29,6 @@ import http.cookiejar
 import json
 import os
 import re
-import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -109,7 +108,7 @@ def main():
         db_status = json.loads(body.decode('utf-8', errors='replace'))
         print(f'  · storage: {db_status.get("mode", "unknown")} '
               f'(connected={db_status.get("connected")})')
-    except Exception as exc:  # noqa: BLE001 - best-effort metadata
+    except Exception as exc:
         print(f'  · storage: could not read /health/db ({exc})')
 
     _login(opener, base, email, password)
