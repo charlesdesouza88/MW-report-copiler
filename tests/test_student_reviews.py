@@ -1,7 +1,6 @@
 """Tests for per-month student review storage."""
 
 import json
-from pathlib import Path
 
 from student_reviews import (
     DEFAULT_MONTHLY_VALUES,

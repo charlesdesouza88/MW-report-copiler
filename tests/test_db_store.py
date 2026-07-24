@@ -1,6 +1,6 @@
-from db_store import DatabaseStore, prepare_database_url
-
 import pytest
+
+from db_store import DatabaseStore, prepare_database_url
 
 
 def test_prepare_database_url_adds_ssl_for_postgres():
@@ -61,7 +61,6 @@ def test_database_store_rejects_stale_save(tmp_path):
 
 
 def test_database_store_skips_corrupt_json_row(tmp_path, caplog):
-    import json as json_mod
 
     from db_store import StudentRow
 
