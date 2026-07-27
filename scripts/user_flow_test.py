@@ -9,7 +9,6 @@ Usage:
 from __future__ import annotations
 
 import os
-import re
 import sys
 import tempfile
 from pathlib import Path
@@ -17,8 +16,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import app as web_app  # noqa: E402
-from auth import UserStore  # noqa: E402
+import app as web_app
+from auth import UserStore
 
 STUDENTS_CSV = (
     'teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,'
@@ -195,7 +194,7 @@ def run_inprocess():
             loc,
         )
 
-        r = client.get(loc if loc.startswith('/') else f'/reports')
+        r = client.get(loc if loc.startswith('/') else '/reports')
         rep_html = r.get_data(as_text=True)
         runner.check(
             'Reports page after generate',

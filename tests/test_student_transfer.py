@@ -1,5 +1,7 @@
 import json
 
+from test_app import _init_user_store, _login, _seed_teacher_classes
+
 import app as web_app
 from report_periods import student_snapshot_id
 from student_reviews import review_key
@@ -8,8 +10,6 @@ from student_transfer import (
     transfer_students,
     transfers_for_student,
 )
-
-from test_app import _init_user_store, _login, _seed_teacher_classes
 
 
 def _student(name="Jane Doe", turma="TEENS_1", teacher="Chuck"):
