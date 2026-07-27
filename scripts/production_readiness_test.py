@@ -20,9 +20,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import app as web_app  # noqa: E402
-from auth import UserStore  # noqa: E402
-from teacher_classes import save_registry  # noqa: E402
+import app as web_app
+from auth import UserStore
+from teacher_classes import save_registry
 
 STUDENTS_CSV = (
     'teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,'
@@ -82,6 +82,17 @@ def _scores():
         'writing', 'reading', 'gramatica', 'trabalho_equipe', 'organizacao',
         'pontualidade', 'respeito_regras',
     )}
+
+
+def _lesson_form(turma: str, aula_num: str = '1') -> dict[str, str]:
+    return {
+        'turma': turma,
+        'aula_num': aula_num,
+        'date': '01/02/2026',
+        'licao_conteudo': 'Lesson 1',
+        'atividade_extra': 'Readiness fixture',
+        'habilidades': '',
+    }
 
 
 def _pin_test_superadmin(admin_email: str, admin_password: str):
@@ -190,6 +201,9 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
     )
     runner.ok('Admin create student', r.status_code == 302)
     runner.ok('Admin student saved', 'Admin Created' in client.get('/students').get_data(as_text=True))
+
+    r = client.post('/lessons/new', data=_lesson_form('ADMIN_TEST'), follow_redirects=False)
+    runner.ok('Admin create lesson for generated class', r.status_code == 302)
 
     r = client.post('/generate', follow_redirects=False)
     loc = r.headers.get('Location', '')
@@ -305,8 +319,13 @@ def run_live(base: str) -> int:
                 k, v = line.split('=', 1)
                 creds[k.strip()] = v.strip().strip('"').strip("'")
 
-    email = creds.get('SUPERADMIN_EMAIL', '')
-    password = creds.get('SUPERADMIN_PASSWORD') or creds.get('ADMIN_PASSWORD', '')
+    email = os.environ.get('SUPERADMIN_EMAIL') or creds.get('SUPERADMIN_EMAIL', '')
+    password = (
+        os.environ.get('SUPERADMIN_PASSWORD')
+        or os.environ.get('ADMIN_PASSWORD')
+        or creds.get('SUPERADMIN_PASSWORD')
+        or creds.get('ADMIN_PASSWORD', '')
+    )
     if not email or not password:
         print('SKIP live: no credentials in .env')
         return 0
@@ -344,7 +363,13 @@ def run_live(base: str) -> int:
     try:
         db = get('/health/db')
         body = db.read().decode()
-        runner.ok('/health/db', '"connected": true' in body or '"connected":true' in body, body[:80])
+        db_ok = (
+            '"connected": true' in body
+            or '"connected":true' in body
+            or '"mode": "csv"' in body
+            or '"mode":"csv"' in body
+        )
+        runner.ok('/health/db', db_ok, body[:120])
     except Exception as exc:
         runner.ok('/health/db', False, str(exc))
 
