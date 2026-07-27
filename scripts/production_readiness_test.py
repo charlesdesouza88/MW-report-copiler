@@ -84,6 +84,17 @@ def _scores():
     )}
 
 
+def _lesson_form(turma: str, aula_num: str = '1') -> dict[str, str]:
+    return {
+        'turma': turma,
+        'aula_num': aula_num,
+        'date': '01/02/2026',
+        'licao_conteudo': 'Lesson 1',
+        'atividade_extra': 'Readiness fixture',
+        'habilidades': '',
+    }
+
+
 def _pin_test_superadmin(admin_email: str, admin_password: str):
     """Keep in-process journeys off developer .env (app.py caches env at import)."""
     os.environ['SUPERADMIN_EMAIL'] = admin_email
@@ -190,6 +201,9 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
     )
     runner.ok('Admin create student', r.status_code == 302)
     runner.ok('Admin student saved', 'Admin Created' in client.get('/students').get_data(as_text=True))
+
+    r = client.post('/lessons/new', data=_lesson_form('ADMIN_TEST'), follow_redirects=False)
+    runner.ok('Admin create lesson for generated class', r.status_code == 302)
 
     r = client.post('/generate', follow_redirects=False)
     loc = r.headers.get('Location', '')

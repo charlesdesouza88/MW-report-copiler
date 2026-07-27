@@ -80,6 +80,17 @@ def _student_form(name, turma, teacher='Chuck'):
     return base
 
 
+def _lesson_form(turma, aula_num='1'):
+    return {
+        'turma': turma,
+        'aula_num': aula_num,
+        'date': '01/02/2026',
+        'licao_conteudo': 'Lesson 1',
+        'atividade_extra': 'Audit smoke fixture',
+        'habilidades': '',
+    }
+
+
 class FlowRunner:
     def __init__(self, label: str):
         self.label = label
@@ -166,6 +177,9 @@ def run_inprocess():
 
         r = client.get('/students')
         runner.check('Students list shows new row', new_name in r.get_data(as_text=True))
+
+        r = client.post('/lessons/new', data=_lesson_form('FLOW_TEST'), follow_redirects=False)
+        runner.check('Create lesson for generated class', r.status_code == 302)
 
         r = client.get('/lessons')
         runner.check('Lessons page', r.status_code == 200 and 'MASTER' in r.get_data(as_text=True))
@@ -264,6 +278,19 @@ def run_live(base: str):
 
     html = get('/students').read().decode('utf-8', errors='replace')
     runner.check('Students list', new_name in html)
+
+    lesson_page = get('/lessons/new?turma=LIVE_FLOW').read().decode('utf-8', errors='replace')
+    try:
+        post('/lessons/new', {
+            **_lesson_form('LIVE_FLOW'),
+            'csrf_token': csrf_from_html(lesson_page),
+        }, allow_redirect=False)
+        lesson_ok = False
+        lesson_loc = ''
+    except urllib.error.HTTPError as e:
+        lesson_loc = e.headers.get('Location', '')
+        lesson_ok = e.code in (302, 303) and '/lessons' in (lesson_loc or '')
+    runner.check('Create lesson for generated class', lesson_ok, lesson_loc or '')
 
     try:
         post('/generate', {'report_month': '2026-02'}, allow_redirect=False)
