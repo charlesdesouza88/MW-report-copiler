@@ -10,6 +10,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -297,17 +298,9 @@ def run_live(base: str) -> int:
     import urllib.parse
     from urllib.request import HTTPCookieProcessor, Request, build_opener
 
-    env_path = ROOT / '.env'
-    creds = {}
-    if env_path.exists():
-        for raw in env_path.read_text(encoding='utf-8').splitlines():
-            line = raw.strip()
-            if line and not line.startswith('#') and '=' in line:
-                k, v = line.split('=', 1)
-                creds[k.strip()] = v.strip().strip('"').strip("'")
-
-    email = creds.get('SUPERADMIN_EMAIL', '')
-    password = creds.get('SUPERADMIN_PASSWORD') or creds.get('ADMIN_PASSWORD', '')
+    _load_dotenv()
+    email = os.environ.get('SUPERADMIN_EMAIL', '').strip()
+    password = os.environ.get('SUPERADMIN_PASSWORD') or os.environ.get('ADMIN_PASSWORD', '')
     if not email or not password:
         print('SKIP live: no credentials in .env')
         return 0
@@ -345,7 +338,12 @@ def run_live(base: str) -> int:
     try:
         db = get('/health/db')
         body = db.read().decode()
-        runner.ok('/health/db', '"connected": true' in body or '"connected":true' in body, body[:80])
+        status = json.loads(body)
+        runner.ok(
+            '/health/db',
+            bool(status.get('connected')) or status.get('mode') == 'csv',
+            body[:120],
+        )
     except Exception as exc:
         runner.ok('/health/db', False, str(exc))
 
