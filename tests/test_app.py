@@ -1219,7 +1219,8 @@ def test_student_new_reports_save_conflict(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     assert web_app.SAVE_CONFLICT_MESSAGE in response.get_data(as_text=True)
-    assert not (data_dir / "student_monthly_reviews.json").exists()
+    reviews_text = (data_dir / "student_monthly_reviews.json").read_text(encoding="utf-8")
+    assert "New Kid" not in reviews_text
 
 
 def test_set_review_month_redirects(monkeypatch, tmp_path):
