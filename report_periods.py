@@ -2,7 +2,9 @@
 
 import hashlib
 import json
+import os
 import re
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -199,10 +201,18 @@ def load_snapshots(path):
 
 def save_snapshots(path, snapshot_rows):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(snapshot_rows, ensure_ascii=False, indent=2),
-        encoding='utf-8',
-    )
+    content = json.dumps(snapshot_rows, ensure_ascii=False, indent=2).encode('utf-8')
+    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix='.tmp')
+    try:
+        with os.fdopen(fd, 'wb') as f:
+            f.write(content)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def upsert_month_snapshots(path, report_month, students, lessons, build_ctx):

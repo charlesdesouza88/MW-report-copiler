@@ -1,4 +1,3 @@
-from pathlib import Path
 
 from compiler import build_student_ctx
 from report_periods import (
@@ -12,6 +11,7 @@ from report_periods import (
     parse_lesson_month,
     previous_calendar_month,
     report_month_from_filename,
+    save_snapshots,
     student_snapshot_id,
     upsert_month_snapshots,
 )
@@ -144,3 +144,19 @@ def test_upsert_month_snapshots(tmp_path):
     assert store[f'MASTER|{sid}|2026-03']['composite_score'] >= 1
     assert 'student_name' not in store[f'MASTER|{sid}|2026-03']
     assert store[f'MASTER|{sid}|2026-03']['student_id'] == sid
+
+
+def test_save_snapshots_cleans_temp_file_on_replace_error(monkeypatch, tmp_path):
+    def fail_replace(_tmp, _path):
+        raise OSError("simulated replace failure")
+
+    monkeypatch.setattr('report_periods.os.replace', fail_replace)
+
+    try:
+        save_snapshots(tmp_path / 'snapshots.json', [{'report_month': '2026-03'}])
+        assert False, "expected save_snapshots to raise"
+    except OSError:
+        pass
+
+    assert not list(tmp_path.glob('*.tmp'))
+    assert not (tmp_path / 'snapshots.json').exists()

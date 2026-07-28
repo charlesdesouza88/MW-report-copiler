@@ -1182,6 +1182,47 @@ def test_student_new_creates_row(monkeypatch, tmp_path):
     assert any(r.get("participacao") == "3" for r in reviews)
 
 
+def test_student_new_reports_save_conflict(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", False)
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+    monkeypatch.setattr(web_app, "_save_students", lambda rows: False)
+
+    client = web_app.app.test_client()
+    _login(client)
+    response = client.post(
+        "/students/new",
+        data={
+            "teacher": "Chuck",
+            "turma": "KIDS",
+            "student_name": "New Kid",
+            "participacao": "3",
+            "comportamento": "3",
+            "speaking": "3",
+            "listening": "3",
+            "foco": "3",
+            "writing": "3",
+            "reading": "3",
+            "gramatica": "3",
+            "faltas": "0",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    assert web_app.SAVE_CONFLICT_MESSAGE in response.get_data(as_text=True)
+    reviews_text = (data_dir / "student_monthly_reviews.json").read_text(encoding="utf-8")
+    assert "New Kid" not in reviews_text
+
+
 def test_set_review_month_redirects(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
