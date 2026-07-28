@@ -9,6 +9,7 @@ Usage:
 from __future__ import annotations
 
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -204,7 +205,6 @@ def run_inprocess():
 
 def run_live(base: str):
     import http.cookiejar
-import re
     import urllib.error
     import urllib.parse
     from urllib.request import HTTPCookieProcessor, Request, build_opener
