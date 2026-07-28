@@ -154,7 +154,7 @@ def run_inprocess():
         new_name = 'Flow Test Kid'
         r = client.post(
             '/students/new',
-            data=_student_form(new_name, 'FLOW_TEST'),
+            data=_student_form(new_name, 'MASTER'),
             follow_redirects=False,
         )
         loc = r.headers.get('Location', '')
@@ -193,8 +193,12 @@ def run_inprocess():
             str(len(list(out_dir.glob('*.html')))) + ' files',
         )
 
-        r = client.get('/reports/preview/' + next(out_dir.glob('*_report.html')).name)
-        runner.check('Preview report', r.status_code == 200)
+        report_files = list(out_dir.glob('*_report.html'))
+        if report_files:
+            r = client.get('/reports/preview/' + report_files[0].name)
+            runner.check('Preview report', r.status_code == 200)
+        else:
+            runner.check('Preview report', False, 'no report files generated')
 
     return runner.finish()
 
@@ -254,7 +258,7 @@ def run_live(base: str):
 
     new_name = 'Live Flow Kid'
     try:
-        post('/students/new', _student_form(new_name, 'LIVE_FLOW'), allow_redirect=False)
+        post('/students/new', _student_form(new_name, 'COMET'), allow_redirect=False)
         create_ok = False
         loc = ''
     except urllib.error.HTTPError as e:
@@ -266,7 +270,7 @@ def run_live(base: str):
     runner.check('Students list', new_name in html)
 
     try:
-        post('/generate', {'report_month': '2026-02'}, allow_redirect=False)
+        post('/generate', {'report_month': ''}, allow_redirect=False)
         gen_ok = False
         gen_loc = ''
     except urllib.error.HTTPError as e:
