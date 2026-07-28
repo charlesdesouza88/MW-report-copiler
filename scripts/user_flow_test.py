@@ -242,7 +242,16 @@ def run_live(base: str):
                     return opener.open(loc if loc.startswith('http') else base + loc, timeout=60)
             raise
 
-    r = post('/login', {'email': email, 'password': password})
+    def csrf_from_html(html: str) -> str:
+        match = re.search(r'name="csrf_token"\s+value="([^"]+)"', html)
+        return match.group(1) if match else ''
+
+    login_html = get('/login').read().decode('utf-8', errors='replace')
+    r = post('/login', {
+        'email': email,
+        'password': password,
+        'csrf_token': csrf_from_html(login_html),
+    })
     runner.check('Login', getattr(r, 'status', r.code) in (200, 302))
 
     html = get('/').read().decode('utf-8', errors='replace')
@@ -251,13 +260,21 @@ def run_live(base: str):
     html = get('/students/new').read().decode('utf-8', errors='replace')
     runner.check('New student form', 'Novo aluno' in html)
 
-    bad_resp = post('/students/new', {'student_name': 'X', 'turma': '', 'teacher': 'Chuck'})
+    form_token = csrf_from_html(html)
+    bad_resp = post('/students/new', {
+        'student_name': 'X',
+        'turma': '',
+        'teacher': 'Chuck',
+        'csrf_token': form_token,
+    })
     bad_body = bad_resp.read().decode('utf-8', errors='replace')
     runner.check('New student validation', 'Informe o nome do aluno e a turma' in bad_body)
 
     new_name = 'Live Flow Kid'
+    student_data = _student_form(new_name, 'COMET')
+    student_data['csrf_token'] = form_token
     try:
-        post('/students/new', _student_form(new_name, 'COMET'), allow_redirect=False)
+        post('/students/new', student_data, allow_redirect=False)
         create_ok = False
         loc = ''
     except urllib.error.HTTPError as e:
@@ -269,7 +286,11 @@ def run_live(base: str):
     runner.check('Students list', new_name in html)
 
     try:
-        post('/generate', {'report_month': ''}, allow_redirect=False)
+        dash_html = get('/').read().decode('utf-8', errors='replace')
+        post('/generate', {
+            'report_month': '',
+            'csrf_token': csrf_from_html(dash_html),
+        }, allow_redirect=False)
         gen_ok = False
         gen_loc = ''
     except urllib.error.HTTPError as e:
