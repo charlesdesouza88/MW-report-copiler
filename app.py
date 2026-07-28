@@ -86,10 +86,7 @@ from student_reviews import (MONTHLY_REVIEW_FIELDS, ROSTER_FIELDS,
                              migrate_roster_scores_to_month,
                              rows_from_store, save_monthly_reviews,
                              split_student_row, store_from_rows,
-                             migrate_roster_scores_to_month,
                              remove_reviews_for_student,
-                             rows_from_store, save_monthly_reviews,
-                             split_student_row, store_from_rows,
                              upsert_monthly_review)
 
 try:
@@ -1328,25 +1325,6 @@ def _sort_lessons(rows):
     return sorted(rows, key=sort_key)
 
 
-def _merge_scoped_students(all_students, visible_students):
-    """Replace visible rows in full list; used when teachers save edits."""
-    if has_full_data_access(_current_user()['role']):
-        return visible_students
-    merged = list(all_students)
-    visible_set = {id(r) for r in visible_students}
-    for i, row in enumerate(merged):
-        if id(row) in visible_set:
-            for v in visible_students:
-                if v is row or (
-                    v.get('turma') == row.get('turma')
-                    and v.get('student_name') == row.get('student_name')
-                    and v.get('teacher') == row.get('teacher')
-                ):
-                    merged[i] = v
-                    break
-    return merged
-
-
 @app.context_processor
 def inject_auth():
     user = _current_user()
@@ -1508,10 +1486,13 @@ def _persist_student_save(all_rows, global_idx, updated, review_month):
 def _persist_student_create(all_rows, new_row, review_month):
     profile, _ = split_student_row(new_row)
     all_rows.append(_roster_row_for_storage(profile))
-    _save_students(all_rows)
+    if not _save_students(all_rows):
+        return False
     store = _load_monthly_review_store()
     upsert_monthly_review(store, new_row, review_month)
-    _save_monthly_review_store(store)
+    if not _save_monthly_review_store(store):
+        return False
+    return True
 
 
 def _load_lessons():
@@ -2423,7 +2404,14 @@ def student_new():
                 ),
             )
         review_month = _get_review_month()
-        _persist_student_create(all_rows, new_row, review_month)
+        if not _persist_student_create(all_rows, new_row, review_month):
+            return render_template(
+                'student_edit.html',
+                **_student_form_context(
+                    all_rows, user, True, new_row, None,
+                    form_error=SAVE_CONFLICT_MESSAGE,
+                ),
+            )
         _sync_student_aula_extra_sessions(new_row)
         return _redirect_students(flash_ok=f'Aluno "{new_row.get("student_name", "")}" cadastrado.')
     defaults = dict(visible[0]) if visible else dict(all_rows[0]) if all_rows else {}
