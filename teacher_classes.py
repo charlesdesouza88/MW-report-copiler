@@ -2,6 +2,8 @@
 
 import json
 import logging
+import os
+import tempfile
 from collections import Counter
 from pathlib import Path
 
@@ -12,6 +14,11 @@ from form_ui import (
     normalize_weekdays,
     parse_time_range_from_horario,
     turma_code_from_display,
+)
+from report_periods import (
+    current_semester,
+    parse_semester_id,
+    semester_for_date,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,11 +40,59 @@ def load_registry(path):
 
 
 def save_registry(path, data):
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(
-        json.dumps(data, ensure_ascii=False, indent=2),
-        encoding='utf-8',
+    """Atomic write so concurrent readers never see a partial JSON file."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(data, ensure_ascii=False, indent=2)
+    fd, tmp_name = tempfile.mkstemp(
+        dir=str(path.parent), prefix='.teacher_classes_', suffix='.tmp',
     )
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_name, path)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+
+
+def registry_to_rows(data):
+    """Flatten nested registry dict → list of rows (for DB storage)."""
+    rows = []
+    if not isinstance(data, dict):
+        return rows
+    for teacher_name, classes in data.items():
+        if not isinstance(classes, list):
+            continue
+        teacher = normalize_teacher_name(teacher_name) or str(teacher_name).strip()
+        for row in classes:
+            if not isinstance(row, dict):
+                continue
+            flat = dict(row)
+            flat['teacher'] = teacher
+            rows.append(flat)
+    return rows
+
+
+def registry_from_rows(rows):
+    """Rebuild nested registry dict from flat DB rows."""
+    data = _empty_registry()
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        teacher = normalize_teacher_name(row.get('teacher', ''))
+        code = (row.get('turma') or '').strip()
+        if not teacher or not code:
+            continue
+        entry = {k: v for k, v in row.items() if k != 'teacher'}
+        entry['turma'] = code
+        data.setdefault(teacher, []).append(entry)
+    return data
 
 
 def _weekdays_from_row(row):
@@ -64,42 +119,73 @@ def _schedule_fields(row):
     return weekdays, time_start, time_end, horario
 
 
-def list_for_teacher(data, teacher_name):
+def _normalize_semester_id(semester_id):
+    raw = (semester_id or '').strip()
+    return raw if parse_semester_id(raw) else ''
+
+
+def list_for_teacher(data, teacher_name, semester_id=None):
     key = normalize_teacher_name(teacher_name)
     if not key:
         return []
     rows = data.get(key) or data.get(key.casefold()) or []
     if not isinstance(rows, list):
         return []
+    want_semester = _normalize_semester_id(semester_id)
     out = []
     for row in rows:
         if not isinstance(row, dict):
             continue
         turma = (row.get('turma') or '').strip()
-        if turma:
-            weekdays, time_start, time_end, horario = _schedule_fields(row)
-            out.append({
-                'turma': turma,
-                'turma_display': (row.get('turma_display') or turma).strip(),
-                'class_weekdays': weekdays,
-                'class_time_start': time_start,
-                'class_time_end': time_end,
-                'horario': horario,
-                'needs_schedule': len(weekdays) < 2 or not time_start or not time_end,
-            })
-    return sorted(out, key=lambda r: (r['turma_display'].casefold(), r['turma']))
+        if not turma:
+            continue
+        row_semester = _normalize_semester_id(row.get('semester_id'))
+        if want_semester and row_semester and row_semester != want_semester:
+            continue
+        if want_semester and not row_semester:
+            # Untagged legacy rows appear in every semester until migrated.
+            pass
+        weekdays, time_start, time_end, horario = _schedule_fields(row)
+        out.append({
+            'turma': turma,
+            'turma_display': (row.get('turma_display') or turma).strip(),
+            'class_weekdays': weekdays,
+            'class_time_start': time_start,
+            'class_time_end': time_end,
+            'horario': horario,
+            'semester_id': row_semester,
+            'needs_schedule': len(weekdays) < 2 or not time_start or not time_end,
+            'legacy_import': bool(row.get('legacy_import')),
+        })
+    return sorted(
+        out,
+        key=lambda r: (r['turma_display'].casefold(), r['turma'], r.get('semester_id') or ''),
+    )
 
 
-def turma_codes_for_teacher(data, teacher_name):
-    return {r['turma'] for r in list_for_teacher(data, teacher_name)}
+def turma_codes_for_teacher(data, teacher_name, semester_id=None):
+    return {r['turma'] for r in list_for_teacher(data, teacher_name, semester_id=semester_id)}
 
 
-def find_class(data, teacher_name, turma):
+def find_class(data, teacher_name, turma, semester_id=None):
     code = (turma or '').strip()
-    for row in list_for_teacher(data, teacher_name):
-        if row['turma'] == code:
-            return row
-    return None
+    want_semester = _normalize_semester_id(semester_id)
+    matches = [
+        row for row in list_for_teacher(data, teacher_name)
+        if row['turma'] == code
+    ]
+    if not matches:
+        return None
+    if want_semester:
+        for row in matches:
+            if row.get('semester_id') == want_semester:
+                return row
+        # Fall back to untagged legacy row for this code.
+        for row in matches:
+            if not row.get('semester_id'):
+                return row
+        return None
+    return matches[0]
 
 
 def count_students_in_turma(students, teacher_name, turma):
@@ -130,9 +216,10 @@ def _teacher_bucket(data, teacher_name):
     return key, None
 
 
-def remove_class(data, teacher_name, turma, students=None):
+def remove_class(data, teacher_name, turma, students=None, semester_id=None):
     """
     Remove a turma from the teacher registry.
+    When semester_id is set, only that semester's entry is removed.
     Returns (True, None) or (False, error_message).
     """
     key, bucket = _teacher_bucket(data, teacher_name)
@@ -143,7 +230,9 @@ def remove_class(data, teacher_name, turma, students=None):
     if not code:
         return False, 'Turma não informada.'
 
-    if students is not None:
+    want_semester = _normalize_semester_id(semester_id)
+
+    if students is not None and not want_semester:
         linked = count_students_in_turma(students, teacher_name, code)
         if linked:
             label = 'aluno' if linked == 1 else 'alunos'
@@ -155,12 +244,38 @@ def remove_class(data, teacher_name, turma, students=None):
     if not isinstance(bucket, list):
         return False, 'Turma não encontrada.'
 
-    kept = [
-        row for row in bucket
-        if isinstance(row, dict) and (row.get('turma') or '').strip() != code
-    ]
-    if len(kept) == len(bucket):
+    kept = []
+    removed = 0
+    for row in bucket:
+        if not isinstance(row, dict):
+            kept.append(row)
+            continue
+        if (row.get('turma') or '').strip() != code:
+            kept.append(row)
+            continue
+        row_semester = _normalize_semester_id(row.get('semester_id'))
+        if want_semester and row_semester and row_semester != want_semester:
+            kept.append(row)
+            continue
+        removed += 1
+
+    if not removed:
         return False, 'Turma não encontrada.'
+
+    if students is not None and want_semester:
+        # Only block when this is the last registry entry for the code.
+        still_listed = any(
+            isinstance(row, dict) and (row.get('turma') or '').strip() == code
+            for row in kept
+        )
+        if not still_listed:
+            linked = count_students_in_turma(students, teacher_name, code)
+            if linked:
+                label = 'aluno' if linked == 1 else 'alunos'
+                return False, (
+                    f'Não é possível excluir: {linked} {label} ainda vinculado(s) a esta turma. '
+                    'Altere a turma deles em Alunos antes de excluir.'
+                )
 
     if kept:
         data[key] = kept
@@ -240,10 +355,12 @@ def add_class(
     class_time='',
     horario='',
     turma='',
+    semester_id='',
 ):
     """
     Register a new turma for a teacher. Returns (row, None) or (None, error_message).
     Livro/nível is chosen per student. Turma id is generated from the display name.
+    Same code may exist again in a different semester.
     """
     key = normalize_teacher_name(teacher_name)
     if not key:
@@ -268,6 +385,8 @@ def add_class(
     if not code:
         return None, 'Não foi possível gerar o identificador da turma.'
 
+    sid = _normalize_semester_id(semester_id) or current_semester()
+
     horario = (horario or '').strip() or format_class_schedule(
         weekdays, time_start, time_end,
     )
@@ -280,8 +399,11 @@ def add_class(
     for row in bucket:
         if not isinstance(row, dict):
             continue
-        if (row.get('turma') or '').strip() == code:
-            return None, f'A turma "{display}" já está cadastrada.'
+        if (row.get('turma') or '').strip() != code:
+            continue
+        row_semester = _normalize_semester_id(row.get('semester_id'))
+        if not row_semester or row_semester == sid:
+            return None, f'A turma "{display}" já está cadastrada neste semestre.'
 
     new_row = {
         'turma': code,
@@ -290,6 +412,7 @@ def add_class(
         'class_time_start': time_start,
         'class_time_end': time_end,
         'horario': horario,
+        'semester_id': sid,
     }
     bucket.append(new_row)
     return new_row, None
@@ -304,6 +427,7 @@ def update_class(
     class_weekdays=None,
     class_time_start='',
     class_time_end='',
+    semester_id='',
 ):
     """
     Update an existing turma (code stays the same). Returns (row, None) or (None, error).
@@ -332,6 +456,7 @@ def update_class(
         return None, 'O horário de término deve ser depois do horário de início.'
 
     horario = format_class_schedule(weekdays, time_start, time_end)
+    want_semester = _normalize_semester_id(semester_id)
 
     if not isinstance(bucket, list):
         return None, 'Turma não encontrada.'
@@ -339,6 +464,11 @@ def update_class(
     for i, row in enumerate(bucket):
         if not isinstance(row, dict) or (row.get('turma') or '').strip() != code:
             continue
+        row_semester = _normalize_semester_id(row.get('semester_id'))
+        if want_semester and row_semester and row_semester != want_semester:
+            continue
+        if want_semester and not row_semester:
+            row_semester = want_semester
         updated = {
             'turma': code,
             'turma_display': display,
@@ -346,7 +476,10 @@ def update_class(
             'class_time_start': time_start,
             'class_time_end': time_end,
             'horario': horario,
+            'semester_id': row_semester or want_semester or current_semester(),
         }
+        if row.get('legacy_import'):
+            updated['legacy_import'] = True
         bucket[i] = updated
         data[key] = bucket
         return updated, None
@@ -367,7 +500,7 @@ def class_display_from_student_rows(student_rows, turma_code):
     return turma_code.replace('_', ' ')
 
 
-def sync_teacher_classes_from_students(data, teacher_name, students):
+def sync_teacher_classes_from_students(data, teacher_name, students, semester_id=''):
     """
     Import turmas that already exist on student rows but not in teacher_classes.json.
     Safe to run on every request (no-op when already synced).
@@ -376,7 +509,13 @@ def sync_teacher_classes_from_students(data, teacher_name, students):
     if not key:
         return 0
 
-    existing = turma_codes_for_teacher(data, teacher_name)
+    sid = _normalize_semester_id(semester_id) or current_semester()
+    existing = turma_codes_for_teacher(data, teacher_name, semester_id=sid)
+    # Also treat untagged legacy codes as already present.
+    existing |= {
+        r['turma'] for r in list_for_teacher(data, teacher_name)
+        if not r.get('semester_id')
+    }
     teacher_key = normalize_teacher_name(teacher_name).casefold()
     by_turma = {}
     for row in students:
@@ -409,6 +548,7 @@ def sync_teacher_classes_from_students(data, teacher_name, students):
             'class_time_start': time_start,
             'class_time_end': time_end,
             'horario': horario,
+            'semester_id': sid,
             'legacy_import': True,
         })
         existing.add(code)
@@ -416,3 +556,83 @@ def sync_teacher_classes_from_students(data, teacher_name, students):
         logger.info('Legacy turma imported for %s: %s', key, code)
 
     return added
+
+
+def ensure_semester_ids(data, lessons=None, default_semester=None):
+    """
+    Backfill semester_id on registry rows missing it.
+    Uses the most common lesson semester for that turma when available.
+    Returns number of rows updated.
+    """
+    default = _normalize_semester_id(default_semester) or current_semester()
+    by_turma = {}
+    for lesson in lessons or []:
+        code = (lesson.get('turma') or '').strip()
+        sid = semester_for_date(lesson.get('date', ''))
+        if code and sid:
+            by_turma.setdefault(code, []).append(sid)
+
+    inferred = {}
+    for code, sids in by_turma.items():
+        inferred[code] = Counter(sids).most_common(1)[0][0]
+
+    updated = 0
+    if not isinstance(data, dict):
+        return 0
+    for teacher_name, bucket in data.items():
+        if not isinstance(bucket, list):
+            continue
+        for row in bucket:
+            if not isinstance(row, dict):
+                continue
+            if _normalize_semester_id(row.get('semester_id')):
+                continue
+            code = (row.get('turma') or '').strip()
+            row['semester_id'] = inferred.get(code) or default
+            updated += 1
+    return updated
+
+
+def apply_registry_to_students(students, data, semester_id=None):
+    """
+    Re-join turma_display / horario from the registry (source of truth).
+    Prefer the selected semester's entry; fall back to any matching code.
+    Returns number of student rows updated in-memory.
+    """
+    if not students or not isinstance(data, dict):
+        return 0
+
+    # teacher_key -> turma -> preferred row
+    lookup = {}
+    for teacher_name in data:
+        for entry in list_for_teacher(data, teacher_name):
+            tkey = normalize_teacher_name(teacher_name).casefold()
+            lookup.setdefault(tkey, {})
+            code = entry['turma']
+            existing = lookup[tkey].get(code)
+            if existing is None:
+                lookup[tkey][code] = entry
+                continue
+            want = _normalize_semester_id(semester_id)
+            if want and entry.get('semester_id') == want:
+                lookup[tkey][code] = entry
+
+    changed = 0
+    for row in students:
+        tkey = normalize_teacher_name(row.get('teacher', '')).casefold()
+        code = (row.get('turma') or '').strip()
+        entry = (lookup.get(tkey) or {}).get(code)
+        if not entry:
+            continue
+        display = (entry.get('turma_display') or '').strip()
+        horario = (entry.get('horario') or '').strip()
+        row_changed = False
+        if display and (row.get('turma_display') or '').strip() != display:
+            row['turma_display'] = display
+            row_changed = True
+        if horario and (row.get('horario') or '').strip() != horario:
+            row['horario'] = horario
+            row_changed = True
+        if row_changed:
+            changed += 1
+    return changed

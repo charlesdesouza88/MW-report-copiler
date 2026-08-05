@@ -668,6 +668,18 @@ body.nav-open .nav-backdrop { display: block; }
     <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Abrir menu" aria-expanded="false">☰</button>
     <div class="page-header-body">
       <h1 class="page-title">{{ self.page_title() }}</h1>
+      {% if current_user and available_review_semesters %}
+      <form class="review-month-form" method="post" action="{{ url_for('set_review_semester') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="review-semester-select">Semestre</label>
+        <select id="review-semester-select" name="review_semester" aria-label="Semestre" data-current="{{ review_semester }}" onchange="if (window.mwStudentFormGuard && !window.mwStudentFormGuard()) { this.value = this.dataset.current; return; } this.dataset.current = this.value; this.form.submit()">
+          {% for s in available_review_semesters %}
+          <option value="{{ s }}" {% if s == review_semester %}selected{% endif %}>{{ semester_label(s) }}</option>
+          {% endfor %}
+        </select>
+        <input type="hidden" name="next" value="{{ request.url }}">
+      </form>
+      {% endif %}
       {% if current_user and available_review_months %}
       <form class="review-month-form" method="post" action="{{ url_for('set_review_month') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -686,6 +698,7 @@ body.nav-open .nav-backdrop { display: block; }
   <div class="content content-animate">
     {% if current_user and review_month and request.endpoint in ('students', 'lessons', 'extra_sessions', 'reports') %}
     <div class="review-banner" role="status">
+      {% if review_semester_label %}<span>{{ review_semester_label }}</span> · {% endif %}
       Revisão mensal: <strong>{{ review_month_label }}</strong>
       <span class="font-sm text-gray">— notas, faltas e feedback deste mês</span>
     </div>

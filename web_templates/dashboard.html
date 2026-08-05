@@ -141,11 +141,12 @@
           <a href="{{ url_with_month('student_new', turma=c.turma) }}" class="btn btn-ghost btn-xs">+ Aluno</a>
           <a href="{{ url_with_month('students', turma=c.turma) }}" class="btn btn-ghost btn-xs">Alunos</a>
           <a href="{{ url_with_month('lessons', turma=c.turma) }}" class="btn btn-ghost btn-xs">Aulas</a>
-          <a href="{{ url_for('turma_edit', turma=c.turma) }}" class="btn btn-ghost btn-xs">Editar</a>
+          <a href="{{ url_for('turma_edit', turma=c.turma, semester_id=c.semester_id) }}" class="btn btn-ghost btn-xs">Editar</a>
           <form method="post" action="{{ url_for('turma_delete') }}"
                 onsubmit="return confirm({{ ('Excluir a turma «' ~ c.turma_display ~ '»? Só é possível se não houver alunos vinculados.')|tojson }})">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="turma" value="{{ c.turma }}">
+            <input type="hidden" name="semester_id" value="{{ c.semester_id }}">
             <button type="submit" class="btn btn-danger btn-xs">Excluir</button>
           </form>
         </div>
@@ -218,12 +219,13 @@
           <a href="{{ url_with_month('students', turma=c.turma) }}" class="btn btn-ghost btn-xs">Alunos</a>
           <a href="{{ url_with_month('lessons', turma=c.turma) }}" class="btn btn-ghost btn-xs">Aulas</a>
           {% if c.teacher %}
-          <a href="{{ url_for('turma_edit', turma=c.turma, teacher=c.teacher) }}" class="btn btn-ghost btn-xs">Editar</a>
+          <a href="{{ url_for('turma_edit', turma=c.turma, teacher=c.teacher, semester_id=c.semester_id) }}" class="btn btn-ghost btn-xs">Editar</a>
           <form method="post" action="{{ url_for('turma_delete') }}"
                 onsubmit="return confirm({{ ('Excluir a turma «' ~ c.turma_display ~ '»? Só é possível se não houver alunos vinculados.')|tojson }})">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="turma" value="{{ c.turma }}">
             <input type="hidden" name="teacher" value="{{ c.teacher }}">
+            <input type="hidden" name="semester_id" value="{{ c.semester_id }}">
             <button type="submit" class="btn btn-danger btn-xs">Excluir</button>
           </form>
           {% endif %}

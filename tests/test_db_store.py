@@ -44,6 +44,26 @@ def test_database_store_round_trip(tmp_path):
     store.check_connection()
 
 
+def test_database_store_teacher_classes_round_trip(tmp_path):
+    db_path = tmp_path / "app.db"
+    store = DatabaseStore(f"sqlite:///{db_path}")
+    store.initialize()
+
+    rows = [
+        {
+            'teacher': 'Chuck',
+            'turma': 'MASTER',
+            'turma_display': 'Masters',
+            'semester_id': '2026-S1',
+            'horario': 'Terça-feira e Sexta-feira 13:00 - 14:00',
+        }
+    ]
+    version = store.save_teacher_classes(rows)
+    loaded, loaded_version = store.load_teacher_classes_versioned()
+    assert loaded == rows
+    assert loaded_version == version
+
+
 def test_database_store_rejects_stale_save(tmp_path):
     from db_store import StaleDataError
 
