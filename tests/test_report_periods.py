@@ -3,15 +3,25 @@ from pathlib import Path
 from compiler import build_student_ctx
 from report_periods import (
     available_report_months,
+    available_semesters,
     compute_month_trend,
+    current_semester,
     default_report_month,
+    default_semester,
     filter_lessons_by_month,
+    filter_lessons_by_semester,
+    filter_months_by_semester,
     filter_report_files_by_month,
     individual_report_filename,
     load_snapshots,
+    month_in_semester,
+    months_in_semester,
     parse_lesson_month,
     previous_calendar_month,
     report_month_from_filename,
+    semester_for_date,
+    semester_for_month,
+    semester_label,
     student_snapshot_id,
     upsert_month_snapshots,
 )
@@ -20,6 +30,64 @@ from report_periods import (
 def test_parse_lesson_month():
     assert parse_lesson_month('10/02/2026') == '2026-02'
     assert parse_lesson_month('01/03') == f'{__import__("datetime").datetime.now().year}-03'
+
+
+def test_semester_for_month_option_a():
+    assert semester_for_month('2026-02') == '2026-S1'
+    assert semester_for_month('2026-06') == '2026-S1'
+    assert semester_for_month('2026-07') == '2026-S1'
+    assert semester_for_month('2026-08') == '2026-S2'
+    assert semester_for_month('2026-12') == '2026-S2'
+    assert semester_for_month('2027-01') == '2026-S2'
+    assert semester_for_date('15/03/2026') == '2026-S1'
+    assert semester_label('2026-S1') == '1º semestre 2026'
+    assert semester_label('2026-S2') == '2º semestre 2026'
+
+
+def test_months_in_semester():
+    assert months_in_semester('2026-S1') == [
+        '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07',
+    ]
+    assert months_in_semester('2026-S2') == [
+        '2026-08', '2026-09', '2026-10', '2026-11', '2026-12', '2027-01',
+    ]
+    assert month_in_semester('2026-03', '2026-S1')
+    assert not month_in_semester('2026-09', '2026-S1')
+
+
+def test_filter_lessons_and_months_by_semester():
+    lessons = [
+        {'date': '01/02/2026'},
+        {'date': '15/03/2026'},
+        {'date': '10/08/2026'},
+    ]
+    s1 = filter_lessons_by_semester(lessons, '2026-S1')
+    assert len(s1) == 2
+    s2 = filter_lessons_by_semester(lessons, '2026-S2')
+    assert len(s2) == 1
+    months = filter_months_by_semester(
+        ['2026-02', '2026-08', '2026-03'], '2026-S1',
+    )
+    assert months == ['2026-02', '2026-03']
+
+
+def test_available_and_default_semester(monkeypatch):
+    from datetime import datetime
+
+    class FakeDateTime:
+        @classmethod
+        def now(cls):
+            return datetime(2026, 8, 5)
+
+    monkeypatch.setattr('report_periods.datetime', FakeDateTime)
+    lessons = [
+        {'date': '01/02/2026'},
+        {'date': '15/03/2026'},
+    ]
+    assert available_semesters(lessons, include_current=True) == ['2026-S1', '2026-S2']
+    assert current_semester() == '2026-S2'
+    # Prefer S1 when that is where lesson data lives
+    assert default_semester(lessons) == '2026-S1'
 
 
 def test_available_and_default_month():

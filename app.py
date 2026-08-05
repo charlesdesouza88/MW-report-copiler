@@ -60,9 +60,11 @@ from form_ui import (HABILIDADES_CHOICES, LICAO_CONTEUDO_CHOICES,
                      storage_time_to_input, suggest_licao_conteudo,
                      time_from_form, turma_next_aula_map)
 from teacher_classes import (add_class as register_teacher_class,
+                             apply_registry_to_students,
                              class_display_from_student_rows,
-                             count_students_in_turma, find_class,
-                             list_for_teacher, load_registry,
+                             count_students_in_turma, ensure_semester_ids,
+                             find_class, list_for_teacher, load_registry,
+                             registry_from_rows, registry_to_rows,
                              remove_class as delete_teacher_class,
                              save_registry, sync_teacher_classes_from_students,
                              turma_codes_for_teacher,
@@ -70,12 +72,17 @@ from teacher_classes import (add_class as register_teacher_class,
 from class_transfer import (apply_transfer, build_transfer_export_zip,
                             list_teachers_from_students, preview_transfer,
                             turmas_for_teacher)
-from report_periods import (available_report_months, compute_month_trend,
-                            default_report_month, filter_lessons_by_month,
+from report_periods import (available_report_months, available_semesters,
+                            compute_month_trend, current_semester,
+                            default_report_month, default_semester,
+                            filter_lessons_by_month, filter_lessons_by_semester,
+                            filter_months_by_semester,
                             filter_report_files_by_month,
+                            filter_rows_by_semester_date,
                             individual_report_filename, load_snapshots,
-                            month_label, parse_lesson_month,
+                            month_in_semester, month_label, parse_lesson_month,
                             report_month_from_filename, save_snapshots,
+                            semester_for_month, semester_label,
                             student_composite_score, upsert_month_snapshots)
 from student_transfer import (load_transfer_log, save_transfer_log,
                               students_with_transfer_aliases,
@@ -338,6 +345,7 @@ app.jinja_env.globals.update(
     is_status_ok=is_status_ok,
     display_status=display_status,
     month_label=month_label,
+    semester_label=semester_label,
     report_month_from_filename=report_month_from_filename,
     parse_lesson_month=parse_lesson_month,
 )
@@ -854,6 +862,8 @@ def _scoped_students(review_month=None, merge=True, apply_attendance=False):
     user = _current_user()
     if not user:
         return roster, []
+    # Re-join turma display/horario from registry for this request (source of truth).
+    _enrich_students_from_registry(roster)
     visible_roster = filter_students_for_user(roster, user)
     if not merge:
         return roster, visible_roster
@@ -871,7 +881,7 @@ def _scoped_students(review_month=None, merge=True, apply_attendance=False):
     return roster, visible
 
 
-def _scoped_lessons(all_students=None):
+def _scoped_lessons(all_students=None, semester_id=None):
     all_lessons = _sort_lessons(_load_lessons())
     user = _current_user()
     if not user:
@@ -879,18 +889,89 @@ def _scoped_lessons(all_students=None):
     if all_students is None:
         all_students = _load_students()
     visible = filter_lessons_for_user(all_lessons, all_students, user)
+    sid = semester_id if semester_id is not None else _get_review_semester(all_lessons)
+    if sid:
+        visible = filter_lessons_by_semester(visible, sid)
     return all_lessons, visible
 
 
-def _load_teacher_class_registry():
-    return load_registry(DATA_DIR / 'teacher_classes.json')
+def _enrich_students_from_registry(students, semester_id=None):
+    """Keep student turma_display/horario aligned with the live registry."""
+    if not students:
+        return 0
+    registry = _load_teacher_class_registry()
+    sid = semester_id if semester_id is not None else _get_review_semester()
+    return apply_registry_to_students(students, registry, semester_id=sid)
+
+
+def _teacher_classes_path():
+    """Prefer live DATA_DIR so tests/monkeypatches stay consistent."""
+    return Path(DATA_DIR) / 'teacher_classes.json'
+
+
+def _load_teacher_class_registry(*, migrate=True):
+    if db_store:
+        rows, version = db_store.load_teacher_classes_versioned()
+        _bind_store_version('teacher_classes', version)
+        if not rows:
+            file_data = load_registry(_teacher_classes_path())
+            if file_data:
+                if migrate:
+                    _migrate_registry_semesters(file_data)
+                seeded = registry_to_rows(file_data)
+                try:
+                    version = db_store.save_teacher_classes(seeded)
+                    _bind_store_version('teacher_classes', version)
+                except StaleDataError:
+                    rows, version = db_store.load_teacher_classes_versioned()
+                    _bind_store_version('teacher_classes', version)
+                    return registry_from_rows(rows)
+                return file_data
+        data = registry_from_rows(rows)
+    else:
+        data = load_registry(_teacher_classes_path())
+
+    if migrate and _migrate_registry_semesters(data):
+        _save_teacher_class_registry(data)
+    return data
+
+
+def _migrate_registry_semesters(data):
+    """Backfill semester_id; return True when the registry was changed."""
+    lessons = []
+    try:
+        lessons = _load_lessons()
+    except Exception:
+        pass
+    return bool(ensure_semester_ids(
+        data,
+        lessons=lessons,
+        default_semester=default_semester(lessons),
+    ))
 
 
 def _save_teacher_class_registry(data):
-    save_registry(DATA_DIR / 'teacher_classes.json', data)
+    if db_store:
+        rows = registry_to_rows(data)
+        try:
+            version = db_store.save_teacher_classes(
+                rows,
+                expected_version=_expected_store_version('teacher_classes'),
+            )
+        except StaleDataError:
+            _note_save_conflict()
+            return False
+        _bind_store_version('teacher_classes', version)
+        try:
+            save_registry(_teacher_classes_path(), data)
+        except OSError as exc:
+            logger.warning('Could not mirror teacher_classes.json: %s', exc)
+        return True
+    save_registry(_teacher_classes_path(), data)
+    return True
 
 
-def _sync_teacher_registry(user, all_students):
+def _sync_teacher_registry(user, all_students, semester_id=None):
     """After deploy: register turmas that already exist on student rows (one-time per turma)."""
     if not user or user['role'] != ROLE_TEACHER:
         return 0
@@ -898,15 +979,22 @@ def _sync_teacher_registry(user, all_students):
     if not name:
         return 0
     data = _load_teacher_class_registry()
-    added = sync_teacher_classes_from_students(data, name, all_students)
+    sid = semester_id or _get_review_semester()
+    added = sync_teacher_classes_from_students(
+        data, name, all_students, semester_id=sid,
+    )
     if added:
-        _save_teacher_class_registry(data)
+        if not _save_teacher_class_registry(data):
+            return 0
         logger.info('Synced %s legacy turma(s) for teacher %s', added, name)
     return added
 
 
-def _teacher_class_options(teacher_name):
-    return list_for_teacher(_load_teacher_class_registry(), teacher_name)
+def _teacher_class_options(teacher_name, semester_id=None):
+    sid = semester_id if semester_id is not None else _get_review_semester()
+    return list_for_teacher(
+        _load_teacher_class_registry(), teacher_name, semester_id=sid,
+    )
 
 
 def _teacher_class_options_for_form(teacher_name, student=None):
@@ -927,8 +1015,11 @@ def _teacher_class_options_for_form(teacher_name, student=None):
     return sorted(options, key=lambda r: (r['turma_display'].casefold(), r['turma']))
 
 
-def _teacher_registered_turmas(teacher_name):
-    return turma_codes_for_teacher(_load_teacher_class_registry(), teacher_name)
+def _teacher_registered_turmas(teacher_name, semester_id=None):
+    sid = semester_id if semester_id is not None else _get_review_semester()
+    return turma_codes_for_teacher(
+        _load_teacher_class_registry(), teacher_name, semester_id=sid,
+    )
 
 
 def _allowed_turmas(all_students, user):
@@ -1351,6 +1442,7 @@ def _merge_scoped_students(all_students, visible_students):
 def inject_auth():
     user = _current_user()
     lessons = _load_lessons()
+    review_semester = _get_review_semester(lessons) if user else ''
     review_month = _get_review_month(lessons) if user else ''
     return {
         'current_user': user,
@@ -1359,6 +1451,9 @@ def inject_auth():
         'can_edit_all_data': has_full_data_access(user['role']) if user else False,
         'can_upload_csv': bool(user),
         'can_upload_all_csv': has_full_data_access(user['role']) if user else False,
+        'review_semester': review_semester,
+        'review_semester_label': semester_label(review_semester) if review_semester else '',
+        'available_review_semesters': _available_review_semesters(lessons) if user else [],
         'review_month': review_month,
         'review_month_label': month_label(review_month) if review_month else '',
         'available_review_months': _available_review_months(lessons) if user else [],
@@ -1445,18 +1540,88 @@ def _ensure_monthly_migration():
     _monthly_migration_done = True
 
 
-def _available_review_months(lessons):
+def _available_review_semesters(lessons):
+    found = set(available_semesters(lessons, include_current=True))
+    # Keep the active session semester selectable even before it has lessons.
+    session_sid = (session.get('review_semester') or '').strip()
+    if session_sid:
+        found.add(session_sid)
+    month = (session.get('review_month') or '').strip()
+    month_sid = semester_for_month(month)
+    if month_sid:
+        found.add(month_sid)
+    return sorted(found)
+
+
+def _get_review_semester(lessons=None):
+    if lessons is None:
+        lessons = _load_lessons()
+    available = _available_review_semesters(lessons)
+    raw = (
+        request.args.get('semester')
+        or request.form.get('return_semester')
+        or session.get('review_semester')
+        or ''
+    ).strip()
+    if raw in available:
+        session['review_semester'] = raw
+        return raw
+    # Infer from selected month when possible.
+    month = (session.get('review_month') or '').strip()
+    inferred = semester_for_month(month) if month else None
+    if inferred in available:
+        session['review_semester'] = inferred
+        return inferred
+    default = default_semester(lessons)
+    if default not in available and available:
+        default = available[-1]
+    session['review_semester'] = default
+    return default
+
+
+def _set_review_semester(semester_id, lessons=None):
+    if lessons is None:
+        lessons = _load_lessons()
+    semester_id = (semester_id or '').strip()
+    available = _available_review_semesters(lessons)
+    if semester_id not in available:
+        return False
+    session['review_semester'] = semester_id
+    # Keep review month inside the new semester.
+    month = (session.get('review_month') or '').strip()
+    if not month_in_semester(month, semester_id):
+        semester_months = filter_months_by_semester(
+            _available_review_months(lessons, semester_id=semester_id),
+            semester_id,
+        )
+        if semester_months:
+            session['review_month'] = semester_months[-1]
+    return True
+
+
+def _available_review_months(lessons, semester_id=None):
     months = list(available_report_months(lessons))
     current = datetime.now().strftime('%Y-%m')
     if current not in months:
         months.append(current)
-    return sorted(set(months))
+    # Keep the selected review month visible after imports/creates.
+    session_month = (session.get('review_month') or '').strip()
+    if session_month and semester_for_month(session_month):
+        months.append(session_month)
+    months = sorted(set(months))
+    sid = semester_id if semester_id is not None else session.get('review_semester')
+    if sid:
+        filtered = filter_months_by_semester(months, sid)
+        if filtered:
+            return filtered
+    return months
 
 
 def _get_review_month(lessons=None):
     if lessons is None:
         lessons = _load_lessons()
-    available = _available_review_months(lessons)
+    semester = _get_review_semester(lessons)
+    available = _available_review_months(lessons, semester_id=semester)
     raw = (
         request.args.get('month')
         or request.form.get('return_month')
@@ -1465,10 +1630,21 @@ def _get_review_month(lessons=None):
     ).strip()
     if raw in available:
         session['review_month'] = raw
+        # Keep semester aligned with the chosen month.
+        month_semester = semester_for_month(raw)
+        if month_semester:
+            session['review_semester'] = month_semester
         return raw
     default = default_report_month(lessons)
-    if default not in available and available:
-        default = available[-1]
+    if default not in available:
+        # Prefer a month inside the active semester.
+        semester_default = filter_months_by_semester(
+            available_report_months(lessons), semester,
+        )
+        if semester_default:
+            default = semester_default[-1]
+        elif available:
+            default = available[-1]
     session['review_month'] = default
     return default
 
@@ -1477,10 +1653,12 @@ def _set_review_month(month, lessons=None):
     if lessons is None:
         lessons = _load_lessons()
     month = (month or '').strip()
-    available = _available_review_months(lessons)
-    if month not in available:
+    if not semester_for_month(month):
         return False
     session['review_month'] = month
+    month_semester = semester_for_month(month)
+    if month_semester:
+        session['review_semester'] = month_semester
     return True
 
 
@@ -1622,12 +1800,15 @@ def _save_lesson_attendance(rows):
     return True
 
 
-def _scoped_extra_sessions():
+def _scoped_extra_sessions(semester_id=None):
     all_rows = _load_extra_sessions()
     user = _current_user()
     if not user:
         return all_rows, []
     visible = filter_extra_sessions_for_user(all_rows, user)
+    sid = semester_id if semester_id is not None else _get_review_semester()
+    if sid:
+        visible = filter_rows_by_semester_date(visible, sid)
     return all_rows, visible
 
 
@@ -1848,6 +2029,19 @@ def set_review_month():
     return redirect(url_for('dashboard', month=month))
 
 
+@app.route('/review-semester', methods=['POST'])
+@login_required
+def set_review_semester():
+    semester_id = (request.form.get('review_semester') or '').strip()
+    if not _set_review_semester(semester_id):
+        abort(400)
+    target = _safe_redirect_target((request.form.get('next') or request.referrer or '').strip())
+    month = session.get('review_month', '')
+    if target:
+        return redirect(_redirect_with_review_month(target, month))
+    return redirect(url_for('dashboard', month=month, semester=semester_id))
+
+
 # ── Dashboard ─────────────────────────────────────────────────────────────────────
 
 @app.route('/')
@@ -1874,14 +2068,16 @@ def dashboard():
     turma_flash_ok = session.pop('turma_flash_ok', None)
     turma_flash_error = session.pop('turma_flash_error', None)
     review_month = _get_review_month(lessons)
-    month_lessons = filter_lessons_by_month(lessons, review_month)
+    review_semester = _get_review_semester(lessons)
+    semester_lessons = filter_lessons_by_semester(lessons, review_semester)
+    month_lessons = filter_lessons_by_month(semester_lessons, review_month)
 
     teacher_classes = []
     admin_turmas = []
     turma_list = list(turmas.keys())
     turma_count = len(turmas)
     if user and user['role'] == ROLE_TEACHER:
-        imported = _sync_teacher_registry(user, all_students)
+        imported = _sync_teacher_registry(user, all_students, semester_id=review_semester)
         if imported and not session.get('legacy_turma_sync_notified'):
             session['legacy_turma_sync_notified'] = True
             if not turma_flash_ok:
@@ -1890,11 +2086,15 @@ def dashboard():
                     'Revise dias e horário abaixo se precisar; você pode seguir usando '
                     'Alunos e Relatórios normalmente.'
                 )
-        teacher_classes = _teacher_class_options(user.get('teacher_name', ''))
+        teacher_classes = _teacher_class_options(
+            user.get('teacher_name', ''), semester_id=review_semester,
+        )
         turma_list = [c['turma'] for c in teacher_classes]
         turma_count = len(teacher_classes)
     elif user and has_full_data_access(user['role']):
-        admin_turmas = _admin_dashboard_turmas(all_students)
+        admin_turmas = _admin_dashboard_turmas(
+            all_students, semester_id=review_semester,
+        )
         turma_list = [c['turma'] for c in admin_turmas]
         turma_count = len(admin_turmas)
 
@@ -1913,6 +2113,7 @@ def dashboard():
         available_months=_available_review_months(lessons),
         default_month=review_month,
         review_month=review_month,
+        review_semester=review_semester,
         generate_error=generate_error,
         generate_error_detail=generate_error_detail,
         turma_flash_ok=turma_flash_ok,
@@ -1949,9 +2150,9 @@ def _teacher_names_for_forms():
     return sorted(names, key=str.casefold)
 
 
-def _resolve_turma_class(registry, teacher_name, turma_code, students=None):
+def _resolve_turma_class(registry, teacher_name, turma_code, students=None, semester_id=None):
     """Find turma in registry or build a legacy row from student data."""
-    found = find_class(registry, teacher_name, turma_code)
+    found = find_class(registry, teacher_name, turma_code, semester_id=semester_id)
     if found:
         return found
     owner = normalize_teacher_name(teacher_name)
@@ -1982,6 +2183,7 @@ def _resolve_turma_class(registry, teacher_name, turma_code, students=None):
         'class_time_start': time_start,
         'class_time_end': time_end,
         'horario': horario,
+        'semester_id': (semester_id or '').strip() or _get_review_semester(),
         'legacy_import': True,
     }
 
@@ -2033,14 +2235,22 @@ def turma_create():
         class_weekdays=class_weekdays,
         class_time_start=class_time_start,
         class_time_end=class_time_end,
+        semester_id=_get_review_semester(),
     )
     if err:
         session['turma_flash_error'] = err
     else:
-        _save_teacher_class_registry(data)
+        if not _save_teacher_class_registry(data):
+            session['turma_flash_error'] = (
+                session.get('save_conflict')
+                or 'Não foi possível salvar a turma (dados desatualizados). Recarregue e tente de novo.'
+            )
+            return redirect(url_for('dashboard'))
         schedule = row.get('horario') or row['turma_display']
+        semester = row.get('semester_id') or ''
+        semester_bit = f' · {semester_label(semester)}' if semester else ''
         session['turma_flash_ok'] = (
-            f'Turma "{row["turma_display"]}" criada ({schedule}). '
+            f'Turma "{row["turma_display"]}" criada ({schedule}){semester_bit}. '
             'Agora você pode cadastrar alunos em + Novo aluno.'
         )
     return redirect(url_for('dashboard'))
@@ -2061,21 +2271,32 @@ def turma_delete():
 
     all_students = _load_students()
     data = _load_teacher_class_registry()
+    semester_id = (
+        (request.form.get('semester_id') or '').strip()
+        or _get_review_semester()
+    )
     display = turma
-    found = find_class(data, owner, turma)
+    found = find_class(data, owner, turma, semester_id=semester_id)
     if found:
         display = found.get('turma_display') or turma
+        semester_id = found.get('semester_id') or semester_id
 
     ok, err = delete_teacher_class(
         data,
         owner,
         turma,
         students=all_students,
+        semester_id=semester_id,
     )
     if err:
         session['turma_flash_error'] = err
     elif ok:
-        _save_teacher_class_registry(data)
+        if not _save_teacher_class_registry(data):
+            session['turma_flash_error'] = (
+                session.get('save_conflict')
+                or 'Não foi possível excluir a turma (dados desatualizados). Recarregue e tente de novo.'
+            )
+            return redirect(url_for('dashboard'))
         session['turma_flash_ok'] = f'Turma "{display}" excluída.'
     return redirect(url_for('dashboard'))
 
@@ -2112,10 +2333,15 @@ def turma_edit(turma):
         return redirect(url_for('dashboard'))
 
     data = _load_teacher_class_registry()
-    existing = _resolve_turma_class(data, owner, code)
+    semester_id = (
+        (request.values.get('semester_id') or '').strip()
+        or _get_review_semester()
+    )
+    existing = _resolve_turma_class(data, owner, code, semester_id=semester_id)
     if not existing:
         session['turma_flash_error'] = 'Turma não encontrada.'
         return redirect(url_for('dashboard'))
+    semester_id = existing.get('semester_id') or semester_id
 
     if request.method == 'POST':
         class_weekdays = [
@@ -2125,7 +2351,7 @@ def turma_edit(turma):
         display = (request.form.get('turma_display') or '').strip()
         time_start = time_from_form(request.form, field='turma_time_start')
         time_end = time_from_form(request.form, field='turma_time_end')
-        if find_class(data, owner, code):
+        if find_class(data, owner, code, semester_id=semester_id):
             row, err = update_teacher_class(
                 data,
                 owner,
@@ -2134,6 +2360,7 @@ def turma_edit(turma):
                 class_weekdays=class_weekdays,
                 class_time_start=time_start,
                 class_time_end=time_end,
+                semester_id=semester_id,
             )
         else:
             row, err = register_teacher_class(
@@ -2144,6 +2371,7 @@ def turma_edit(turma):
                 class_time_start=time_start,
                 class_time_end=time_end,
                 turma=code,
+                semester_id=semester_id,
             )
         if err:
             return render_template(
@@ -2157,11 +2385,31 @@ def turma_edit(turma):
                         'class_weekdays': class_weekdays,
                         'class_time_start': time_from_form(request.form, field='turma_time_start'),
                         'class_time_end': time_from_form(request.form, field='turma_time_end'),
+                        'semester_id': semester_id,
                     },
                     form_error=err,
                 ),
             )
-        _save_teacher_class_registry(data)
+        if not _save_teacher_class_registry(data):
+            return render_template(
+                'turma_edit.html',
+                **_turma_edit_template_context(
+                    turma_code=code,
+                    teacher_name=owner,
+                    edit_class={
+                        **existing,
+                        'turma_display': display,
+                        'class_weekdays': class_weekdays,
+                        'class_time_start': time_start,
+                        'class_time_end': time_end,
+                        'semester_id': semester_id,
+                    },
+                    form_error=(
+                        session.pop('save_conflict', None)
+                        or 'Dados desatualizados. Recarregue a página e salve novamente.'
+                    ),
+                ),
+            )
         all_students = _load_students()
         linked = _propagate_turma_to_students(
             all_students, owner, code, row,
@@ -2217,12 +2465,13 @@ def _turma_display_map(rows, user):
     return labels
 
 
-def _admin_dashboard_turmas(all_students):
+def _admin_dashboard_turmas(all_students, semester_id=None):
     """Active classes for superadmin/admin dashboard (registry + student rows)."""
     registry = _load_teacher_class_registry()
     by_code = {}
+    sid = semester_id or _get_review_semester()
 
-    def _upsert(code, *, display='', horario='', teacher=''):
+    def _upsert(code, *, display='', horario='', teacher='', semester=''):
         code = (code or '').strip()
         if not code:
             return
@@ -2231,6 +2480,7 @@ def _admin_dashboard_turmas(all_students):
             'turma_display': code.replace('_', ' '),
             'horario': '',
             'teacher': '',
+            'semester_id': semester or sid,
         })
         if display:
             row['turma_display'] = display
@@ -2238,14 +2488,17 @@ def _admin_dashboard_turmas(all_students):
             row['horario'] = horario
         if teacher:
             row['teacher'] = teacher
+        if semester:
+            row['semester_id'] = semester
 
     for teacher_name in registry:
-        for entry in list_for_teacher(registry, teacher_name):
+        for entry in list_for_teacher(registry, teacher_name, semester_id=sid):
             _upsert(
                 entry['turma'],
                 display=entry.get('turma_display') or entry['turma'],
                 horario=entry.get('horario') or '',
                 teacher=teacher_name,
+                semester=entry.get('semester_id') or sid,
             )
 
     for student in all_students:
@@ -2259,11 +2512,13 @@ def _admin_dashboard_turmas(all_students):
             if not row['teacher'] and (student.get('teacher') or '').strip():
                 row['teacher'] = (student.get('teacher') or '').strip()
             continue
+        # Only invent from students when no semester-scoped registry entry exists.
         _upsert(
             code,
             display=_class_name_from_student_row(student),
             horario=(student.get('horario') or '').strip(),
             teacher=(student.get('teacher') or '').strip(),
+            semester=sid,
         )
 
     return sorted(
@@ -2527,6 +2782,9 @@ def lesson_edit(idx):
         all_rows[global_idx] = updated
         _save_lessons(_sort_lessons(all_rows))
         _persist_lesson_attendance(updated, _load_roster_students())
+        lesson_month = parse_lesson_month(updated.get('date', ''))
+        if lesson_month:
+            _set_review_month(lesson_month)
         return _redirect_lessons()
 
     attendance_rows = _load_lesson_attendance()
@@ -2563,6 +2821,9 @@ def lesson_new():
         all_rows.append(new_row)
         _save_lessons(_sort_lessons(all_rows))
         _persist_lesson_attendance(new_row, _load_roster_students())
+        lesson_month = parse_lesson_month(new_row.get('date', ''))
+        if lesson_month:
+            _set_review_month(lesson_month)
         return _redirect_lessons()
 
     defaults = {}
@@ -2719,6 +2980,11 @@ def extra_sessions_import():
         existing.extend(rows)
         _save_extra_sessions(existing)
         session['extra_session_flash_message'] = f'{len(rows)} atendimento(s) adicionado(s).'
+    for row in rows:
+        month = parse_lesson_month(row.get('date', ''))
+        if month:
+            _set_review_month(month)
+            break
     return redirect(url_for('extra_sessions'))
 
 

@@ -86,6 +86,14 @@ class StudentMonthlyReviewRow(Base):
     data_json: Mapped[str] = mapped_column(Text, nullable=False)
 
 
+class TeacherClassRow(Base):
+    __tablename__ = "teacher_class_rows"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    row_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    data_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class StoreVersion(Base):
     __tablename__ = "store_versions"
 
@@ -111,6 +119,7 @@ class DatabaseStore:
         ExtraSessionRow: "extra_sessions",
         LessonAttendanceRow: "lesson_attendance",
         StudentMonthlyReviewRow: "monthly_reviews",
+        TeacherClassRow: "teacher_classes",
     }
 
     def __init__(self, database_url: str):
@@ -202,6 +211,16 @@ class DatabaseStore:
 
     def save_monthly_reviews(self, rows, expected_version=None):
         return self._replace_rows(StudentMonthlyReviewRow, rows, expected_version=expected_version)
+
+    def load_teacher_classes(self):
+        rows, _version = self.load_teacher_classes_versioned()
+        return rows
+
+    def load_teacher_classes_versioned(self):
+        return self._load_rows(TeacherClassRow)
+
+    def save_teacher_classes(self, rows, expected_version=None):
+        return self._replace_rows(TeacherClassRow, rows, expected_version=expected_version)
 
     def load_users(self):
         with self.session() as session:
