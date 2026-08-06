@@ -69,6 +69,10 @@ from teacher_classes import (add_class as register_teacher_class,
                              save_registry, sync_teacher_classes_from_students,
                              turma_codes_for_teacher,
                              update_class as update_teacher_class)
+from teacher_chat import (KIND_BUG, KIND_CHAT, ROOM_TITLE, append_message,
+                          can_access_chat, can_resolve_bugs, load_messages,
+                          messages_after, open_bug_count, resolve_bug,
+                          save_messages, thread_tree)
 from class_transfer import (apply_transfer, build_transfer_export_zip,
                             list_teachers_from_students, preview_transfer,
                             turmas_for_teacher)
@@ -1458,6 +1462,9 @@ def inject_auth():
         'review_month_label': month_label(review_month) if review_month else '',
         'available_review_months': _available_review_months(lessons) if user else [],
         'url_with_month': _url_with_month,
+        'can_access_chat': can_access_chat(user) if user else False,
+        'can_resolve_chat_bugs': can_resolve_bugs(user) if user else False,
+        'chat_open_bugs': _chat_open_bug_count() if user and can_access_chat(user) else 0,
     }
 
 
@@ -1758,6 +1765,45 @@ def _save_extra_sessions(rows):
         return True
     _atomic_write_csv(DATA_DIR / 'extra_sessions.csv', EXTRA_SESSION_FIELDS, rows)
     return True
+
+
+def _chat_messages_path():
+    return Path(DATA_DIR) / 'teacher_chat.json'
+
+
+def _load_chat_messages():
+    if db_store:
+        rows, version = db_store.load_chat_messages_versioned()
+        _bind_store_version('chat_messages', version)
+        return list(rows or [])
+    return load_messages(_chat_messages_path())
+
+
+def _save_chat_messages(rows):
+    if db_store:
+        try:
+            version = db_store.save_chat_messages(
+                rows,
+                expected_version=_expected_store_version('chat_messages'),
+            )
+        except StaleDataError:
+            _note_save_conflict()
+            return False
+        _bind_store_version('chat_messages', version)
+        try:
+            save_messages(_chat_messages_path(), rows)
+        except OSError as exc:
+            logger.warning('Could not mirror teacher_chat.json: %s', exc)
+        return True
+    save_messages(_chat_messages_path(), rows)
+    return True
+
+
+def _chat_open_bug_count():
+    try:
+        return open_bug_count(_load_chat_messages())
+    except Exception:
+        return 0
 
 
 def _sync_student_aula_extra_sessions(student):
@@ -3845,6 +3891,93 @@ def download_all():
     buf.seek(0)
     return send_file(buf, mimetype='application/zip',
                      as_attachment=True, download_name='mister_wiz_reports.zip')
+
+
+# ── Teacher chat ──────────────────────────────────────────────────────────────────────
+
+@app.route('/chat')
+@login_required
+def chat_room():
+    user = _current_user()
+    if not can_access_chat(user):
+        abort(403)
+    rows = _load_chat_messages()
+    threads = thread_tree(rows)
+    last_id = rows[-1]['id'] if rows else ''
+    return render_template(
+        'chat.html',
+        room_title=ROOM_TITLE,
+        threads=threads,
+        messages=rows,
+        last_message_id=last_id,
+        open_bugs=open_bug_count(rows),
+        chat_flash_ok=session.pop('chat_flash_ok', None),
+        chat_flash_error=session.pop('chat_flash_error', None),
+    )
+
+
+@app.route('/chat/post', methods=['POST'])
+@login_required
+def chat_post():
+    user = _current_user()
+    if not can_access_chat(user):
+        abort(403)
+    body = request.form.get('body') or ''
+    kind = KIND_BUG if (request.form.get('kind') or '').strip() == KIND_BUG else KIND_CHAT
+    parent_id = (request.form.get('parent_id') or '').strip()
+    rows = _load_chat_messages()
+    msg, err = append_message(rows, user, body, kind=kind, parent_id=parent_id)
+    if err:
+        session['chat_flash_error'] = err
+        return redirect(url_for('chat_room'))
+    if not _save_chat_messages(rows):
+        session['chat_flash_error'] = (
+            session.get('save_conflict')
+            or 'Não foi possível enviar (dados desatualizados). Recarregue e tente de novo.'
+        )
+        return redirect(url_for('chat_room'))
+    session['chat_flash_ok'] = (
+        'Bug reportado.' if kind == KIND_BUG else 'Mensagem enviada.'
+    )
+    return redirect(url_for('chat_room') + f'#msg-{msg["id"]}')
+
+
+@app.route('/chat/<message_id>/resolve', methods=['POST'])
+@login_required
+def chat_resolve_bug(message_id):
+    user = _current_user()
+    if not can_access_chat(user):
+        abort(403)
+    rows = _load_chat_messages()
+    msg, err = resolve_bug(rows, message_id, user)
+    if err:
+        session['chat_flash_error'] = err
+        return redirect(url_for('chat_room'))
+    if not _save_chat_messages(rows):
+        session['chat_flash_error'] = (
+            session.get('save_conflict')
+            or 'Não foi possível atualizar o bug. Recarregue e tente de novo.'
+        )
+        return redirect(url_for('chat_room'))
+    session['chat_flash_ok'] = f'Bug resolvido ({msg["author_name"]}).'
+    return redirect(url_for('chat_room') + f'#msg-{msg["id"]}')
+
+
+@app.route('/chat/messages.json')
+@login_required_json
+def chat_messages_json():
+    user = _current_user()
+    if not can_access_chat(user):
+        return jsonify({'ok': False, 'error': 'Sem permissão.'}), 403
+    rows = _load_chat_messages()
+    after_id = (request.args.get('after') or '').strip()
+    newer = messages_after(rows, after_id=after_id)
+    return jsonify({
+        'ok': True,
+        'messages': newer,
+        'open_bugs': open_bug_count(rows),
+        'last_id': rows[-1]['id'] if rows else after_id,
+    })
 
 
 def _pick_port(preferred):

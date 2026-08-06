@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block title %}Chat{% endblock %}
+{% block page_title %}{{ room_title }}{% endblock %}
+
+{% block content %}
+<p class="text-gray font-sm" style="margin-bottom:16px;">
+  Sala compartilhada para professores e administradores.
+  Marque <strong>Reportar bug</strong> para sinalizar um problema — só admin/superadmin pode resolver.
+</p>
+
+{% if chat_flash_ok %}
+<div class="alert alert-success">✓ &nbsp;{{ chat_flash_ok }}</div>
+{% endif %}
+{% if chat_flash_error %}
+<div class="alert" style="background:#FADBD8;color:#A93226;border:1px solid #F1948A;">✕ &nbsp;{{ chat_flash_error }}</div>
+{% endif %}
+
+{% if open_bugs %}
+<div class="alert" style="background:#FCF3CF;color:#7D6608;border:1px solid #F9E79F;margin-bottom:16px;">
+  {{ open_bugs }} bug{{ 's' if open_bugs != 1 else '' }} em aberto
+</div>
+{% endif %}
+
+<div class="card chat-layout" style="padding:0;overflow:hidden;">
+  <div id="chat-thread" class="chat-thread" data-last-id="{{ last_message_id }}" data-poll-url="{{ url_for('chat_messages_json') }}">
+    {% if not threads %}
+    <div class="chat-empty text-gray font-sm" id="chat-empty">
+      Nenhuma mensagem ainda. Seja o primeiro a escrever.
+    </div>
+    {% endif %}
+    {% for msg in threads %}
+    <article class="chat-msg {% if msg.kind == 'bug' %}chat-msg-bug{% endif %} {% if msg.bug_status == 'resolved' %}chat-msg-resolved{% endif %}" id="msg-{{ msg.id }}" data-msg-id="{{ msg.id }}">
+      <header class="chat-msg-head">
+        <strong>{{ msg.author_name }}</strong>
+        <span class="chat-msg-meta">{{ role_labels.get(msg.author_role, msg.author_role) }} · {{ msg.created_at.replace('T', ' ').replace('Z', '') }}</span>
+        {% if msg.kind == 'bug' %}
+        <span class="chat-bug-tag">{% if msg.bug_status == 'resolved' %}Resolvido{% else %}Bug{% endif %}</span>
+        {% endif %}
+      </header>
+      <div class="chat-msg-body">{{ msg.body }}</div>
+      <div class="chat-msg-actions">
+        <button type="button" class="btn btn-ghost btn-xs chat-reply-btn" data-parent="{{ msg.id }}" data-author="{{ msg.author_name }}">Responder</button>
+        {% if msg.kind == 'bug' and msg.bug_status == 'open' and can_resolve_chat_bugs %}
+        <form method="post" action="{{ url_for('chat_resolve_bug', message_id=msg.id) }}" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-outline btn-xs">Marcar resolvido</button>
+        </form>
+        {% endif %}
+      </div>
+      {% if msg.replies %}
+      <div class="chat-replies">
+        {% for reply in msg.replies %}
+        <article class="chat-msg chat-msg-reply" id="msg-{{ reply.id }}" data-msg-id="{{ reply.id }}">
+          <header class="chat-msg-head">
+            <strong>{{ reply.author_name }}</strong>
+            <span class="chat-msg-meta">{{ role_labels.get(reply.author_role, reply.author_role) }} · {{ reply.created_at.replace('T', ' ').replace('Z', '') }}</span>
+          </header>
+          <div class="chat-msg-body">{{ reply.body }}</div>
+        </article>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+
+  <form method="post" action="{{ url_for('chat_post') }}" class="chat-composer" id="chat-composer">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="parent_id" id="chat-parent-id" value="">
+    <div id="chat-reply-hint" class="chat-reply-hint font-sm text-gray" hidden>
+      Respondendo a <strong id="chat-reply-author"></strong>
+      <button type="button" class="btn btn-ghost btn-xs" id="chat-reply-cancel">Cancelar</button>
+    </div>
+    <label for="chat-body" class="sr-only">Mensagem</label>
+    <textarea id="chat-body" name="body" rows="3" maxlength="2000" required placeholder="Escreva para a equipe…"></textarea>
+    <div class="chat-composer-bar">
+      <label class="chat-bug-toggle font-sm">
+        <input type="checkbox" name="kind" value="bug">
+        Reportar bug
+      </label>
+      <button type="submit" class="btn btn-primary">Enviar</button>
+    </div>
+  </form>
+</div>
+
+<style>
+.chat-layout { display:flex; flex-direction:column; min-height:420px; max-height:min(70vh, 720px); }
+.chat-thread { flex:1; overflow-y:auto; padding:16px 18px; background:#FAFAFC; }
+.chat-empty { padding:24px 8px; text-align:center; }
+.chat-msg {
+  background:#fff; border:1px solid var(--border); border-radius:10px;
+  padding:12px 14px; margin-bottom:10px;
+}
+.chat-msg-bug { border-left:4px solid #C0392B; }
+.chat-msg-resolved { border-left-color:#1E8449; opacity:0.92; }
+.chat-msg-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; margin-bottom:6px; }
+.chat-msg-meta { font-size:11px; color:var(--gray); }
+.chat-bug-tag {
+  font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.4px;
+  background:#FADBD8; color:#922B21; padding:2px 8px; border-radius:999px;
+}
+.chat-msg-resolved .chat-bug-tag { background:#D5F5E3; color:#196F3D; }
+.chat-msg-body { font-size:14px; line-height:1.45; white-space:pre-wrap; }
+.chat-msg-actions { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.chat-replies { margin-top:10px; padding-left:14px; border-left:2px solid #E8E0F0; }
+.chat-msg-reply { background:#F8F6FB; margin-bottom:8px; }
+.chat-composer { border-top:1px solid var(--border); padding:14px 16px; background:#fff; }
+.chat-composer textarea {
+  width:100%; resize:vertical; min-height:72px; padding:10px 12px;
+  border:1px solid var(--border); border-radius:8px; font:inherit;
+}
+.chat-composer-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; }
+.chat-bug-toggle { display:inline-flex; align-items:center; gap:8px; font-weight:600; cursor:pointer; }
+.chat-reply-hint { margin-bottom:8px; display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+</style>
+
+<script>
+(function () {
+  var thread = document.getElementById('chat-thread');
+  var parentInput = document.getElementById('chat-parent-id');
+  var hint = document.getElementById('chat-reply-hint');
+  var hintAuthor = document.getElementById('chat-reply-author');
+  var cancelBtn = document.getElementById('chat-reply-cancel');
+  var bodyInput = document.getElementById('chat-body');
+
+  function clearReply() {
+    parentInput.value = '';
+    hint.hidden = true;
+    hintAuthor.textContent = '';
+  }
+
+  document.querySelectorAll('.chat-reply-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      parentInput.value = btn.getAttribute('data-parent') || '';
+      hintAuthor.textContent = btn.getAttribute('data-author') || '';
+      hint.hidden = false;
+      bodyInput.focus();
+    });
+  });
+  if (cancelBtn) cancelBtn.addEventListener('click', clearReply);
+
+  if (thread && location.hash) {
+    var target = document.querySelector(location.hash);
+    if (target) target.scrollIntoView({ block: 'center' });
+  } else if (thread) {
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  // Light polling for new root messages / replies
+  var pollUrl = thread && thread.getAttribute('data-poll-url');
+  if (!pollUrl || !thread) return;
+  var lastId = thread.getAttribute('data-last-id') || '';
+  setInterval(function () {
+    var url = pollUrl + (lastId ? ('?after=' + encodeURIComponent(lastId)) : '');
+    fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || !data.ok || !data.messages || !data.messages.length) return;
+        // Soft reload keeps forms/CSRF simple for v1 when peers post.
+        window.location.reload();
+      })
+      .catch(function () {});
+  }, 12000);
+})();
+</script>
+{% endblock %}

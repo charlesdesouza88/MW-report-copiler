@@ -64,6 +64,31 @@ def test_database_store_teacher_classes_round_trip(tmp_path):
     assert loaded_version == version
 
 
+def test_database_store_chat_messages_round_trip(tmp_path):
+    db_path = tmp_path / "app.db"
+    store = DatabaseStore(f"sqlite:///{db_path}")
+    store.initialize()
+
+    rows = [
+        {
+            'id': 'abc123',
+            'room_id': 'teachers',
+            'author_user_id': 1,
+            'author_name': 'Chuck',
+            'author_role': 'teacher',
+            'body': 'Olá',
+            'created_at': '2026-08-06T12:00:00Z',
+            'parent_id': '',
+            'kind': 'chat',
+            'bug_status': '',
+        }
+    ]
+    version = store.save_chat_messages(rows)
+    loaded, loaded_version = store.load_chat_messages_versioned()
+    assert loaded == rows
+    assert loaded_version == version
+
+
 def test_database_store_rejects_stale_save(tmp_path):
     from db_store import StaleDataError
 
