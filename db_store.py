@@ -94,6 +94,14 @@ class TeacherClassRow(Base):
     data_json: Mapped[str] = mapped_column(Text, nullable=False)
 
 
+class ChatMessageRow(Base):
+    __tablename__ = "chat_message_rows"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    row_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    data_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class StoreVersion(Base):
     __tablename__ = "store_versions"
 
@@ -120,6 +128,7 @@ class DatabaseStore:
         LessonAttendanceRow: "lesson_attendance",
         StudentMonthlyReviewRow: "monthly_reviews",
         TeacherClassRow: "teacher_classes",
+        ChatMessageRow: "chat_messages",
     }
 
     def __init__(self, database_url: str):
@@ -221,6 +230,16 @@ class DatabaseStore:
 
     def save_teacher_classes(self, rows, expected_version=None):
         return self._replace_rows(TeacherClassRow, rows, expected_version=expected_version)
+
+    def load_chat_messages(self):
+        rows, _version = self.load_chat_messages_versioned()
+        return rows
+
+    def load_chat_messages_versioned(self):
+        return self._load_rows(ChatMessageRow)
+
+    def save_chat_messages(self, rows, expected_version=None):
+        return self._replace_rows(ChatMessageRow, rows, expected_version=expected_version)
 
     def load_users(self):
         with self.session() as session:

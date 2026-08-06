@@ -651,6 +651,12 @@ body.nav-open .nav-backdrop { display: block; }
   <a href="{{ url_with_month('reports') }}" class="nav-link {% if request.endpoint in ('reports','preview') %}active{% endif %}">
     <span class="nav-icon">◈</span> Relatórios
   </a>
+  {% if can_access_chat %}
+  <a href="{{ url_for('chat_room') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('chat_') %}active{% endif %}">
+    <span class="nav-icon">✉</span> Chat
+    {% if chat_open_bugs %}<span style="margin-left:auto;font-size:10px;background:#C0392B;color:#fff;border-radius:999px;padding:1px 7px;font-weight:800;">{{ chat_open_bugs }}</span>{% endif %}
+  </a>
+  {% endif %}
   <div class="nav-spacer"></div>
   {% if current_user %}
   <div style="padding:12px 20px;font-size:11px;color:rgba(255,255,255,0.45);line-height:1.4;border-top:1px solid rgba(255,255,255,0.08);">

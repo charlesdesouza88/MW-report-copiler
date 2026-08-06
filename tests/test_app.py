@@ -2051,3 +2051,82 @@ def test_teacher_cannot_edit_other_teacher_turma(monkeypatch, tmp_path):
     response = client.get("/turmas/PAULA_ONLY/edit?teacher=Paula")
     assert response.status_code == 302
 
+
+
+def test_chat_room_teachers_and_admin_resolve(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    monkeypatch.setattr(web_app, "db_store", None)
+    monkeypatch.setattr(web_app, "SUPERADMIN_EMAIL", "admin@test.local")
+    monkeypatch.setattr(web_app, "SUPERADMIN_PASSWORD", "testpass")
+    _init_teacher_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client, email="teacher@test.local", password="teachpass")
+
+    page = client.get("/chat")
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert "Chat" in html
+    assert "Reportar bug" in html
+
+    posted = client.post(
+        "/chat/post",
+        data={"body": "Olá do Chuck", "kind": ""},
+        follow_redirects=True,
+    )
+    assert posted.status_code == 200
+    assert "Olá do Chuck" in posted.get_data(as_text=True)
+
+    bug = client.post(
+        "/chat/post",
+        data={"body": "Notas não salvam", "kind": "bug"},
+        follow_redirects=True,
+    )
+    assert bug.status_code == 200
+    bug_html = bug.get_data(as_text=True)
+    assert "Notas não salvam" in bug_html
+    assert "Bug" in bug_html
+
+    # Teacher cannot resolve
+    rows = web_app._load_chat_messages()
+    bug_id = next(r["id"] for r in rows if r.get("kind") == "bug")
+    blocked = client.post(f"/chat/{bug_id}/resolve", follow_redirects=True)
+    assert blocked.status_code == 200
+    still_open = next(r for r in web_app._load_chat_messages() if r["id"] == bug_id)
+    assert still_open["bug_status"] == "open"
+
+    # Admin can resolve
+    client.get("/logout")
+    login_resp = _login(client)
+    assert login_resp.status_code in (302, 303)
+    resolved = client.post(f"/chat/{bug_id}/resolve", follow_redirects=True)
+    assert resolved.status_code == 200
+    assert any(r.get("bug_status") == "resolved" for r in web_app._load_chat_messages() if r["id"] == bug_id)
+
+
+def test_chat_messages_json_poll(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    monkeypatch.setattr(web_app, "db_store", None)
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+    client.post("/chat/post", data={"body": "Primeira", "kind": ""})
+    rows = web_app._load_chat_messages()
+    first_id = rows[0]["id"]
+    client.post("/chat/post", data={"body": "Segunda", "kind": ""})
+
+    poll = client.get(f"/chat/messages.json?after={first_id}")
+    assert poll.status_code == 200
+    payload = poll.get_json()
+    assert payload["ok"] is True
+    assert len(payload["messages"]) == 1
+    assert payload["messages"][0]["body"] == "Segunda"
