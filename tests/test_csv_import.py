@@ -197,6 +197,22 @@ def test_normalize_student_row_fills_gramatica():
     })
     assert row['gramatica'] == '4'
     assert row['trabalho_equipe'] == '5'
+    assert row['student_name'] == 'Test'
+
+
+def test_normalize_student_row_capitalizes_name():
+    row = normalize_student_row({
+        'teacher': 'Amanda',
+        'turma': 'COMET',
+        'student_name': 'maria da silva',
+        'speaking': '4',
+        'writing': '2',
+        'reading': '4',
+        'listening': '4',
+        'participacao': '4',
+        'comportamento': '5',
+    })
+    assert row['student_name'] == 'Maria da Silva'
 
 
 def test_parse_upload_csv_amanda_grade_sheet():

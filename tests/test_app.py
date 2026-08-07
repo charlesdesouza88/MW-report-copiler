@@ -1159,7 +1159,7 @@ def test_student_new_creates_row(monkeypatch, tmp_path):
         data={
             "teacher": "Chuck",
             "turma": "KIDS",
-            "student_name": "New Kid",
+            "student_name": "new kid",
             "participacao": "3",
             "comportamento": "3",
             "speaking": "3",
@@ -1176,6 +1176,7 @@ def test_student_new_creates_row(monkeypatch, tmp_path):
     assert response.status_code == 302
     assert "/students" in response.headers["Location"]
     assert "New Kid" in (data_dir / "students.csv").read_text(encoding="utf-8")
+    assert "new kid" not in (data_dir / "students.csv").read_text(encoding="utf-8")
     reviews_path = data_dir / "student_monthly_reviews.json"
     assert reviews_path.exists()
     reviews = json.loads(reviews_path.read_text(encoding="utf-8"))

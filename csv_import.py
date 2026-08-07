@@ -7,7 +7,7 @@ import unicodedata
 from pathlib import Path
 
 from extra_sessions import EXTRA_SESSION_FIELDS, parse_import_csv
-from form_ui import normalize_habilidades
+from form_ui import capitalize_student_name, normalize_habilidades
 
 STUDENT_FIELDS = [
     'teacher', 'turma', 'turma_display', 'nivel', 'horario', 'student_name',
@@ -458,6 +458,7 @@ def _derive_gramatica(row):
 def normalize_student_row(row):
     """Ensure every upload column exists with valid defaults."""
     out = {field: _norm_cell(row.get(field, '')) for field in STUDENT_FIELDS}
+    out['student_name'] = capitalize_student_name(out.get('student_name'))
     comp = out.get('comportamento') or out.get('participacao') or '3'
     if not out.get('comportamento'):
         out['comportamento'] = comp

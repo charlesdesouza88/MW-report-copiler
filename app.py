@@ -54,7 +54,8 @@ from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
                                students_with_attendance_in_month)
 from form_ui import (HABILIDADES_CHOICES, LICAO_CONTEUDO_CHOICES,
                      LICAO_ESPECIAL_CHOICES, NIVEL_CHOICES, WEEKDAY_CHOICES,
-                     date_from_form, format_class_schedule, format_date_for_input,
+                     capitalize_student_name, date_from_form,
+                     format_class_schedule, format_date_for_input,
                      is_valid_nivel, licao_choice_for_value, next_aula_num,
                      normalize_habilidades, parse_time_range_from_horario,
                      storage_date_to_iso,
@@ -1061,6 +1062,7 @@ def _teacher_may_use_student_turma(turma, all_students, user, nivel=''):
 
 def _student_row_from_form():
     row = {field: (request.form.get(field, '') or '').strip() for field in STUDENT_FIELDS}
+    row['student_name'] = capitalize_student_name(row.get('student_name'))
     row = _resolve_teacher_class_choice(row)
     row['aula_extra'] = normalize_aula_extra(row.get('aula_extra'))
     return _normalize_presence_fields(row)

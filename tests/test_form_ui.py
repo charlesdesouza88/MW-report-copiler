@@ -1,5 +1,6 @@
 from form_ui import (
     NIVEL_CHOICES,
+    capitalize_student_name,
     date_from_form,
     format_class_schedule,
     format_date_for_input,
@@ -10,6 +11,15 @@ from form_ui import (
     storage_date_to_iso,
     turma_code_from_nivel,
 )
+
+
+def test_capitalize_student_name():
+    assert capitalize_student_name('maria da silva') == 'Maria da Silva'
+    assert capitalize_student_name('JOÃO PEDRO') == 'João Pedro'
+    assert capitalize_student_name('  ana-clara  de  souza ') == 'Ana-Clara de Souza'
+    assert capitalize_student_name("d'angelo") == "D'Angelo"
+    assert capitalize_student_name('jane doe (MASTER)') == 'Jane Doe (MASTER)'
+    assert capitalize_student_name('') == ''
 
 
 def test_nivel_choices():
