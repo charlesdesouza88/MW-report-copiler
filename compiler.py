@@ -118,7 +118,7 @@ def score_delta_badge(current, prior):
         return dict(delta=delta, text=f'+{delta}', css='delta-up', symbol='▲')
     if delta < 0:
         return dict(delta=delta, text=str(delta), css='delta-down', symbol='▼')
-    return dict(delta=0, text='→', css='delta-stable', symbol='→')
+    return dict(delta=0, text='0', css='delta-stable', symbol='→')
 
 
 def comparison_bar_chart(rows, bar_max_w=140, bar_h=10, row_gap=6, label_w=88):
@@ -273,6 +273,8 @@ def score_ring_row(items, ring_size=58, stroke=7, gap=12):
         rings.append(dict(
             label=item['label'],
             score=score,
+            delta=item.get('delta'),
+            highlight=item.get('highlight', False),
             x=x,
             donut=donut,
             label_x=round(x + ring_size / 2, 1),
@@ -752,6 +754,10 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
     expanded_scores = expanded_radar_scores(dev_scores, part_overall, pres_score)
     part_labels = ['Oral', 'Foco', 'Equipe']
     comp_labels = ['Organização', 'Pontualidade', 'Respeito']
+    composite_score = round_half_up((dev_overall + part_overall + comp_overall + pres_score) / 4)
+    composite_delta = None
+    if trend and trend.get('direction') != 'first' and trend.get('prior_score') is not None:
+        composite_delta = score_delta_badge(trend['current_score'], trend['prior_score'])
     ctx = dict(
         student=s,
         report_month=report_month,
@@ -786,11 +792,13 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
             dict(label=dev_labels[i], score=dev_scores[i]) for i in range(len(dev_labels))
         ]),
         dimension_rings=score_ring_row([
+            dict(label='Geral', score=composite_score, delta=composite_delta, highlight=True),
             dict(label='Presença', score=pres_score),
             dict(label='Desenv.', score=dev_overall),
             dict(label='Particip.', score=part_overall),
             dict(label='Comport.', score=comp_overall),
         ]),
+        composite_score=composite_score,
         comp_scores=comp_scores,
         comp_overall=comp_overall,
         expanded_radar=heptagon_polygon(expanded_scores),
@@ -808,10 +816,9 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
         )
         for dim in ctx['comparison']['dims']:
             ctx[f"{dim['key']}_delta"] = dim['delta']
-        from report_periods import student_composite_score
         ctx['composite_sparkline'] = composite_sparkline(
             snapshots, turma, s.get('student_name', ''), report_month,
-            student_composite_score(ctx),
+            composite_score,
         )
     return ctx
 
