@@ -3334,9 +3334,13 @@ def _validate_generation_inputs(students, lessons):
         return 'Dados de alunos incompletos: ' + '; '.join(missing) + '.'
     turmas_sem_aula = turmas_without_lessons(students, lessons)
     if turmas_sem_aula:
+        names = []
+        for code in turmas_sem_aula:
+            rows = [s for s in students if (s.get('turma') or '').strip() == code]
+            names.append(class_display_from_student_rows(rows, code) if rows else code)
         return (
             'Nenhuma aula cadastrada para a(s) turma(s): '
-            + ', '.join(turmas_sem_aula)
+            + ', '.join(names)
             + '. Sem aulas, a presença sairia como 100% para todos os alunos. '
             'Cadastre as aulas dessas turmas antes de gerar.'
         )

@@ -111,12 +111,17 @@
         <input type="text" name="turma_display" value="{{ student.turma_display or '' }}" placeholder="ex: Masters">
       </div>
       {% endif %}
+      {% set nivel_current = (student.nivel or '').strip() %}
+      {% set nivel_current_upper = nivel_current.upper() %}
       <div class="form-group">
         <label>Livro / nível do aluno{% if allow_teacher_class_pick and is_new %} *{% endif %}</label>
         <select name="nivel" id="nivel-select" {% if allow_teacher_class_pick and is_new %}required{% endif %}>
           <option value="">— Selecione —</option>
+          {% if nivel_current and nivel_current_upper not in nivel_choices %}
+          <option value="{{ nivel_current }}" selected>{{ nivel_current }} (não padronizado)</option>
+          {% endif %}
           {% for n in nivel_choices %}
-          <option value="{{ n }}" {% if student.nivel == n %}selected{% endif %}>{{ n }}</option>
+          <option value="{{ n }}" {% if nivel_current_upper == n %}selected{% endif %}>{{ n }}</option>
           {% endfor %}
         </select>
       </div>
