@@ -12,7 +12,19 @@
   {% if generate_error_detail %}
   <div class="font-sm text-gray" style="margin-top:8px;">Detalhe técnico: {{ generate_error_detail }}</div>
   {% endif %}
+  {% if generate_error_skippable %}
+  <form method="post" action="{{ url_for('generate') }}" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="report_month" value="{{ review_month or default_month }}">
+    <input type="hidden" name="skip_incomplete" value="1">
+    <button type="submit" class="btn btn-outline btn-sm">Gerar mesmo assim (pulando turmas sem aulas)</button>
+  </form>
+  {% endif %}
 </div>
+{% endif %}
+
+{% if generate_warning %}
+<div class="alert alert-warning" style="margin-bottom:16px;">⚠ {{ generate_warning }}</div>
 {% endif %}
 
 {% if db_status.configured %}

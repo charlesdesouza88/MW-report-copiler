@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% from '_macros/list_filters.html' import filter_panel, filter_group_extra, filter_turma_group, filter_month_group, list_filter_script %}
+{% from '_macros/icons.html' import icon_eye, icon_printer, icon_download, icon_wand, icon_warning, icon_reports_stack %}
 {% block title %}Relatórios{% endblock %}
 {% block page_title %}Relatórios gerados{% endblock %}
 
@@ -10,7 +11,7 @@
   <span class="page-toolbar-label">Ações</span>
   <div class="page-toolbar-actions">
     {% if report_rows %}
-    <a href="{{ url_for('download_all', month=selected_month) if selected_month else url_for('download_all') }}" class="btn btn-outline btn-sm">↓ Baixar todos (.zip)</a>
+    <a href="{{ url_for('download_all', month=selected_month) if selected_month else url_for('download_all') }}" class="btn btn-outline btn-sm">{{ icon_download() }} Baixar todos (.zip)</a>
     {% endif %}
     <form method="post" action="{{ url_for('generate') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -21,7 +22,7 @@
         {% endfor %}
       </select>
       {% endif %}
-      <button type="submit" class="btn btn-primary btn-sm">▶ Regenerar</button>
+      <button type="submit" class="btn btn-primary btn-sm">{{ icon_wand() }} Regenerar</button>
     </form>
   </div>
 </div>
@@ -29,9 +30,13 @@
 
 {% block content %}
 
+{% if generate_warning %}
+<div class="alert alert-warning" style="margin-bottom:16px;">{{ icon_warning() }} {{ generate_warning }}</div>
+{% endif %}
+
 {% if not report_rows %}
 <div class="card" style="text-align:center; padding:48px;">
-  <div style="font-size:40px; margin-bottom:12px;">◈</div>
+  <div style="margin-bottom:12px; display:flex; justify-content:center;">{{ icon_reports_stack() }}</div>
   <p class="text-gray" style="margin-bottom:16px;">
     {% if selected_month %}
     Nenhum relatório gerado para {{ month_label(selected_month) }}.
@@ -44,7 +49,7 @@
     {% if available_months %}
     <input type="hidden" name="report_month" value="{{ selected_month or default_month }}">
     {% endif %}
-    <button type="submit" class="btn btn-primary">▶ Gerar relatórios</button>
+    <button type="submit" class="btn btn-primary">{{ icon_wand() }} Gerar relatórios</button>
   </form>
 </div>
 {% else %}
@@ -103,11 +108,11 @@
       {% if row.month %}<span class="tag">{{ month_label(row.month) }}</span>{% endif %}
     </div>
     <div class="report-card-actions">
-      <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank" class="btn btn-ghost btn-sm">👁 Visualizar</a>
+      <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank" class="btn btn-ghost btn-sm">{{ icon_eye() }} Visualizar</a>
       <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank"
          onclick="openPrint(event, '{{ url_for('preview', filename=row.filename) }}')"
-         class="btn btn-ghost btn-sm">🖨 Imprimir</a>
-      <a href="{{ url_for('download_report', filename=row.filename) }}" class="btn btn-primary btn-sm">↓ Baixar</a>
+         class="btn btn-ghost btn-sm">{{ icon_printer() }} Imprimir</a>
+      <a href="{{ url_for('download_report', filename=row.filename) }}" class="btn btn-primary btn-sm">{{ icon_download() }} Baixar</a>
     </div>
   </div>
   {% endfor %}
@@ -170,11 +175,11 @@
         </td>
         <td class="col-actions">
           <div class="report-actions">
-            <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank" class="btn btn-ghost btn-xs">👁 Visualizar</a>
+            <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank" class="btn btn-ghost btn-xs">{{ icon_eye(13) }} Visualizar</a>
             <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank"
                onclick="openPrint(event, '{{ url_for('preview', filename=row.filename) }}')"
-               class="btn btn-ghost btn-xs">🖨 Imprimir</a>
-            <a href="{{ url_for('download_report', filename=row.filename) }}" class="btn btn-primary btn-xs">↓ Baixar</a>
+               class="btn btn-ghost btn-xs">{{ icon_printer(13) }} Imprimir</a>
+            <a href="{{ url_for('download_report', filename=row.filename) }}" class="btn btn-primary btn-xs">{{ icon_download(13) }} Baixar</a>
           </div>
         </td>
       </tr>
