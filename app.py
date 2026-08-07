@@ -2,6 +2,7 @@
 """Mister Wiz Report Compiler — Web Dashboard"""
 
 import csv
+import base64
 import functools
 import io
 import json
@@ -16,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from flask import (Flask, abort, g, jsonify, redirect, render_template, request,
+from flask import (Flask, Response, abort, g, jsonify, redirect, render_template, request,
                    send_file, session, url_for)
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_limiter import Limiter
@@ -73,6 +74,9 @@ from teacher_chat import (KIND_BUG, KIND_CHAT, ROOM_TITLE, append_message,
                           can_access_chat, can_resolve_bugs, load_messages,
                           messages_after, open_bug_count, resolve_bug,
                           save_messages, thread_tree)
+from teacher_profiles import (can_edit_profile, can_view_profile, encode_photo,
+                              get_or_empty, load_profiles, photo_data_url,
+                              save_profiles, upsert_profile)
 from class_transfer import (apply_transfer, build_transfer_export_zip,
                             list_teachers_from_students, preview_transfer,
                             turmas_for_teacher)
@@ -1804,6 +1808,38 @@ def _chat_open_bug_count():
         return open_bug_count(_load_chat_messages())
     except Exception:
         return 0
+
+
+def _teacher_profiles_path():
+    return Path(DATA_DIR) / 'teacher_profiles.json'
+
+
+def _load_teacher_profiles():
+    if db_store:
+        rows, version = db_store.load_teacher_profiles_versioned()
+        _bind_store_version('teacher_profiles', version)
+        return list(rows or [])
+    return load_profiles(_teacher_profiles_path())
+
+
+def _save_teacher_profiles(rows):
+    if db_store:
+        try:
+            version = db_store.save_teacher_profiles(
+                rows,
+                expected_version=_expected_store_version('teacher_profiles'),
+            )
+        except StaleDataError:
+            _note_save_conflict()
+            return False
+        _bind_store_version('teacher_profiles', version)
+        try:
+            save_profiles(_teacher_profiles_path(), rows)
+        except OSError as exc:
+            logger.warning('Could not mirror teacher_profiles.json: %s', exc)
+        return True
+    save_profiles(_teacher_profiles_path(), rows)
+    return True
 
 
 def _sync_student_aula_extra_sessions(student):
@@ -3978,6 +4014,115 @@ def chat_messages_json():
         'open_bugs': open_bug_count(rows),
         'last_id': rows[-1]['id'] if rows else after_id,
     })
+
+
+# ── Teacher profile ───────────────────────────────────────────────────────────────────
+
+def _profile_target_user(user_id=None):
+    actor = _current_user()
+    if not actor:
+        return None, None
+    if user_id is None:
+        return actor, user_store.get_by_id(actor['id'])
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        return actor, None
+    target = user_store.get_by_id(uid)
+    return actor, target
+
+
+@app.route('/profile', methods=['GET', 'POST'])
+@app.route('/profile/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def teacher_profile(user_id=None):
+    actor, target = _profile_target_user(user_id)
+    if not target:
+        abort(404)
+    if not can_view_profile(actor, target):
+        abort(403)
+
+    target_public = user_public_dict(target)
+    editable = can_edit_profile(actor, target['id'])
+    profiles = _load_teacher_profiles()
+    profile = get_or_empty(profiles, target['id'])
+    form_error = None
+
+    if request.method == 'POST':
+        if not editable:
+            abort(403)
+        clear_photo = bool(request.form.get('clear_photo'))
+        photo_mime = None
+        photo_b64 = None
+        upload = request.files.get('photo')
+        if upload and upload.filename:
+            raw = upload.read()
+            photo_mime, photo_b64, photo_err = encode_photo(raw)
+            if photo_err:
+                form_error = photo_err
+        if not form_error:
+            updated, err = upsert_profile(
+                profiles,
+                target['id'],
+                bio=request.form.get('bio') or '',
+                phone=request.form.get('phone') or '',
+                whatsapp=request.form.get('whatsapp') or '',
+                contact_email=request.form.get('contact_email') or '',
+                specialty=request.form.get('specialty') or '',
+                photo_mime=photo_mime,
+                photo_base64=photo_b64,
+                clear_photo=clear_photo and not (photo_mime and photo_b64),
+            )
+            if err:
+                form_error = err
+            elif not _save_teacher_profiles(profiles):
+                form_error = (
+                    session.get('save_conflict')
+                    or 'Não foi possível salvar o perfil. Recarregue e tente de novo.'
+                )
+            else:
+                session['profile_flash_ok'] = 'Perfil atualizado.'
+                if user_id is None:
+                    return redirect(url_for('teacher_profile'))
+                return redirect(url_for('teacher_profile', user_id=target['id']))
+        profile = get_or_empty(profiles, target['id'])
+        if form_error:
+            # Keep submitted text on validation errors.
+            profile = {
+                **profile,
+                'bio': (request.form.get('bio') or '')[:1000],
+                'phone': (request.form.get('phone') or '')[:120],
+                'whatsapp': (request.form.get('whatsapp') or '')[:120],
+                'contact_email': (request.form.get('contact_email') or '')[:120],
+                'specialty': (request.form.get('specialty') or '')[:120],
+            }
+
+    return render_template(
+        'profile.html',
+        target_user=target_public,
+        profile=profile,
+        photo_url=photo_data_url(profile),
+        editable=editable,
+        is_own_profile=int(actor['id']) == int(target['id']),
+        form_error=form_error,
+        profile_flash_ok=session.pop('profile_flash_ok', None),
+    )
+
+
+@app.route('/profile/<int:user_id>/photo')
+@login_required
+def teacher_profile_photo(user_id):
+    actor, target = _profile_target_user(user_id)
+    if not target or not can_view_profile(actor, target):
+        abort(404)
+    profile = get_or_empty(_load_teacher_profiles(), user_id)
+    if not profile.get('photo_base64') or not profile.get('photo_mime'):
+        abort(404)
+    try:
+        raw = base64.b64decode(profile['photo_base64'], validate=True)
+    except Exception:
+        abort(404)
+    return Response(raw, mimetype=profile['photo_mime'])
 
 
 def _pick_port(preferred):

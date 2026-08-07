@@ -89,6 +89,30 @@ def test_database_store_chat_messages_round_trip(tmp_path):
     assert loaded_version == version
 
 
+def test_database_store_teacher_profiles_round_trip(tmp_path):
+    db_path = tmp_path / "app.db"
+    store = DatabaseStore(f"sqlite:///{db_path}")
+    store.initialize()
+
+    rows = [
+        {
+            'user_id': 2,
+            'bio': 'Hello',
+            'phone': '',
+            'whatsapp': '1199',
+            'contact_email': 'a@b.com',
+            'specialty': 'Teens',
+            'photo_mime': '',
+            'photo_base64': '',
+            'updated_at': '2026-08-06T12:00:00Z',
+        }
+    ]
+    version = store.save_teacher_profiles(rows)
+    loaded, loaded_version = store.load_teacher_profiles_versioned()
+    assert loaded == rows
+    assert loaded_version == version
+
+
 def test_database_store_rejects_stale_save(tmp_path):
     from db_store import StaleDataError
 

@@ -2130,3 +2130,91 @@ def test_chat_messages_json_poll(monkeypatch, tmp_path):
     assert payload["ok"] is True
     assert len(payload["messages"]) == 1
     assert payload["messages"][0]["body"] == "Segunda"
+
+
+def test_teacher_profile_self_edit_and_photo(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    monkeypatch.setattr(web_app, "db_store", None)
+    monkeypatch.setattr(web_app, "SUPERADMIN_EMAIL", "admin@test.local")
+    monkeypatch.setattr(web_app, "SUPERADMIN_PASSWORD", "testpass")
+    _init_teacher_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client, email="teacher@test.local", password="teachpass")
+
+    page = client.get("/profile")
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert "Meu perfil" in html
+    assert "Bio" in html
+
+    jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 80
+    saved = client.post(
+        "/profile",
+        data={
+            "bio": "Amo ensinar Teens",
+            "specialty": "Teens",
+            "whatsapp": "11988887777",
+            "phone": "",
+            "contact_email": "chuck.public@school.com",
+            "photo": (io.BytesIO(jpeg), "me.jpg"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert saved.status_code == 200
+    body = saved.get_data(as_text=True)
+    assert "Amo ensinar Teens" in body
+    assert "11988887777" in body
+    assert "Perfil atualizado" in body
+
+    profiles = web_app._load_teacher_profiles()
+    assert len(profiles) == 1
+    assert profiles[0]["specialty"] == "Teens"
+    assert profiles[0]["photo_mime"] == "image/jpeg"
+
+    teacher = web_app.user_store.get_by_email("teacher@test.local")
+    photo = client.get(f"/profile/{teacher['id']}/photo")
+    assert photo.status_code == 200
+    assert photo.data.startswith(b"\xff\xd8\xff")
+
+
+def test_admin_can_edit_teacher_profile(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    monkeypatch.setattr(web_app, "db_store", None)
+    monkeypatch.setattr(web_app, "SUPERADMIN_EMAIL", "admin@test.local")
+    monkeypatch.setattr(web_app, "SUPERADMIN_PASSWORD", "testpass")
+    _init_teacher_store(monkeypatch, data_dir)
+
+    teacher = web_app.user_store.get_by_email("teacher@test.local")
+    client = web_app.app.test_client()
+    _login(client)
+
+    page = client.get(f"/profile/{teacher['id']}")
+    assert page.status_code == 200
+    assert "Editar perfil" in page.get_data(as_text=True)
+
+    saved = client.post(
+        f"/profile/{teacher['id']}",
+        data={
+            "bio": "Bio do admin",
+            "specialty": "Kids",
+            "whatsapp": "",
+            "phone": "113333",
+            "contact_email": "",
+        },
+        follow_redirects=True,
+    )
+    assert saved.status_code == 200
+    assert "Bio do admin" in saved.get_data(as_text=True)
+    profile = web_app._load_teacher_profiles()[0]
+    assert profile["user_id"] == teacher["id"]
+    assert profile["specialty"] == "Kids"

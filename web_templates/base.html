@@ -663,6 +663,9 @@ body.nav-open .nav-backdrop { display: block; }
     {{ current_user.email }}<br>
     <span style="color:rgba(255,255,255,0.65);">{{ role_labels.get(current_user.role, current_user.role) }}</span>
   </div>
+  <a href="{{ url_for('teacher_profile') }}" class="nav-link {% if request.endpoint in ('teacher_profile', 'teacher_profile_photo') %}active{% endif %}">
+    <span class="nav-icon">☺</span> Meu perfil
+  </a>
   {% endif %}
   <a href="{{ url_for('logout') }}" class="nav-link nav-logout">
     <span class="nav-icon">⏻</span> Sair
