@@ -27,10 +27,18 @@ body {
   box-shadow: 0 24px 64px rgba(0,0,0,0.28);
 }
 .logo { text-align: center; margin-bottom: 28px; }
-.logo-mister { font-size: 12px; font-weight: 900; color: #888; letter-spacing: 3px; }
-.logo-wiz { font-size: 44px; font-weight: 900; color: #111; letter-spacing: -2px; line-height: 1; }
-.logo-wiz .star { color: #5B2D8E; }
-.logo-sub { font-size: 10px; color: #999; letter-spacing: 2px; margin-top: 4px; text-transform: uppercase; }
+.logo-mark {
+  width: 64px; height: 64px; border-radius: 12px;
+  object-fit: cover; display: block; margin: 0 auto 12px;
+  box-shadow: 0 6px 18px rgba(74, 31, 124, 0.22);
+}
+.logo-wordmark {
+  display: block; width: min(220px, 72%); height: auto; margin: 0 auto;
+}
+.logo-sub {
+  font-size: 10px; color: #999; letter-spacing: 2px; margin-top: 10px;
+  text-transform: uppercase;
+}
 h2 { font-size: 15px; font-weight: 900; color: #111; margin-bottom: 20px; text-align: center; }
 .form-group { margin-bottom: 16px; }
 label { display: block; font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
@@ -55,8 +63,8 @@ input:focus { outline: none; border-color: #5B2D8E; }
 <body>
 <div class="login-card">
   <div class="logo">
-    <div class="logo-mister">MISTER</div>
-    <div class="logo-wiz">W<span class="star">✦</span>Z</div>
+    <img class="logo-mark" src="{{ url_for('static', filename='img/mister-wiz-icon.png') }}" alt="Mister Wiz" width="64" height="64">
+    <img class="logo-wordmark" src="{{ url_for('static', filename='img/mister-wiz-wordmark-header.png') }}" alt="Mister Wiz" width="220" height="31">
     <div class="logo-sub">Plataforma de relatórios</div>
   </div>
   <h2>Entrar</h2>
