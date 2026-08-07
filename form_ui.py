@@ -8,6 +8,62 @@ _ISO_DATE = re.compile(r'^(\d{4})-(\d{2})-(\d{2})$')
 _STORAGE_DATE = re.compile(r'^(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?$')
 _TIME = re.compile(r'^(\d{1,2}):(\d{2})')
 
+# Lowercase particles kept mid-name (Portuguese / common Romance forms).
+_NAME_PARTICLES = frozenset({
+    'a', 'as', 'o', 'os', 'e', 'da', 'das', 'de', 'do', 'dos',
+    'del', 'di', 'du', 'la', 'le', 'van', 'von', 'y',
+})
+
+
+def capitalize_student_name(name):
+    """Title-case a student name, keeping particles like 'da'/'de' lowercase.
+
+    Parenthetical suffixes (e.g. turma hints) are left unchanged.
+    """
+    text = ' '.join(str(name or '').split())
+    if not text:
+        return ''
+
+    paren = ''
+    match = re.search(r'(\s*\([^)]*\))\s*$', text)
+    if match:
+        paren = match.group(1)
+        text = text[:match.start()].rstrip()
+        if not text:
+            return (name or '').strip()
+
+    words = [
+        _capitalize_name_token(token, first=(i == 0))
+        for i, token in enumerate(text.split(' '))
+    ]
+    return ' '.join(words) + paren
+
+
+def _capitalize_name_token(token, first=False):
+    if '-' in token:
+        parts = token.split('-')
+        return '-'.join(
+            _capitalize_name_token(part, first=(first and i == 0))
+            for i, part in enumerate(parts)
+        )
+    for sep in ("'", '’'):
+        if sep in token:
+            head, *tail = token.split(sep)
+            return sep.join(
+                [_capitalize_name_token(head, first=first)]
+                + [_capitalize_word(part) if part else part for part in tail]
+            )
+    folded = token.casefold()
+    if not first and folded in _NAME_PARTICLES:
+        return folded
+    return _capitalize_word(token)
+
+
+def _capitalize_word(word):
+    if not word:
+        return word
+    return word[0].upper() + word[1:].casefold()
+
 
 def parse_storage_date(value):
     """

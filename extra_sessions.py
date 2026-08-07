@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from auth import normalize_teacher_name
-from form_ui import date_from_form, time_from_form
+from form_ui import capitalize_student_name, date_from_form, time_from_form
 
 EXTRA_SESSION_FIELDS = [
     'teacher', 'student_name', 'turma', 'date', 'horario', 'turno',
@@ -95,7 +95,7 @@ def clean_student_display_name(student_name):
     """Remove trailing (2) session markers but keep turma in parentheses."""
     name = (student_name or '').strip()
     name = re.sub(r'\s*\(\d+\)\s*$', '', name)
-    return name.strip()
+    return capitalize_student_name(name.strip())
 
 
 STATUS_OK = 'OK'
