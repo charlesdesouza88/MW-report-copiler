@@ -33,14 +33,27 @@ img, svg, video { max-width: 100%; height: auto; }
   padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 .brand {
-  padding: 22px 20px 16px;
+  padding: 18px 16px 14px;
   border-bottom: 1px solid rgba(255,255,255,0.12);
   margin-bottom: 6px;
 }
-.brand-mister { font-size: 10px; font-weight: 900; color: rgba(255,255,255,0.55); letter-spacing: 2.5px; }
-.brand-wiz { font-size: 28px; font-weight: 900; color: #fff; letter-spacing: -1px; line-height: 1; }
-.brand-wiz .star { color: #C89EFF; }
-.brand-sub { font-size: 8.5px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; margin-top: 3px; text-transform: uppercase; }
+.brand-lockup {
+  display: flex; align-items: center; gap: 10px;
+}
+.brand-mark {
+  width: 40px; height: 40px; border-radius: 9px;
+  object-fit: cover; flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.brand-text { min-width: 0; flex: 1; }
+.brand-wordmark {
+  display: block; width: 100%; max-width: 148px; height: auto;
+  filter: brightness(0) invert(1);
+}
+.brand-sub {
+  font-size: 8.5px; color: rgba(255,255,255,0.45); letter-spacing: 1.5px;
+  margin-top: 5px; text-transform: uppercase;
+}
 .nav-link {
   display: flex; align-items: center; gap: 10px;
   padding: 11px 20px; color: rgba(255,255,255,0.65);
@@ -532,7 +545,7 @@ body.nav-open .nav-backdrop { display: block; }
   .stat-grid { grid-template-columns: 1fr; }
   .stat-value { font-size: 34px; }
   .page-title { font-size: 15px; line-height: 1.25; }
-  .brand-wiz { font-size: 24px; }
+  .brand-mark { width: 36px; height: 36px; }
   .student-card-header { flex-direction: column; align-items: flex-start; }
   .filter-group { align-items: flex-start; }
   .filter-group-label { min-width: 0; width: 100%; margin-bottom: 2px; }
@@ -618,9 +631,13 @@ body.nav-open .nav-backdrop { display: block; }
 
 <nav class="sidebar" id="sidebar" aria-label="Menu principal">
   <div class="brand">
-    <div class="brand-mister">MISTER</div>
-    <div class="brand-wiz">W<span class="star">✦</span>Z</div>
-    <div class="brand-sub">{% if current_user and current_user.role == 'teacher' %}Professor{% else %}Admin{% endif %}</div>
+    <div class="brand-lockup">
+      <img class="brand-mark" src="{{ url_for('static', filename='img/mister-wiz-icon.png') }}" alt="Mister Wiz" width="40" height="40">
+      <div class="brand-text">
+        <img class="brand-wordmark" src="{{ url_for('static', filename='img/mister-wiz-wordmark-header.png') }}" alt="Mister Wiz" width="148" height="21">
+        <div class="brand-sub">{% if current_user and current_user.role == 'teacher' %}Professor{% else %}Admin{% endif %}</div>
+      </div>
+    </div>
   </div>
   <a href="{{ url_with_month('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
     <span class="nav-icon">▦</span> Dashboard
