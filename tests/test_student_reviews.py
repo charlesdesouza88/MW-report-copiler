@@ -72,15 +72,18 @@ def test_merge_uses_monthly_store():
     assert merged[0]['student_name'] == 'Jane'
 
 
-def test_merge_seeds_from_previous_month():
+def test_merge_unsaved_month_uses_defaults_not_previous():
     roster = [_student(participacao='1')]
     store = {}
     upsert_monthly_review(store, _student(participacao='4'), '2026-02')
     merged = merge_roster_for_month(roster, store, '2026-03')
-    assert merged[0]['participacao'] == '4'
+    assert merged[0]['participacao'] == DEFAULT_MONTHLY_VALUES['participacao']
+    assert merged[0]['faltas'] == '0'
+    assert merged[0]['missed_aulas'] == ''
+    assert merged[0]['aula_extra'] == ''
 
 
-def test_merge_presence_resets_from_previous_month():
+def test_merge_unsaved_month_does_not_copy_presence_or_scores():
     roster = [_student()]
     store = {}
     upsert_monthly_review(
@@ -92,14 +95,25 @@ def test_merge_presence_resets_from_previous_month():
     assert merged[0]['faltas'] == '0'
     assert merged[0]['missed_aulas'] == ''
     assert merged[0]['aula_extra'] == ''
-    assert merged[0]['participacao'] == '4'
+    assert merged[0]['participacao'] == DEFAULT_MONTHLY_VALUES['participacao']
 
 
-def test_merge_falls_back_to_roster_legacy():
+def test_merge_falls_back_to_roster_legacy_when_no_monthly_rows():
     roster = [_student(participacao='3')]
     store = {}
     merged = merge_roster_for_month(roster, store, '2026-03')
     assert merged[0]['participacao'] == '3'
+
+
+def test_merge_ignores_legacy_roster_once_monthly_exists():
+    roster = [_student(participacao='1')]
+    store = {}
+    upsert_monthly_review(store, _student(participacao='5'), '2026-02')
+    # Roster still has participacao=1, but monthly history exists → fresh defaults.
+    merged = merge_roster_for_month(roster, store, '2026-03')
+    assert merged[0]['participacao'] == DEFAULT_MONTHLY_VALUES['participacao']
+    assert merged[0]['participacao'] != '1'
+    assert merged[0]['participacao'] != '5'
 
 
 def test_merge_defaults_when_empty():

@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from report_periods import previous_calendar_month, student_snapshot_id
+from report_periods import student_snapshot_id
 
 ROSTER_FIELDS = (
     'teacher', 'turma', 'turma_display', 'nivel', 'horario', 'student_name',
@@ -16,9 +16,6 @@ MONTHLY_REVIEW_FIELDS = (
     'feedback_participacao', 'feedback_foco', 'feedback_trabalho_equipe',
     'recomendacoes', 'observacao',
 )
-
-# Presence resets each month — never copy from a previous month's review.
-PRESENCE_FIELDS = frozenset({'faltas', 'missed_aulas', 'aula_extra'})
 
 DEFAULT_MONTHLY_VALUES = {
     'participacao': '3',
@@ -65,7 +62,11 @@ def extract_roster_fields(row):
 
 
 def merge_student_for_month(roster_row, store, month_key):
-    """Return a full student dict for display/edit/generate for the given month."""
+    """Return a full student dict for display/edit/generate for the given month.
+
+    Unsaved months start from defaults (or legacy CSV scores only when this
+    student has no monthly rows yet). Scores are never copied from a prior month.
+    """
     turma = (roster_row.get('turma') or '').strip()
     name = (roster_row.get('student_name') or '').strip()
     merged = dict(roster_row)
@@ -82,23 +83,16 @@ def merge_student_for_month(roster_row, store, month_key):
         merged.update({k: store[key].get(k, '') for k in MONTHLY_REVIEW_FIELDS})
         return merged
 
-    prev = previous_calendar_month(month_key)
-    if prev:
-        prev_key = review_key(turma, name, prev)
-        if prev_key in store:
-            prev_row = store[prev_key]
-            for field in MONTHLY_REVIEW_FIELDS:
-                if field in PRESENCE_FIELDS:
-                    merged[field] = DEFAULT_MONTHLY_VALUES[field]
-                else:
-                    merged[field] = prev_row.get(field, '')
+    sid = student_snapshot_id(turma, name)
+    prefix = f'{turma}|{sid}|'
+    has_any_monthly = any(k.startswith(prefix) for k in (store or {}))
+    if not has_any_monthly:
+        legacy = extract_monthly_fields(roster_row)
+        if any(legacy.values()):
+            merged.update(legacy)
             return merged
 
-    legacy = extract_monthly_fields(roster_row)
-    if any(legacy.values()):
-        merged.update(legacy)
-    else:
-        merged.update(DEFAULT_MONTHLY_VALUES)
+    merged.update(DEFAULT_MONTHLY_VALUES)
     return merged
 
 

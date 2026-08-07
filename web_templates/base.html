@@ -728,7 +728,7 @@ body.nav-open .nav-backdrop { display: block; }
     <div class="review-banner" role="status">
       {% if review_semester_label %}<span>{{ review_semester_label }}</span> · {% endif %}
       Revisão mensal: <strong>{{ review_month_label }}</strong>
-      <span class="font-sm text-gray">— notas, faltas e feedback deste mês</span>
+      <span class="font-sm text-gray">— notas e faltas só deste mês (mês sem revisão salva começa zerado)</span>
     </div>
     {% endif %}
     {% if save_conflict %}
