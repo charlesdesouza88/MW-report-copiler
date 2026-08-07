@@ -2149,6 +2149,8 @@ def dashboard():
     db_status = _database_status()
     generate_error = session.pop('generate_error', None)
     generate_error_detail = session.pop('generate_error_detail', None)
+    generate_error_skippable = session.pop('generate_error_skippable', None)
+    generate_warning = session.pop('generate_warning', None)
     turma_flash_ok = session.pop('turma_flash_ok', None)
     turma_flash_error = session.pop('turma_flash_error', None)
     review_month = _get_review_month(lessons)
@@ -2200,6 +2202,8 @@ def dashboard():
         review_semester=review_semester,
         generate_error=generate_error,
         generate_error_detail=generate_error_detail,
+        generate_error_skippable=generate_error_skippable,
+        generate_warning=generate_warning,
         turma_flash_ok=turma_flash_ok,
         turma_flash_error=turma_flash_error,
         teacher_names=_teacher_names_for_forms() if user and has_full_data_access(user['role']) else [],
@@ -2832,7 +2836,11 @@ def lessons():
     all_students, _ = _scoped_students()
     _, rows = _scoped_lessons(all_students)
     turma_filters = _lesson_turma_filters(all_students, rows, user)
-    habilidades = sorted({r.get('habilidades', '').strip() for r in rows if r.get('habilidades', '').strip()})
+    rows = [
+        {**r, 'habilidades': normalize_habilidades(r.get('habilidades', ''))}
+        for r in rows
+    ]
+    habilidades = sorted({r['habilidades'] for r in rows if r['habilidades']})
     return render_template(
         'lessons.html',
         lessons=rows,
@@ -3313,8 +3321,22 @@ def _report_month_from_request(lessons):
     return _get_review_month(lessons)
 
 
-def _validate_generation_inputs(students, lessons):
-    """Return a user-facing error message, or None when generation can proceed."""
+def _turma_display_names_for_codes(students, codes):
+    """Map turma codes to their human-facing display names (best effort)."""
+    names = []
+    for code in codes:
+        rows = [s for s in students if (s.get('turma') or '').strip() == code]
+        names.append(class_display_from_student_rows(rows, code) if rows else code)
+    return names
+
+
+def _validate_generation_inputs(students, lessons, *, skip_incomplete=False):
+    """Return a user-facing error message, or None when generation can proceed.
+
+    When skip_incomplete is True, turmas with no lessons for the reviewed
+    month are not treated as a blocking error (the caller filters them out
+    of `students` before generating instead of failing the whole batch).
+    """
     if not students:
         return 'Nenhum aluno encontrado para o seu perfil. Cadastre alunos antes de gerar relatórios.'
     if not lessons:
@@ -3332,17 +3354,16 @@ def _validate_generation_inputs(students, lessons):
             break
     if missing:
         return 'Dados de alunos incompletos: ' + '; '.join(missing) + '.'
+    if skip_incomplete:
+        return None
     turmas_sem_aula = turmas_without_lessons(students, lessons)
     if turmas_sem_aula:
-        names = []
-        for code in turmas_sem_aula:
-            rows = [s for s in students if (s.get('turma') or '').strip() == code]
-            names.append(class_display_from_student_rows(rows, code) if rows else code)
+        names = _turma_display_names_for_codes(students, turmas_sem_aula)
         return (
             'Nenhuma aula cadastrada para a(s) turma(s): '
             + ', '.join(names)
             + '. Sem aulas, a presença sairia como 100% para todos os alunos. '
-            'Cadastre as aulas dessas turmas antes de gerar.'
+            'Cadastre as aulas dessas turmas antes de gerar, ou gere pulando essas turmas.'
         )
     return None
 
@@ -3493,6 +3514,7 @@ def generate():
     user = _current_user()
     report_month = _report_month_from_request(lessons)
     _, students = _scoped_students(review_month=report_month, apply_attendance=True)
+    skip_incomplete = request.form.get('skip_incomplete') == '1'
 
     if has_full_data_access(user['role']) and not db_store:
         students_file = DATA_DIR / 'students.csv'
@@ -3522,9 +3544,27 @@ def generate():
                 **_upload_page_context(user, errors=errors),
             )
 
-    input_error = _validate_generation_inputs(students, lessons)
+    skipped_names = []
+    if skip_incomplete:
+        turmas_sem_aula = turmas_without_lessons(students, lessons)
+        if turmas_sem_aula:
+            skipped_names = _turma_display_names_for_codes(students, turmas_sem_aula)
+            students = [
+                s for s in students
+                if (s.get('turma') or '').strip() not in turmas_sem_aula
+            ]
+            if not students:
+                session['generate_error'] = (
+                    'Nenhuma turma tem aulas cadastradas para este mês ainda. '
+                    'Cadastre as aulas antes de gerar relatórios.'
+                )
+                return redirect(url_for('dashboard'))
+
+    input_error = _validate_generation_inputs(students, lessons, skip_incomplete=skip_incomplete)
     if input_error:
         session['generate_error'] = input_error
+        if not skip_incomplete and turmas_without_lessons(students, lessons):
+            session['generate_error_skippable'] = True
         return redirect(url_for('dashboard'))
 
     try:
@@ -3538,6 +3578,12 @@ def generate():
         if has_full_data_access(user.get('role', '')):
             session['generate_error_detail'] = str(exc)[:300]
         return redirect(url_for('dashboard'))
+
+    if skipped_names:
+        session['generate_warning'] = (
+            'Relatórios gerados. Turma(s) sem aulas cadastradas para este mês foram '
+            'puladas: ' + ', '.join(skipped_names) + '.'
+        )
 
     return redirect(url_for('reports', month=report_month))
 
@@ -3871,6 +3917,7 @@ def reports():
             available_months=available_months,
             selected_month=selected_month,
             default_month=_get_review_month(lessons),
+            generate_warning=session.pop('generate_warning', None),
         )
     except Exception as exc:
         logger.exception('Reports page failed: %s', exc)
