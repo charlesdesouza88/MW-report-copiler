@@ -105,6 +105,7 @@
           <td style="padding:12px 8px;">{{ u.teacher_name or '—' }}</td>
           <td style="padding:12px 8px;">{% if u.active %}Sim{% else %}Não{% endif %}</td>
           <td class="col-actions">
+            <a href="{{ url_for('teacher_profile', user_id=u.id) }}" class="btn btn-ghost btn-xs" style="margin-right:6px;">Perfil</a>
             <details>
               <summary style="cursor:pointer;font-weight:700;color:#5B2D8E;">Editar</summary>
               <form method="post" style="margin-top:10px;padding:12px;background:#F9F7FC;border-radius:8px;">

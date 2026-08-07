@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}Perfil{% endblock %}
+{% block page_title %}{% if is_own_profile %}Meu perfil{% else %}Perfil — {{ target_user.teacher_name or target_user.email }}{% endif %}{% endblock %}
+
+{% block content %}
+{% if profile_flash_ok %}
+<div class="alert alert-success">✓ &nbsp;{{ profile_flash_ok }}</div>
+{% endif %}
+{% if form_error %}
+<div class="alert" style="background:#FADBD8;color:#A93226;border:1px solid #F1948A;">✕ &nbsp;{{ form_error }}</div>
+{% endif %}
+
+<div class="profile-layout">
+  <aside class="card profile-card">
+    <div class="profile-photo-wrap">
+      {% if photo_url %}
+      <img src="{{ photo_url }}" alt="Foto de {{ target_user.teacher_name or target_user.email }}" class="profile-photo">
+      {% else %}
+      <div class="profile-photo profile-photo-placeholder" aria-hidden="true">
+        {{ (target_user.teacher_name or target_user.email or '?')[0]|upper }}
+      </div>
+      {% endif %}
+    </div>
+    <h2 class="profile-name">{{ target_user.teacher_name or target_user.email }}</h2>
+    <p class="profile-role text-gray font-sm">{{ role_labels.get(target_user.role, target_user.role) }}</p>
+    {% if profile.specialty %}
+    <p class="profile-specialty">{{ profile.specialty }}</p>
+    {% endif %}
+    {% if profile.bio %}
+    <p class="profile-bio">{{ profile.bio }}</p>
+    {% elif not editable %}
+    <p class="text-gray font-sm">Sem bio ainda.</p>
+    {% endif %}
+
+    <ul class="profile-contacts">
+      {% if profile.whatsapp %}
+      <li><span>WhatsApp</span><a href="https://wa.me/{{ profile.whatsapp|replace(' ','')|replace('-','')|replace('(','')|replace(')','') }}">{{ profile.whatsapp }}</a></li>
+      {% endif %}
+      {% if profile.phone %}
+      <li><span>Telefone</span>{{ profile.phone }}</li>
+      {% endif %}
+      {% if profile.contact_email %}
+      <li><span>E-mail</span><a href="mailto:{{ profile.contact_email }}">{{ profile.contact_email }}</a></li>
+      {% endif %}
+      <li><span>Login</span>{{ target_user.email }}</li>
+    </ul>
+  </aside>
+
+  {% if editable %}
+  <section class="card profile-form-card">
+    <h2 style="font-size:15px;font-weight:900;margin-bottom:14px;">Editar perfil</h2>
+    <form method="post" enctype="multipart/form-data" class="profile-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-group">
+        <label for="bio">Bio</label>
+        <textarea id="bio" name="bio" rows="4" maxlength="1000" placeholder="Conte um pouco sobre sua experiência, turmas e estilo de aula…">{{ profile.bio }}</textarea>
+        <p class="field-hint">Até 1000 caracteres.</p>
+      </div>
+
+      <div class="form-grid form-grid-2">
+        <div class="form-group">
+          <label for="specialty">Especialidade / foco</label>
+          <input id="specialty" type="text" name="specialty" maxlength="120" value="{{ profile.specialty }}" placeholder="ex.: Kids, Teens, Adults">
+        </div>
+        <div class="form-group">
+          <label for="contact_email">E-mail de contato</label>
+          <input id="contact_email" type="email" name="contact_email" maxlength="120" value="{{ profile.contact_email }}" placeholder="opcional (público)">
+        </div>
+        <div class="form-group">
+          <label for="whatsapp">WhatsApp</label>
+          <input id="whatsapp" type="text" name="whatsapp" maxlength="120" value="{{ profile.whatsapp }}" placeholder="ex.: 11999998888">
+        </div>
+        <div class="form-group">
+          <label for="phone">Telefone</label>
+          <input id="phone" type="text" name="phone" maxlength="120" value="{{ profile.phone }}" placeholder="opcional">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="photo">Foto</label>
+        <input id="photo" type="file" name="photo" accept="image/jpeg,image/png,image/webp">
+        <p class="field-hint">JPG, PNG ou WebP · máx. ~700 KB.</p>
+        {% if photo_url %}
+        <label class="clear-photo font-sm">
+          <input type="checkbox" name="clear_photo" value="1">
+          Remover foto atual
+        </label>
+        {% endif %}
+      </div>
+
+      <button type="submit" class="btn btn-primary">Salvar perfil</button>
+    </form>
+  </section>
+  {% endif %}
+</div>
+
+<style>
+.profile-layout {
+  display:grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap:20px;
+  align-items:start;
+}
+.profile-card { padding:22px; text-align:center; }
+.profile-photo-wrap { margin-bottom:14px; }
+.profile-photo {
+  width:120px; height:120px; border-radius:50%; object-fit:cover;
+  border:3px solid #E8E0F0; background:#F5EEF8;
+}
+.profile-photo-placeholder {
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:42px; font-weight:900; color:var(--purple);
+}
+.profile-name { font-size:18px; font-weight:900; margin:0 0 4px; }
+.profile-role { margin:0 0 10px; }
+.profile-specialty {
+  display:inline-block; margin:0 0 12px; padding:4px 10px; border-radius:999px;
+  background:var(--purple-lt); color:var(--purple); font-size:12px; font-weight:700;
+}
+.profile-bio {
+  text-align:left; font-size:13px; line-height:1.5; color:#333;
+  margin:0 0 16px; white-space:pre-wrap;
+}
+.profile-contacts {
+  list-style:none; text-align:left; border-top:1px solid var(--border); padding-top:12px; margin:0;
+}
+.profile-contacts li {
+  display:flex; flex-direction:column; gap:2px; margin-bottom:10px; font-size:13px;
+}
+.profile-contacts span {
+  font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.4px; color:var(--gray);
+}
+.profile-contacts a { color:var(--purple); text-decoration:none; font-weight:600; }
+.profile-form-card { padding:22px; }
+.profile-form .form-group { margin-bottom:14px; }
+.profile-form label {
+  display:block; font-size:10px; font-weight:800; color:var(--gray);
+  text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;
+}
+.profile-form input[type="text"],
+.profile-form input[type="email"],
+.profile-form input[type="file"],
+.profile-form textarea {
+  width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font:inherit;
+}
+.profile-form textarea { resize:vertical; min-height:96px; }
+.field-hint { font-size:11px; color:#888; margin-top:6px; }
+.clear-photo { display:inline-flex; align-items:center; gap:8px; margin-top:10px; cursor:pointer; text-transform:none; font-weight:600; color:#666; }
+.form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media (max-width: 800px) {
+  .profile-layout { grid-template-columns:1fr; }
+  .form-grid-2 { grid-template-columns:1fr; }
+}
+</style>
+{% endblock %}
