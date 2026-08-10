@@ -125,12 +125,71 @@ def test_login_success_sets_session(monkeypatch, tmp_path):
     web_app.DATA_DIR.mkdir()
     web_app.OUT_DIR.mkdir()
     _init_user_store(monkeypatch, web_app.DATA_DIR)
+    monkeypatch.setattr(web_app, "db_store", None)
 
     client = web_app.app.test_client()
     response = _login(client)
 
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/")
+    events_path = web_app.DATA_DIR / "login_events.json"
+    assert events_path.exists()
+    events = json.loads(events_path.read_text(encoding="utf-8"))
+    assert len(events) == 1
+    assert events[0]["email"] == "admin@test.local"
+
+    _login(client)
+    events = json.loads(events_path.read_text(encoding="utf-8"))
+    assert len(events) == 2
+
+
+def test_users_page_shows_last_access_and_contact_actions(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    monkeypatch.setattr(web_app, "db_store", None)
+    _init_user_store(monkeypatch, data_dir)
+
+    store = web_app.user_store
+    teacher_id = store.create_teacher("teacher@test.local", "teachpass1", "Chuck")
+    store.create_teacher("idle@test.local", "teachpass2", "Idle")
+    profiles = [{
+        "user_id": teacher_id,
+        "bio": "",
+        "phone": "",
+        "whatsapp": "11999998888",
+        "contact_email": "chuck@school.com",
+        "specialty": "",
+        "photo_mime": "",
+        "photo_base64": "",
+        "updated_at": "",
+    }]
+    (data_dir / "teacher_profiles.json").write_text(
+        json.dumps(profiles, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    client = web_app.app.test_client()
+    _login(client)
+    # Teacher also logs in so history has both accounts
+    client.get("/logout")
+    _login(client, email="teacher@test.local", password="teachpass1")
+    client.get("/logout")
+    _login(client)
+
+    page = client.get("/admin/teachers")
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert "Último acesso" in html
+    assert "Histórico de acessos" in html
+    assert "Nunca" in html  # idle teacher never logged in
+    assert "mailto:chuck@school.com" in html
+    assert "https://wa.me/5511999998888" in html
+    assert "Cadastre o WhatsApp no perfil do professor" in html
+    assert "teacher@test.local" in html
+    assert "idle@test.local" in html
 
 
 def test_protected_route_requires_login(monkeypatch, tmp_path):

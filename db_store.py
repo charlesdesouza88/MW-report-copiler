@@ -110,6 +110,14 @@ class TeacherProfileRow(Base):
     data_json: Mapped[str] = mapped_column(Text, nullable=False)
 
 
+class LoginEventRow(Base):
+    __tablename__ = "login_event_rows"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    row_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    data_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class StoreVersion(Base):
     __tablename__ = "store_versions"
 
@@ -138,6 +146,7 @@ class DatabaseStore:
         TeacherClassRow: "teacher_classes",
         ChatMessageRow: "chat_messages",
         TeacherProfileRow: "teacher_profiles",
+        LoginEventRow: "login_events",
     }
 
     def __init__(self, database_url: str):
@@ -259,6 +268,16 @@ class DatabaseStore:
 
     def save_teacher_profiles(self, rows, expected_version=None):
         return self._replace_rows(TeacherProfileRow, rows, expected_version=expected_version)
+
+    def load_login_events(self):
+        rows, _version = self.load_login_events_versioned()
+        return rows
+
+    def load_login_events_versioned(self):
+        return self._load_rows(LoginEventRow)
+
+    def save_login_events(self, rows, expected_version=None):
+        return self._replace_rows(LoginEventRow, rows, expected_version=expected_version)
 
     def load_users(self):
         with self.session() as session:

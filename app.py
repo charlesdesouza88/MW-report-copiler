@@ -78,6 +78,10 @@ from teacher_chat import (KIND_BUG, KIND_CHAT, ROOM_TITLE, append_message,
 from teacher_profiles import (can_edit_profile, can_view_profile, encode_photo,
                               get_or_empty, load_profiles, photo_data_url,
                               save_profiles, upsert_profile)
+from login_events import (append_login, contact_email_for_user,
+                          events_newest_first, format_logged_at,
+                          last_login_by_user_id, load_events, mailto_href,
+                          save_events, whatsapp_digits, whatsapp_href)
 from class_transfer import (apply_transfer, build_transfer_export_zip,
                             list_teachers_from_students, preview_transfer,
                             turmas_for_teacher)
@@ -1844,6 +1848,53 @@ def _save_teacher_profiles(rows):
     return True
 
 
+def _login_events_path():
+    return Path(DATA_DIR) / 'login_events.json'
+
+
+def _load_login_events():
+    if db_store:
+        rows, version = db_store.load_login_events_versioned()
+        _bind_store_version('login_events', version)
+        return list(rows or [])
+    return load_events(_login_events_path())
+
+
+def _save_login_events(rows):
+    if db_store:
+        try:
+            version = db_store.save_login_events(
+                rows,
+                expected_version=_expected_store_version('login_events'),
+            )
+        except StaleDataError:
+            _note_save_conflict()
+            return False
+        _bind_store_version('login_events', version)
+        try:
+            save_events(_login_events_path(), rows)
+        except OSError as exc:
+            logger.warning('Could not mirror login_events.json: %s', exc)
+        return True
+    save_events(_login_events_path(), rows)
+    return True
+
+
+def _record_successful_login(user):
+    """Persist a login history event; never block the login on storage errors."""
+    try:
+        rows = _load_login_events()
+        if not append_login(rows, user):
+            return
+        if not _save_login_events(rows):
+            logger.warning(
+                'Could not save login event for user_id=%s (stale store)',
+                user.get('id'),
+            )
+    except Exception as exc:
+        logger.warning('Could not record login event: %s', exc)
+
+
 def _sync_student_aula_extra_sessions(student):
     all_rows = _load_extra_sessions()
     updated = sync_student_extra_sessions(all_rows, student)
@@ -2064,6 +2115,7 @@ def login():
         password = request.form.get('password') or ''
         user = user_store.authenticate(email, password)
         if user:
+            _record_successful_login(user)
             _login_session(user)
             return redirect(url_for('dashboard'))
         if user_count == 0:
@@ -3631,6 +3683,35 @@ def manage_teachers():
             errors.append(str(exc))
 
     users = [user_public_dict(u) for u in user_store.list_users()]
+    profiles = _load_teacher_profiles()
+    login_events = _load_login_events()
+    last_by_user = last_login_by_user_id(login_events)
+    default_subject = 'Mister Wiz — contato da plataforma'
+    enriched_users = []
+    for u in users:
+        profile = get_or_empty(profiles, u['id'])
+        last_event = last_by_user.get(u['id'])
+        email_to = contact_email_for_user(u, profile)
+        wa_raw = (profile.get('whatsapp') or '').strip()
+        enriched_users.append({
+            **u,
+            'last_login_at': last_event['logged_at'] if last_event else '',
+            'last_login_label': format_logged_at(
+                last_event['logged_at'] if last_event else '',
+            ),
+            'contact_email': email_to,
+            'mailto_href': mailto_href(email_to, subject=default_subject),
+            'whatsapp': wa_raw,
+            'whatsapp_digits': whatsapp_digits(wa_raw),
+            'whatsapp_href': whatsapp_href(wa_raw),
+        })
+    login_history = []
+    for event in events_newest_first(login_events, limit=100):
+        login_history.append({
+            **event,
+            'logged_at_label': format_logged_at(event.get('logged_at', '')),
+            'role_label': ROLE_LABELS.get(event.get('role'), event.get('role') or ''),
+        })
     teacher_names = sorted({
         normalize_teacher_name(s.get('teacher', ''))
         for s in _load_students()
@@ -3638,7 +3719,8 @@ def manage_teachers():
     })
     return render_template(
         'teachers.html',
-        users=users,
+        users=enriched_users,
+        login_history=login_history,
         teacher_names=teacher_names,
         messages=messages,
         errors=errors,
