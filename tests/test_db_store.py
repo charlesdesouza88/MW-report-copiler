@@ -113,6 +113,27 @@ def test_database_store_teacher_profiles_round_trip(tmp_path):
     assert loaded_version == version
 
 
+def test_database_store_login_events_round_trip(tmp_path):
+    db_path = tmp_path / "app.db"
+    store = DatabaseStore(f"sqlite:///{db_path}")
+    store.initialize()
+
+    rows = [
+        {
+            'id': 'evt1',
+            'user_id': 2,
+            'email': 'teacher@test.local',
+            'role': 'teacher',
+            'teacher_name': 'Chuck',
+            'logged_at': '2026-08-10T12:00:00Z',
+        }
+    ]
+    version = store.save_login_events(rows)
+    loaded, loaded_version = store.load_login_events_versioned()
+    assert loaded == rows
+    assert loaded_version == version
+
+
 def test_database_store_rejects_stale_save(tmp_path):
     from db_store import StaleDataError
 

@@ -3,6 +3,29 @@
 {% block title %}Usuários{% endblock %}
 {% block page_title %}Usuários{% endblock %}
 {% block content %}
+<style>
+.user-contact-box {
+  margin-top:10px; padding:12px; background:#F9F7FC; border-radius:8px;
+  display:flex; flex-direction:column; gap:8px; max-width:320px;
+}
+.user-contact-box label {
+  font-size:10px; font-weight:700; color:#666; text-transform:uppercase;
+}
+.user-contact-box textarea {
+  width:100%; min-height:64px; padding:8px; border:1px solid #DDD;
+  border-radius:6px; font:inherit; resize:vertical;
+}
+.user-contact-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.user-contact-hint { font-size:11px; color:#888; margin:0; }
+.login-history-table { width:100%; border-collapse:collapse; font-size:13px; }
+.login-history-table th, .login-history-table td {
+  padding:10px 8px; border-bottom:1px solid #EEE; text-align:left;
+}
+.login-history-table th {
+  border-bottom:2px solid #E2E2E2; font-size:10px; text-transform:uppercase;
+  letter-spacing:0.4px; color:#666;
+}
+</style>
 <h1 class="page-heading" style="font-size:22px;font-weight:900;margin-bottom:8px;">Usuários e professores</h1>
 <p class="text-muted" style="font-size:13px;color:#666;margin-bottom:20px;">
   Admin e superadmin veem todos os dados. Professores entram com e-mail e senha e só acessam turmas vinculadas ao nome do professor nos dados dos alunos.
@@ -90,6 +113,7 @@
           <th style="padding:10px 8px;">E-mail</th>
           <th style="padding:10px 8px;">Papel</th>
           <th style="padding:10px 8px;">Professor (dados)</th>
+          <th style="padding:10px 8px;">Último acesso</th>
           <th style="padding:10px 8px;">Ativo</th>
           <th class="col-actions">Ações</th>
         </tr>
@@ -99,13 +123,42 @@
         <tr class="user-row filter-row-item"
             style="--filter-i: {{ loop.index0 % 12 }}; border-bottom:1px solid #EEE;"
             data-role="{{ u.role }}"
-            data-search="{{ (u.email ~ ' ' ~ (u.teacher_name or '') ~ ' ' ~ role_labels.get(u.role, u.role))|lower }}">
+            data-search="{{ (u.email ~ ' ' ~ (u.teacher_name or '') ~ ' ' ~ role_labels.get(u.role, u.role) ~ ' ' ~ (u.last_login_label or ''))|lower }}">
           <td style="padding:12px 8px;">{{ u.email }}</td>
           <td style="padding:12px 8px;">{{ role_labels.get(u.role, u.role) }}</td>
           <td style="padding:12px 8px;">{{ u.teacher_name or '—' }}</td>
+          <td style="padding:12px 8px; white-space:nowrap;" title="{{ u.last_login_at or '' }}">{{ u.last_login_label or 'Nunca' }}</td>
           <td style="padding:12px 8px;">{% if u.active %}Sim{% else %}Não{% endif %}</td>
           <td class="col-actions">
             <a href="{{ url_for('teacher_profile', user_id=u.id) }}" class="btn btn-ghost btn-xs" style="margin-right:6px;">Perfil</a>
+            <details style="display:inline-block; margin-right:6px;">
+              <summary style="cursor:pointer;font-weight:700;color:#5B2D8E;">Contato</summary>
+              <div class="user-contact-box" data-contact-box
+                   data-mailto-base="{{ u.mailto_href or '' }}"
+                   data-wa-base="{{ u.whatsapp_href or '' }}"
+                   data-email="{{ u.contact_email or '' }}"
+                   data-wa-digits="{{ u.whatsapp_digits or '' }}">
+                <label for="contact-msg-{{ u.id }}">Mensagem (opcional)</label>
+                <textarea id="contact-msg-{{ u.id }}" data-contact-message placeholder="Olá! Mensagem rápida da plataforma…"></textarea>
+                <div class="user-contact-actions">
+                  {% if u.mailto_href %}
+                  <a class="btn btn-sm btn-outline" data-contact-email href="{{ u.mailto_href }}" target="_blank" rel="noopener noreferrer">E-mail</a>
+                  {% else %}
+                  <button type="button" class="btn btn-sm btn-outline" disabled title="Sem e-mail cadastrado">E-mail</button>
+                  {% endif %}
+                  {% if u.whatsapp_href %}
+                  <a class="btn btn-sm btn-primary" data-contact-whatsapp href="{{ u.whatsapp_href }}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                  {% else %}
+                  <button type="button" class="btn btn-sm btn-primary" disabled title="Cadastre o WhatsApp no perfil do professor">WhatsApp</button>
+                  {% endif %}
+                </div>
+                {% if not u.whatsapp_href %}
+                <p class="user-contact-hint">Peça ao professor para preencher o WhatsApp em Meu perfil.</p>
+                {% elif not u.mailto_href %}
+                <p class="user-contact-hint">Sem e-mail disponível para este usuário.</p>
+                {% endif %}
+              </div>
+            </details>
             <details>
               <summary style="cursor:pointer;font-weight:700;color:#5B2D8E;">Editar</summary>
               <form method="post" style="margin-top:10px;padding:12px;background:#F9F7FC;border-radius:8px;">
@@ -146,11 +199,54 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="5" style="padding:16px;color:#888;">Nenhum usuário cadastrado.</td></tr>
+        <tr><td colspan="6" style="padding:16px;color:#888;">Nenhum usuário cadastrado.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+</div>
+
+<div class="card" style="margin-top:20px;">
+  <h2 style="font-size:15px;font-weight:900;margin-bottom:8px;">Histórico de acessos</h2>
+  <p class="text-muted" style="font-size:12px;color:#666;margin-bottom:14px;">
+    Últimos logins bem-sucedidos (mais recentes primeiro).
+  </p>
+  {% if login_history %}
+  {% call filter_panel('filter-login-history', 'Buscar e-mail, professor ou papel...', show_search=true) %}
+    {{ filter_group_extra('Papel', [
+      {'value': 'teacher', 'label': 'Professor'},
+      {'value': 'admin', 'label': 'Admin'},
+      {'value': 'superadmin', 'label': 'Superadmin'},
+    ], 'role', 'Todos') }}
+  {% endcall %}
+  <div class="table-wrap" style="overflow-x:auto;">
+    <table class="login-history-table">
+      <thead>
+        <tr>
+          <th>Quando</th>
+          <th>E-mail</th>
+          <th>Papel</th>
+          <th>Professor</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for event in login_history %}
+        <tr class="login-history-row filter-row-item"
+            style="--filter-i: {{ loop.index0 % 12 }}"
+            data-role="{{ event.role }}"
+            data-search="{{ (event.email ~ ' ' ~ (event.teacher_name or '') ~ ' ' ~ (event.role_label or event.role or ''))|lower }}">
+          <td style="white-space:nowrap;" title="{{ event.logged_at }}">{{ event.logged_at_label }}</td>
+          <td>{{ event.email }}</td>
+          <td>{{ event.role_label or event.role or '—' }}</td>
+          <td>{{ event.teacher_name or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:#888;font-size:13px;margin:0;">Nenhum acesso registrado ainda.</p>
+  {% endif %}
 </div>
 {% endblock %}
 
@@ -158,4 +254,51 @@
 {% if users %}
 {{ list_filter_script('.user-row', 'teachers', '#filter-teachers', []) }}
 {% endif %}
+{% if login_history %}
+{{ list_filter_script('.login-history-row', 'login-history', '#filter-login-history', []) }}
+{% endif %}
+<script>
+(function () {
+  function withBody(baseHref, body, kind) {
+    if (!baseHref) return '';
+    var text = (body || '').trim();
+    if (!text) return baseHref;
+    try {
+      if (kind === 'mailto') {
+        var mail = new URL(baseHref);
+        mail.searchParams.set('body', text);
+        return mail.toString();
+      }
+      var wa = new URL(baseHref);
+      wa.searchParams.set('text', text);
+      return wa.toString();
+    } catch (err) {
+      return baseHref;
+    }
+  }
+
+  document.querySelectorAll('[data-contact-box]').forEach(function (box) {
+    var message = box.querySelector('[data-contact-message]');
+    var emailLink = box.querySelector('[data-contact-email]');
+    var waLink = box.querySelector('[data-contact-whatsapp]');
+    var mailBase = box.getAttribute('data-mailto-base') || '';
+    var waBase = box.getAttribute('data-wa-base') || '';
+
+    function sync() {
+      var body = message ? message.value : '';
+      if (emailLink && mailBase) {
+        emailLink.href = withBody(mailBase, body, 'mailto');
+      }
+      if (waLink && waBase) {
+        waLink.href = withBody(waBase, body, 'whatsapp');
+      }
+    }
+
+    if (message) {
+      message.addEventListener('input', sync);
+      sync();
+    }
+  });
+})();
+</script>
 {% endblock %}
