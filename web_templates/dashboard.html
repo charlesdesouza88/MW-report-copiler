@@ -146,7 +146,7 @@
       {% for c in teacher_classes %}
       <div class="turma-list-item">
         <div class="turma-list-item-body">
-          <span style="font-weight:900; font-size:13px;">{{ c.turma_display }}</span>
+          <span style="font-weight:900; font-size:13px;">{{ c.turma_display }}{% if c.semester_id and c.semester_id != review_semester %} — {{ semester_label(c.semester_id) }}{% endif %}</span>
           {% if c.horario %}<span class="font-sm text-gray" style="margin-left:8px;">{{ c.horario }}</span>{% elif c.needs_schedule %}<span class="font-sm text-gray" style="margin-left:8px;">— complete dias/horário</span>{% endif %}
         </div>
         <div class="list-row-actions">

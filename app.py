@@ -1055,7 +1055,10 @@ def _allowed_turmas(all_students, user):
     if has_full_data_access(user['role']):
         return sorted({s.get('turma', '').strip() for s in all_students if s.get('turma', '').strip()})
     name = user.get('teacher_name', '')
-    return sorted(_teacher_registered_turmas(name) | teacher_turmas(all_students, name))
+    return sorted(
+        _teacher_registered_turmas(name, all_semesters=True)
+        | teacher_turmas(all_students, name)
+    )
 
 
 def _teacher_may_use_turma(turma, all_students, user):
@@ -2249,7 +2252,7 @@ def dashboard():
                     'Alunos e Relatórios normalmente.'
                 )
         teacher_classes = _teacher_class_options(
-            user.get('teacher_name', ''), semester_id=review_semester,
+            user.get('teacher_name', ''), all_semesters=True,
         )
         turma_list = [c['turma'] for c in teacher_classes]
         turma_count = len(teacher_classes)
@@ -2614,7 +2617,7 @@ def _turma_display_map(rows, user):
     labels = {}
     registry = _load_teacher_class_registry()
     if user and user['role'] == ROLE_TEACHER:
-        for entry in _teacher_class_options(user.get('teacher_name', '')):
+        for entry in _teacher_class_options(user.get('teacher_name', ''), all_semesters=True):
             labels[entry['turma']] = entry['turma_display']
     elif user and has_full_data_access(user['role']):
         for teacher_name in registry:
@@ -2695,7 +2698,10 @@ def _admin_dashboard_turmas(all_students, semester_id=None):
 
 def _turma_filters(rows, user):
     """Filter chips: Todos + one per turma, label = class name."""
-    codes = sorted({r.get('turma', '').strip() for r in rows if r.get('turma', '').strip()})
+    codes = {r.get('turma', '').strip() for r in rows if r.get('turma', '').strip()}
+    if user and user['role'] == ROLE_TEACHER:
+        codes |= _teacher_registered_turmas(user.get('teacher_name', ''), all_semesters=True)
+    codes = sorted(codes)
     labels = _turma_display_map(rows, user)
     return [{'code': code, 'label': labels.get(code, code)} for code in codes]
 

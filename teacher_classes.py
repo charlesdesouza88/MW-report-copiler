@@ -128,7 +128,8 @@ def list_for_teacher(data, teacher_name, semester_id=None):
     key = normalize_teacher_name(teacher_name)
     if not key:
         return []
-    rows = data.get(key) or data.get(key.casefold()) or []
+    _bucket_key, bucket = _teacher_bucket(data, teacher_name)
+    rows = bucket if isinstance(bucket, list) else []
     if not isinstance(rows, list):
         return []
     want_semester = _normalize_semester_id(semester_id)
