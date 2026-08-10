@@ -84,7 +84,7 @@
         <select name="class_choice" id="class-choice" required>
           {% for c in teacher_class_options %}
           <option value="{{ c.turma }}" {% if class_choice == c.turma %}selected{% endif %}>
-            {{ c.turma_display }}{% if c.horario %} — {{ c.horario }}{% elif c.needs_schedule %} — (complete no Dashboard){% endif %}
+            {{ c.turma_display }}{% if c.semester_id and c.semester_id != review_semester %} — {{ semester_label(c.semester_id) }}{% endif %}{% if c.horario %} — {{ c.horario }}{% elif c.needs_schedule %} — (complete no Dashboard){% endif %}
           </option>
           {% endfor %}
         </select>

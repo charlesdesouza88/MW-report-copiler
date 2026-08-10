@@ -64,7 +64,8 @@ from form_ui import (HABILIDADES_CHOICES, LICAO_CONTEUDO_CHOICES,
 from teacher_classes import (add_class as register_teacher_class,
                              apply_registry_to_students,
                              class_display_from_student_rows,
-                             count_students_in_turma, ensure_semester_ids,
+                             count_students_in_turma, dedupe_class_options,
+                             ensure_semester_ids,
                              find_class, list_for_teacher, load_registry,
                              registry_from_rows, registry_to_rows,
                              remove_class as delete_teacher_class,
@@ -1003,16 +1004,30 @@ def _sync_teacher_registry(user, all_students, semester_id=None):
     return added
 
 
-def _teacher_class_options(teacher_name, semester_id=None):
+def _teacher_class_options(teacher_name, semester_id=None, *, all_semesters=False):
+    registry = _load_teacher_class_registry()
+    if all_semesters:
+        return dedupe_class_options(
+            list_for_teacher(registry, teacher_name, semester_id=None),
+            prefer_semester=_get_review_semester(),
+        )
     sid = semester_id if semester_id is not None else _get_review_semester()
-    return list_for_teacher(
-        _load_teacher_class_registry(), teacher_name, semester_id=sid,
-    )
+    return list_for_teacher(registry, teacher_name, semester_id=sid)
 
 
-def _teacher_class_options_for_form(teacher_name, student=None):
+def _teacher_class_registry_map(teacher_name, *, all_semesters=False):
+    return {
+        row['turma']: row
+        for row in _teacher_class_options(teacher_name, all_semesters=all_semesters)
+    }
+
+
+def _teacher_class_options_for_form(teacher_name, student=None, *, is_new=False):
     """Registry turmas plus the student's current turma when editing legacy rows."""
-    options = _teacher_class_options(teacher_name)
+    if is_new:
+        options = _teacher_class_options(teacher_name, all_semesters=True)
+    else:
+        options = _teacher_class_options(teacher_name)
     if not student:
         return options
     code = (student.get('turma') or '').strip()
@@ -1028,11 +1043,12 @@ def _teacher_class_options_for_form(teacher_name, student=None):
     return sorted(options, key=lambda r: (r['turma_display'].casefold(), r['turma']))
 
 
-def _teacher_registered_turmas(teacher_name, semester_id=None):
+def _teacher_registered_turmas(teacher_name, semester_id=None, *, all_semesters=False):
+    registry = _load_teacher_class_registry()
+    if all_semesters:
+        return turma_codes_for_teacher(registry, teacher_name, semester_id=None)
     sid = semester_id if semester_id is not None else _get_review_semester()
-    return turma_codes_for_teacher(
-        _load_teacher_class_registry(), teacher_name, semester_id=sid,
-    )
+    return turma_codes_for_teacher(registry, teacher_name, semester_id=sid)
 
 
 def _allowed_turmas(all_students, user):
@@ -1057,7 +1073,7 @@ def _teacher_may_use_student_turma(turma, all_students, user, nivel=''):
         return True
     turma = (turma or '').strip()
     name = user.get('teacher_name', '')
-    if turma in _teacher_registered_turmas(name):
+    if turma in _teacher_registered_turmas(name, all_semesters=True):
         return True
     if turma in teacher_turmas(all_students, name):
         return True
@@ -1110,7 +1126,7 @@ def _resolve_teacher_class_choice(row):
         return row
 
     row['turma'] = choice
-    registered = {c['turma']: c for c in _teacher_class_options(owner)}
+    registered = _teacher_class_registry_map(owner, all_semesters=True)
     if choice in registered:
         reg = registered[choice]
         row['turma_display'] = reg['turma_display']
@@ -1187,7 +1203,9 @@ def _validate_student_row(row, all_students, user, *, autosave=False):
         and request.endpoint == 'student_new'
         and not class_choice
     ):
-        registered = sorted(_teacher_registered_turmas(user.get('teacher_name', '')))
+        registered = sorted(_teacher_registered_turmas(
+            user.get('teacher_name', ''), all_semesters=True,
+        ))
         if not registered:
             return 'Crie uma turma no Dashboard antes de cadastrar alunos.'
         return 'Selecione a turma do aluno.'
@@ -1200,7 +1218,9 @@ def _validate_student_row(row, all_students, user, *, autosave=False):
             return 'Selecione o livro/nível do aluno (KIDS 1–4 ou TEENS 1–5).'
 
     if user['role'] == ROLE_TEACHER and request.endpoint == 'student_new':
-        registered = _teacher_registered_turmas(user.get('teacher_name', ''))
+        registered = _teacher_registered_turmas(
+            user.get('teacher_name', ''), all_semesters=True,
+        )
         if turma not in registered:
             if not registered:
                 return 'Crie uma turma no Dashboard antes de cadastrar alunos.'
@@ -1210,7 +1230,9 @@ def _validate_student_row(row, all_students, user, *, autosave=False):
             )
 
     if not _teacher_may_use_student_turma(turma, all_students, user, nivel=nivel):
-        registered = sorted(_teacher_registered_turmas(user.get('teacher_name', '')))
+        registered = sorted(_teacher_registered_turmas(
+            user.get('teacher_name', ''), all_semesters=True,
+        ))
         if registered:
             return (
                 f'Turma não permitida. Escolha uma turma criada no Dashboard '
@@ -1228,6 +1250,7 @@ def _student_form_context(all_rows, user, is_new, student, idx, form_error=None)
         teacher_class_options = _teacher_class_options_for_form(
             class_owner_teacher,
             student,
+            is_new=is_new,
         )
     elif user and has_full_data_access(user['role']):
         if request.method == 'POST':
@@ -1238,6 +1261,7 @@ def _student_form_context(all_rows, user, is_new, student, idx, form_error=None)
             teacher_class_options = _teacher_class_options_for_form(
                 class_owner_teacher,
                 student,
+                is_new=is_new,
             )
     class_choice = ''
     if request.method == 'POST':
@@ -2386,6 +2410,8 @@ def turma_create():
                 or 'Não foi possível salvar a turma (dados desatualizados). Recarregue e tente de novo.'
             )
             return redirect(url_for('dashboard'))
+        if row.get('semester_id'):
+            _set_review_semester(row['semester_id'])
         schedule = row.get('horario') or row['turma_display']
         semester = row.get('semester_id') or ''
         semester_bit = f' · {semester_label(semester)}' if semester else ''

@@ -163,6 +163,31 @@ def list_for_teacher(data, teacher_name, semester_id=None):
     )
 
 
+def dedupe_class_options(options, prefer_semester=''):
+    """Keep one row per turma code; prefer the entry for prefer_semester when duplicated."""
+    prefer = _normalize_semester_id(prefer_semester)
+    by_code = {}
+    order = []
+    for row in options or []:
+        code = (row.get('turma') or '').strip()
+        if not code:
+            continue
+        if code not in by_code:
+            by_code[code] = row
+            order.append(code)
+            continue
+        current = by_code[code]
+        row_sem = _normalize_semester_id(row.get('semester_id'))
+        cur_sem = _normalize_semester_id(current.get('semester_id'))
+        if prefer and row_sem == prefer:
+            by_code[code] = row
+        elif prefer and cur_sem == prefer:
+            continue
+        elif row_sem and not cur_sem:
+            by_code[code] = row
+    return [by_code[code] for code in order]
+
+
 def turma_codes_for_teacher(data, teacher_name, semester_id=None):
     return {r['turma'] for r in list_for_teacher(data, teacher_name, semester_id=semester_id)}
 

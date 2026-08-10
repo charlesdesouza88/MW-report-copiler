@@ -3,6 +3,7 @@ from teacher_classes import (
     add_class,
     apply_registry_to_students,
     count_students_in_turma,
+    dedupe_class_options,
     ensure_semester_ids,
     find_class,
     list_for_teacher,
@@ -19,6 +20,7 @@ from teacher_classes import (
 def test_turma_code_from_display():
     assert turma_code_from_display('Turma terça') == 'TURMA_TERCA'
     assert turma_code_from_display('Kids 2 class') == 'KIDS_2_CLASS'
+    assert turma_code_from_display('root') == 'ROOT'
 
 
 def test_add_class_two_weekdays(tmp_path):
@@ -73,6 +75,16 @@ def test_same_turma_allowed_in_different_semesters():
     assert len(list_for_teacher(data, 'Chuck', semester_id='2026-S1')) == 1
     assert len(list_for_teacher(data, 'Chuck', semester_id='2026-S2')) == 1
     assert find_class(data, 'Chuck', 'MASTER', semester_id='2026-S2')['semester_id'] == '2026-S2'
+
+
+def test_dedupe_class_options_prefers_review_semester():
+    options = [
+        {'turma': 'ROOT', 'turma_display': 'root', 'semester_id': '2026-S1'},
+        {'turma': 'ROOT', 'turma_display': 'root evening', 'semester_id': '2026-S2'},
+    ]
+    deduped = dedupe_class_options(options, prefer_semester='2026-S2')
+    assert len(deduped) == 1
+    assert deduped[0]['turma_display'] == 'root evening'
 
 
 def test_duplicate_turma_rejected_same_semester():
