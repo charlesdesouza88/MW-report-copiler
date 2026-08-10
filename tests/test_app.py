@@ -1056,6 +1056,44 @@ def test_teacher_edits_csv_student_with_turma_dropdown(monkeypatch, tmp_path):
     assert "Selecione a turma" not in client.get("/students/0/edit").get_data(as_text=True)
 
 
+def test_teacher_new_student_lists_class_from_other_semester(monkeypatch, tmp_path):
+    from teacher_classes import add_class, save_registry
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    _init_teacher_store(monkeypatch, data_dir, teacher_name="Yasmin")
+
+    registry = {}
+    row, err = add_class(
+        registry,
+        "Yasmin",
+        turma_display="root",
+        class_weekdays=["Segunda-feira", "Quarta-feira"],
+        class_time_start="10:00",
+        class_time_end="11:00",
+        semester_id="2026-S2",
+    )
+    assert err is None
+    assert row["turma"] == "ROOT"
+    save_registry(data_dir / "teacher_classes.json", registry)
+
+    client = web_app.app.test_client()
+    _login(client, email="teacher@test.local", password="teachpass")
+    with client.session_transaction() as sess:
+        sess["review_semester"] = "2026-S1"
+        sess["review_month"] = "2026-03"
+
+    html = client.get("/students/new").get_data(as_text=True)
+    assert 'value="ROOT"' in html
+    assert ">root" in html or "root —" in html
+
+
 def _student_form_payload(**overrides):
     data = {
         "teacher": "Chuck",
