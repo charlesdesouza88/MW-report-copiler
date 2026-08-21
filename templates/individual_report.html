@@ -430,6 +430,10 @@ body {
   grid-area: cal;
   min-width: 0;
   width: 100%;
+  padding: 8px 10px 10px;
+  border: 1px solid var(--mw-border);
+  border-radius: 8px;
+  background: #fff;
 }
 .pie-cal-title {
   font-size: 10px;
@@ -444,7 +448,8 @@ body {
 .pie-wrap.has-cal .pie-footer { grid-area: footer; }
 .pie-legend {
   display: inline-flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 10px 16px;
   align-items: center;
   justify-content: center;
   font-size: 9px;
@@ -496,10 +501,11 @@ body {
 .att-cal td { text-align: center; padding: 2px 1px; }
 .att-day {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px; border-radius: 50%;
-  font-size: 9px; font-weight: 700; cursor: default;
+  width: 26px; height: 26px; border-radius: 50%;
+  font-size: 10px; font-weight: 700; cursor: default;
 }
-.att-noclass { background: none; color: #bbb; }
+.att-noclass { background: #F0E6F3; color: #8A6A96; }
+.legend-sq.att-noclass-sq { background: #F0E6F3; border: 1px solid var(--mw-border); }
 .att-present { background: #792D83; color: #fff; }
 .att-absent  { background: #E24B4A; color: #fff; }
 .att-tardy   { background: #EBB22E; color: #2D1040; }
@@ -808,13 +814,12 @@ body {
   .radar-wrap svg,
   .pie-wrap svg { max-width: 100%; height: auto; }
   .pie-wrap.has-cal {
-    grid-template-columns: 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
     grid-template-areas:
-      "donut"
-      "cal"
-      "legend"
-      "footer";
-    justify-items: center;
+      "donut cal"
+      "legend legend"
+      "footer footer";
+    justify-items: stretch;
   }
   .radar-wrap,
   .comparison-bars-wrap,
@@ -1157,7 +1162,7 @@ body {
       <div class="stack-layout">
         <div class="sub-panel">
           <div class="sub-panel-title">Frequência</div>
-          <div class="pie-wrap{% if attendance_calendar and attendance_calendar.has_class %} has-cal{% endif %}">
+          <div class="pie-wrap{% if attendance_calendar %} has-cal{% endif %}">
             <div class="pie-visual">
             <svg class="chart-svg chart-animated" width="120" height="120" viewBox="0 0 116 116">
               <circle cx="58" cy="58" r="48" fill="#BBBBBB"/>
@@ -1169,7 +1174,7 @@ body {
               <text x="58" y="64" text-anchor="middle" font-size="22" font-weight="bold" fill="white" font-family="Carlito, Calibri, Arial, sans-serif">{{ pct }}%</text>
             </svg>
             </div>
-            {% if attendance_calendar and attendance_calendar.has_class %}
+            {% if attendance_calendar %}
             <div class="pie-cal">
               <div class="pie-cal-title">{{ attendance_calendar.month_label }}</div>
               <table class="att-cal">
@@ -1199,9 +1204,8 @@ body {
             <div class="pie-legend">
               <span class="legend-item"><span class="legend-sq" style="background:#792D83"></span>Presente</span>
               <span class="legend-item"><span class="legend-sq" style="background:#E24B4A"></span>Faltas</span>
-              {% if attendance_calendar and attendance_calendar.has_class %}
               <span class="legend-item"><span class="legend-sq" style="background:#EBB22E"></span>Atraso</span>
-              {% endif %}
+              <span class="legend-item"><span class="legend-sq att-noclass-sq"></span>Sem aula</span>
             </div>
             <div class="pie-footer">Nota de presença: <strong>{{ pres_score }}</strong> / 5</div>
           </div>
