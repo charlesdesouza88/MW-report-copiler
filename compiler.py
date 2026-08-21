@@ -346,9 +346,9 @@ def class_summary_charts(student_data):
     partial = sum(1 for sd in student_data if 50 <= sd['pct'] < 80)
     low = total - present - partial
     slices = [
-        dict(label='≥80%', count=present, color='#5B2D8E'),
-        dict(label='50–79%', count=partial, color='#9B7BB8'),
-        dict(label='<50%', count=low, color='#BBBBBB'),
+        dict(label='≥80%', count=present, color='#792D83'),
+        dict(label='50–79%', count=partial, color='#EBB22E'),
+        dict(label='<50%', count=low, color='#E24B4A'),
     ]
     bar_w = 220
     x = 0
