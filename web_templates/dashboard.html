@@ -98,14 +98,14 @@
     <div class="alert alert-success" style="margin-bottom:12px;">✓ {{ turma_flash_ok }}</div>
     {% endif %}
     {% if turma_flash_error %}
-    <div class="alert" style="margin-bottom:12px;background:#FADBD8;color:#A93226;">✕ {{ turma_flash_error }}</div>
+    <div class="alert" style="margin-bottom:12px;background:#FADBD8;color:#E24B4A;">✕ {{ turma_flash_error }}</div>
     {% endif %}
 
     {% if is_teacher %}
     <p class="font-sm text-gray" style="margin:0 0 12px;">
       Crie a turma aqui no Dashboard. Depois, em <strong>+ Novo aluno</strong>, escolha a turma e o livro/nível de cada aluno.
     </p>
-    <form method="post" action="{{ url_for('turma_create') }}" style="padding:14px;background:#F4F2F8;border-radius:8px;margin-bottom:16px;">
+    <form method="post" action="{{ url_for('turma_create') }}" style="padding:14px;background:#F9F5FA;border-radius:8px;margin-bottom:16px;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid form-grid-2" style="gap:12px;">
         <div class="form-group" style="grid-column:1/-1;">
@@ -173,7 +173,7 @@
     <p class="font-sm text-gray" style="margin:0 0 12px;">
       Como administrador, você pode criar e editar turmas de qualquer professor, além de corrigir alunos, notas e aulas em todo o sistema.
     </p>
-    <form method="post" action="{{ url_for('turma_create') }}" style="padding:14px;background:#F4F2F8;border-radius:8px;margin-bottom:16px;">
+    <form method="post" action="{{ url_for('turma_create') }}" style="padding:14px;background:#F9F5FA;border-radius:8px;margin-bottom:16px;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid form-grid-2" style="gap:12px;">
         <div class="form-group" style="grid-column:1/-1;">

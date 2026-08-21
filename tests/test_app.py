@@ -431,6 +431,34 @@ def test_login_page_has_viewport(monkeypatch, tmp_path):
     assert 'name="viewport"' in html
     assert "width=device-width" in html
     assert 'name="email"' in html
+    assert "logo-primary-transparent.png" in html
+    assert "img/favicon.png" in html
+    assert "css/brand.css" in html
+    assert "ESCOLA DE LÍDERES" in html or "Escola de Líderes" in html
+
+
+def test_authenticated_shell_uses_official_lockups(monkeypatch, tmp_path):
+    monkeypatch.setattr(web_app, "DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.DATA_DIR.mkdir()
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, web_app.DATA_DIR)
+
+    client = web_app.app.test_client()
+    _login(client)
+    html = client.get("/").get_data(as_text=True)
+    assert "logo-symbol.png" in html
+    assert "logo-primary-white.png" in html
+    assert "filter: brightness(0) invert(1)" not in html
+    assert "#792D83" in html or "var(--purple)" in html
+    css = client.get("/static/css/brand.css")
+    assert css.status_code == 200
+    tokens = css.get_data(as_text=True)
+    assert "--purple: #792D83" in tokens
+    assert "--plum: #2D1040" in tokens
+    assert "--gold-accent: #EBB22E" in tokens
+    assert client.get("/static/img/logo-symbol.png").status_code == 200
+    assert client.get("/static/img/logo-primary-white.png").status_code == 200
 
 
 def test_authenticated_shell_has_drawer_markup(monkeypatch, tmp_path):

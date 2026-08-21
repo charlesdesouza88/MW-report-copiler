@@ -32,10 +32,10 @@
 </p>
 
 {% for msg in messages %}
-<div class="alert alert-success" style="background:#D5F5E3;border:1px solid #82E0AA;color:#1E8449;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;">{{ msg }}</div>
+<div class="alert alert-success" style="background:#D5F5E3;border:1px solid #82E0AA;color:#2C7A3F;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;">{{ msg }}</div>
 {% endfor %}
 {% for err in errors %}
-<div class="alert alert-error" style="background:#FADBD8;border:1px solid #F1948A;color:#C0392B;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;">{{ err }}</div>
+<div class="alert alert-error" style="background:#FADBD8;border:1px solid #F1948A;color:#E24B4A;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;">{{ err }}</div>
 {% endfor %}
 
 <div class="layout-2col mb-24">
@@ -132,7 +132,7 @@
           <td class="col-actions">
             <a href="{{ url_for('teacher_profile', user_id=u.id) }}" class="btn btn-ghost btn-xs" style="margin-right:6px;">Perfil</a>
             <details style="display:inline-block; margin-right:6px;">
-              <summary style="cursor:pointer;font-weight:700;color:#5B2D8E;">Contato</summary>
+              <summary style="cursor:pointer;font-weight:700;color:#792D83;">Contato</summary>
               <div class="user-contact-box" data-contact-box
                    data-mailto-base="{{ u.mailto_href or '' }}"
                    data-wa-base="{{ u.whatsapp_href or '' }}"
@@ -160,7 +160,7 @@
               </div>
             </details>
             <details>
-              <summary style="cursor:pointer;font-weight:700;color:#5B2D8E;">Editar</summary>
+              <summary style="cursor:pointer;font-weight:700;color:#792D83;">Editar</summary>
               <form method="post" style="margin-top:10px;padding:12px;background:#F9F7FC;border-radius:8px;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="update">
@@ -192,7 +192,7 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="delete">
                 <input type="hidden" name="user_id" value="{{ u.id }}">
-                <button type="submit" class="btn btn-sm" style="color:#C0392B;border-color:#F1948A;">Remover</button>
+                <button type="submit" class="btn btn-sm" style="color:#E24B4A;border-color:#F1948A;">Remover</button>
               </form>
               {% endif %}
             </details>
