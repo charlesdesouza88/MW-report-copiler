@@ -4,11 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mister Wiz — Login</title>
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo-symbol.png') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/brand.css') }}">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: Arial, Helvetica, sans-serif;
-  background: #4A1F7C;
+  font-family: var(--font);
+  background: linear-gradient(180deg, var(--purple) 0%, var(--plum) 100%);
   min-height: 100dvh;
   display: flex;
   align-items: center;
@@ -19,52 +22,52 @@ body {
   padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 .login-card {
-  background: #fff;
+  background: var(--white);
   border-radius: 16px;
-  padding: 44px 40px 36px;
+  padding: 40px 36px 32px;
   width: 100%;
-  max-width: min(360px, calc(100vw - 32px));
-  box-shadow: 0 24px 64px rgba(0,0,0,0.28);
+  max-width: min(400px, calc(100vw - 32px));
+  box-shadow: 0 24px 64px rgba(45, 16, 64, 0.35);
 }
-.logo { text-align: center; margin-bottom: 28px; }
-.logo-mark {
-  width: 64px; height: 64px; border-radius: 12px;
-  object-fit: cover; display: block; margin: 0 auto 12px;
-  box-shadow: 0 6px 18px rgba(74, 31, 124, 0.22);
+.logo { text-align: center; margin-bottom: 22px; }
+.logo-lockup {
+  display: block; width: min(260px, 82%); height: auto; margin: 0 auto;
 }
-.logo-wordmark {
-  display: block; width: min(220px, 72%); height: auto; margin: 0 auto;
+.logo-rule {
+  width: 48px; height: 3px; border-radius: 999px;
+  background: var(--gold-accent); margin: 16px auto 0;
 }
 .logo-sub {
-  font-size: 10px; color: #999; letter-spacing: 2px; margin-top: 10px;
-  text-transform: uppercase;
+  font-size: 11px; color: var(--purple-dk); letter-spacing: 1.6px; margin-top: 12px;
+  text-transform: uppercase; font-weight: 700;
 }
-h2 { font-size: 15px; font-weight: 900; color: #111; margin-bottom: 20px; text-align: center; }
+h2 { font-size: 16px; font-weight: 700; color: var(--plum); margin-bottom: 20px; text-align: center; }
 .form-group { margin-bottom: 16px; }
-label { display: block; font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+label { display: block; font-size: 10px; font-weight: 700; color: var(--purple-dk); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
 input[type=password], input[type=email], input[type=text] {
   width: 100%; padding: 11px 14px;
-  border: 1.5px solid #DDD; border-radius: 8px;
-  font-size: 16px; font-family: Arial, sans-serif;
+  border: 1.5px solid var(--hairline); border-radius: 8px;
+  font-size: 16px; font-family: var(--font); color: var(--text);
   transition: border-color 0.12s;
 }
-input:focus { outline: none; border-color: #5B2D8E; }
-.error { background: #FADBD8; color: #C0392B; border: 1px solid #F1948A; border-radius: 7px; padding: 10px 14px; font-size: 12px; font-weight: 600; margin-bottom: 16px; }
+input:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px rgba(121, 45, 131, 0.16); }
+.error { background: #F8E1E0; color: var(--red); border: 1px solid #F0B8B7; border-radius: 7px; padding: 10px 14px; font-size: 12px; font-weight: 600; margin-bottom: 16px; }
 .btn-submit {
-  width: 100%; padding: 12px; background: #5B2D8E; color: #fff;
-  border: none; border-radius: 8px; font-size: 14px; font-weight: 900;
-  cursor: pointer; transition: background 0.12s;
+  width: 100%; padding: 12px; background: var(--purple); color: #fff;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
+  font-family: var(--font); cursor: pointer; transition: background 0.12s;
   min-height: 44px;
 }
-.btn-submit:hover { background: #4A1F7C; }
-.hint { text-align: center; font-size: 11px; color: #BBB; margin-top: 20px; }
+.btn-submit:hover { background: var(--purple-dk); }
+.hint { text-align: center; font-size: 11px; color: var(--purple-dk); margin-top: 20px; font-style: italic; }
+.hint strong { font-style: normal; color: var(--plum); }
 </style>
 </head>
 <body>
 <div class="login-card">
   <div class="logo">
-    <img class="logo-mark" src="{{ url_for('static', filename='img/mister-wiz-icon.png') }}" alt="Mister Wiz" width="64" height="64">
-    <img class="logo-wordmark" src="{{ url_for('static', filename='img/mister-wiz-wordmark-header.png') }}" alt="Mister Wiz" width="220" height="31">
+    <img class="logo-lockup" src="{{ url_for('static', filename='img/logo-primary-transparent.png') }}" alt="Mister Wiz Escola de Líderes" width="260" height="68">
+    <div class="logo-rule" aria-hidden="true"></div>
     <div class="logo-sub">Plataforma de relatórios</div>
   </div>
   <h2>Entrar</h2>

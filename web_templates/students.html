@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% from '_macros/list_filters.html' import filter_panel, filter_turma_group, filter_group_extra, list_filter_script %}
 {% from '_macros/page_toolbar.html' import page_toolbar %}
+{% from '_macros/icons.html' import icon %}
 {% set return_turma = request.args.get('turma', '') %}
 {% set return_month = review_month or request.args.get('month', '') %}
 {% block title %}Alunos{% endblock %}
@@ -14,7 +15,7 @@
 <div class="alert alert-success" style="margin-bottom:14px;">✓ &nbsp;{{ student_flash_ok }}</div>
 {% endif %}
 {% if student_flash_error %}
-<div class="alert" style="background:#FADBD8; color:#A93226; border:1px solid #F1948A; margin-bottom:14px;">✕ &nbsp;{{ student_flash_error }}</div>
+<div class="alert" style="background:#FADBD8; color:#E24B4A; border:1px solid #F1948A; margin-bottom:14px;">✕ &nbsp;{{ student_flash_error }}</div>
 {% endif %}
 
 {% if students %}
@@ -103,11 +104,11 @@
         <td><strong>{{ s.student_name }}</strong></td>
         <td><span class="tag">{{ turma_labels.get(s.turma, s.turma) }}</span></td>
         <td class="text-gray font-sm">{{ s.nivel or '—' }}</td>
-        <td><div style="width:26px;height:26px;border-radius:50%;background:#5B2D8E;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;">{{ s.speaking or '—' }}</div></td>
-        <td><div style="width:26px;height:26px;border-radius:50%;background:#5B2D8E;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;">{{ s.listening or '—' }}</div></td>
-        <td><div style="width:26px;height:26px;border-radius:50%;background:#5B2D8E;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;">{{ s.writing or '—' }}</div></td>
-        <td><div style="width:26px;height:26px;border-radius:50%;background:#5B2D8E;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;">{{ s.reading or '—' }}</div></td>
-        <td><div style="width:26px;height:26px;border-radius:50%;background:#5B2D8E;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;">{{ s.gramatica or '—' }}</div></td>
+        <td><div style="width:26px;height:26px;border-radius:50%;background:#792D83;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;">{{ s.speaking or '—' }}</div></td>
+        <td><div style="width:26px;height:26px;border-radius:50%;background:#792D83;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;">{{ s.listening or '—' }}</div></td>
+        <td><div style="width:26px;height:26px;border-radius:50%;background:#792D83;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;">{{ s.writing or '—' }}</div></td>
+        <td><div style="width:26px;height:26px;border-radius:50%;background:#792D83;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;">{{ s.reading or '—' }}</div></td>
+        <td><div style="width:26px;height:26px;border-radius:50%;background:#792D83;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;">{{ s.gramatica or '—' }}</div></td>
         <td>{{ s.faltas or '0' }}</td>
         <td>
           {% if s.aula_extra %}
@@ -135,7 +136,7 @@
 <div class="card" style="text-align:center; padding:48px;">
   <p class="text-gray" style="margin-bottom:16px;">Nenhum aluno cadastrado.</p>
   {% if can_manage_teachers %}
-  <a href="{{ url_for('upload') }}" class="btn btn-primary">↑ Fazer upload de CSV</a>
+  <a href="{{ url_for('upload') }}" class="btn btn-primary">{{ icon('upload', 16) }} Fazer upload de CSV</a>
   {% else %}
   <a href="{{ url_with_month('student_new') }}" class="btn btn-primary">+ Novo aluno</a>
   {% endif %}
