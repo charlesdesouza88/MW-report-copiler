@@ -4117,12 +4117,66 @@ def _allowed_report_path(filename):
     return path if allowed else None
 
 
+def _live_render_individual_preview(path):
+    """Rebuild an individual report from current templates so preview
+    reflects template changes without requiring a full generate."""
+    name = Path(path).name
+    if not name.endswith('_report.html') or 'class_diagnostic' in name:
+        return None
+    month = report_month_from_filename(name)
+    all_students, students = _scoped_students(
+        review_month=month, apply_attendance=True,
+    )
+    _, lessons = _scoped_lessons(all_students)
+    turma, student_name = _student_for_report_file(path, students, month)
+    if not turma:
+        turma, student_name = _student_for_report_file(path, all_students, month)
+    if not turma or not student_name:
+        return None
+    student = None
+    for row in list(students) + list(all_students):
+        if row.get('_transfer_alias'):
+            continue
+        if (row.get('turma', '').strip() == turma
+                and row.get('student_name', '').strip() == student_name):
+            student = row
+            break
+    if not student:
+        return None
+    snapshots = load_snapshots(SNAPSHOTS_PATH)
+    attendance_rows = _load_lesson_attendance()
+    trend = None
+    if month:
+        base_ctx = build_student_ctx(
+            student, lessons, report_month=month,
+            attendance_rows=attendance_rows,
+        )
+        trend = compute_month_trend(
+            student_composite_score(base_ctx), month, snapshots,
+            turma, student_name,
+        )
+    ctx = build_student_ctx(
+        student, lessons, report_month=month, trend=trend,
+        snapshots=snapshots, attendance_rows=attendance_rows,
+    )
+    if month:
+        ctx['report_month_label'] = month_label(month)
+    env = create_report_environment(TMPL_DIR)
+    return env.get_template('individual_report.html').render(**ctx)
+
+
 @app.route('/reports/preview/<path:filename>')
 @login_required
 def preview(filename):
     path = _allowed_report_path(filename)
     if not path:
         abort(404)
+    try:
+        live = _live_render_individual_preview(path)
+        if live:
+            return live
+    except Exception:
+        logger.exception('Live report preview failed for %s', path.name)
     return path.read_text(encoding='utf-8')
 
 

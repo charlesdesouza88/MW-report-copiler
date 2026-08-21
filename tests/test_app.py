@@ -378,6 +378,35 @@ def test_reports_preview_path_is_sanitized(monkeypatch, tmp_path):
 
     assert ok.status_code == 200
     assert blocked.status_code == 404
+    assert ok.get_data(as_text=True) == "<html>ok</html>"
+
+
+def test_reports_preview_live_renders_attendance_calendar(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    out_dir = tmp_path / "output"
+    data_dir.mkdir()
+    out_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    stale = out_dir / "MASTER_Jane_Doe_2026-01_report.html"
+    stale.write_text("<html>stale report without calendar</html>", encoding="utf-8")
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", out_dir)
+    monkeypatch.setattr(web_app, "TMPL_DIR", Path(web_app.__file__).parent / "templates")
+    monkeypatch.setattr(web_app, "SNAPSHOTS_PATH", data_dir / "student_snapshots.json")
+    _init_user_store(monkeypatch, data_dir)
+    _seed_teacher_classes(data_dir, "Chuck", ("MASTER", "Masters"))
+
+    client = web_app.app.test_client()
+    _login(client)
+    response = client.get("/reports/preview/MASTER_Jane_Doe_2026-01_report.html")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "pie-cal" in html
+    assert "Janeiro 2026" in html
+    assert "stale report without calendar" not in html
 
 
 def test_upload_invalid_students_csv_shows_error_and_does_not_crash(monkeypatch, tmp_path):
