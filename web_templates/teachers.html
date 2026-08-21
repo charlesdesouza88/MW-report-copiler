@@ -19,11 +19,69 @@
 .user-contact-hint { font-size:11px; color:#888; margin:0; }
 .login-history-table { width:100%; border-collapse:collapse; font-size:13px; }
 .login-history-table th, .login-history-table td {
-  padding:10px 8px; border-bottom:1px solid #EEE; text-align:left;
+  padding:10px 8px; border-bottom:1px solid var(--hairline); text-align:left;
 }
 .login-history-table th {
-  border-bottom:2px solid #E2E2E2; font-size:10px; text-transform:uppercase;
-  letter-spacing:0.4px; color:#666;
+  background: var(--purple);
+  color: var(--white);
+  border-bottom: none;
+  font-size:10px; font-weight:700; text-transform:uppercase;
+  letter-spacing:0.4px;
+}
+.data-table td.col-actions {
+  white-space: normal;
+  text-align: right;
+  vertical-align: middle;
+}
+.user-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.user-row-actions .btn-perfil {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+.user-row-toggles {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 5.75em;
+}
+.user-row-toggles details {
+  display: block;
+  margin: 0;
+}
+.user-row-toggles summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--purple);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.2;
+}
+.user-row-toggles summary::-webkit-details-marker,
+.user-row-toggles summary::marker {
+  display: none;
+  content: '';
+}
+.user-row-toggles summary::before {
+  content: '▸';
+  font-size: 11px;
+  line-height: 1;
+  width: 0.8em;
+  flex-shrink: 0;
+  text-align: center;
+}
+.user-row-toggles details[open] > summary::before {
+  content: '▾';
 }
 </style>
 <h1 class="page-heading" style="font-size:22px;font-weight:900;margin-bottom:8px;">Usuários e professores</h1>
@@ -130,9 +188,11 @@
           <td style="padding:12px 8px; white-space:nowrap;" title="{{ u.last_login_at or '' }}">{{ u.last_login_label or 'Nunca' }}</td>
           <td style="padding:12px 8px;">{% if u.active %}Sim{% else %}Não{% endif %}</td>
           <td class="col-actions">
-            <a href="{{ url_for('teacher_profile', user_id=u.id) }}" class="btn btn-ghost btn-xs" style="margin-right:6px;">Perfil</a>
-            <details style="display:inline-block; margin-right:6px;">
-              <summary style="cursor:pointer;font-weight:700;color:#792D83;">Contato</summary>
+            <div class="user-row-actions">
+            <a href="{{ url_for('teacher_profile', user_id=u.id) }}" class="btn btn-ghost btn-perfil">Perfil</a>
+            <div class="user-row-toggles">
+            <details>
+              <summary>Contato</summary>
               <div class="user-contact-box" data-contact-box
                    data-mailto-base="{{ u.mailto_href or '' }}"
                    data-wa-base="{{ u.whatsapp_href or '' }}"
@@ -160,7 +220,7 @@
               </div>
             </details>
             <details>
-              <summary style="cursor:pointer;font-weight:700;color:#792D83;">Editar</summary>
+              <summary>Editar</summary>
               <form method="post" style="margin-top:10px;padding:12px;background:#F9F7FC;border-radius:8px;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="update">
@@ -196,6 +256,8 @@
               </form>
               {% endif %}
             </details>
+            </div>
+            </div>
           </td>
         </tr>
         {% else %}

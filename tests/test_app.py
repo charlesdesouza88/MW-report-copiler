@@ -182,6 +182,9 @@ def test_users_page_shows_last_access_and_contact_actions(monkeypatch, tmp_path)
     page = client.get("/admin/teachers")
     assert page.status_code == 200
     html = page.get_data(as_text=True)
+    assert "user-row-actions" in html
+    assert "btn-perfil" in html
+    assert "user-row-toggles" in html
     assert "Último acesso" in html
     assert "Histórico de acessos" in html
     assert "Nunca" in html  # idle teacher never logged in
@@ -448,16 +451,24 @@ def test_authenticated_shell_uses_official_lockups(monkeypatch, tmp_path):
     _login(client)
     html = client.get("/").get_data(as_text=True)
     assert "logo-symbol.png" in html
-    assert "logo-primary-white.png" in html
+    assert "logo-primary-transparent.png" in html
+    assert "logo-primary-white.png" not in html
+    assert 'id="icon-house"' in html
+    assert 'href="#icon-house"' in html
+    assert "stroke-width=\"2\"" in html
+    assert "▦" not in html
     assert "filter: brightness(0) invert(1)" not in html
     assert "#792D83" in html or "var(--purple)" in html
+    assert "var(--purple-lt)" in html
     css = client.get("/static/css/brand.css")
     assert css.status_code == 200
     tokens = css.get_data(as_text=True)
     assert "--purple: #792D83" in tokens
     assert "--plum: #2D1040" in tokens
+    assert "--purple-lt: #F0E6F3" in tokens
     assert "--gold-accent: #EBB22E" in tokens
     assert client.get("/static/img/logo-symbol.png").status_code == 200
+    assert client.get("/static/img/logo-primary-transparent.png").status_code == 200
     assert client.get("/static/img/logo-primary-white.png").status_code == 200
 
 
