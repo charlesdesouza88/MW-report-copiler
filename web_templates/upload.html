@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_macros/icons.html' import icon %}
 {% block title %}Upload CSV{% endblock %}
 {% block page_title %}Upload de dados CSV{% endblock %}
 
@@ -90,7 +91,7 @@
       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px;">
         <div>
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-            <div style="width:42px; height:42px; border-radius:12px; background:#F0E6F3; color:#792D83; font-size:20px; display:flex; align-items:center; justify-content:center;">◉</div>
+            <div class="mw-icon-tile">{{ icon('users', 24) }}</div>
             <div>
               <div style="font-size:17px; font-weight:900; color:#111;">students.csv</div>
               <div class="font-sm text-gray" style="margin-top:3px;">Base principal com dados dos alunos, notas, faltas e feedbacks.</div>
@@ -118,19 +119,19 @@
       <form method="post" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label class="file-dropzone" aria-label="Selecionar arquivo CSV de alunos">
-          <div style="width:54px; height:54px; border-radius:16px; background:#fff; color:#792D83; font-size:26px; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; box-shadow:0 8px 24px rgba(121,45,131,0.08);">↑</div>
+          <div class="mw-icon-tile mw-icon-tile-lg">{{ icon('upload', 24) }}</div>
           <div style="font-size:13px; font-weight:800; color:#111; margin-bottom:6px;">Selecione o arquivo de alunos</div>
           <div style="font-size:12px; color:#666; margin-bottom:8px;">Use o template oficial para garantir cabeçalhos corretos.</div>
           <input type="file" name="students" accept=".csv"
                  onchange="this.closest('form').querySelector('.file-name').textContent = this.files[0]?.name || ''">
           <div class="file-name" style="min-height:18px; color:#792D83; font-size:12px; font-weight:800;"></div>
         </label>
-        <button type="submit" class="btn btn-primary btn-sm" style="width:100%; justify-content:center; margin-bottom:12px;">↑ Fazer upload</button>
+        <button type="submit" class="btn btn-primary btn-sm" style="width:100%; justify-content:center; margin-bottom:12px;">{{ icon('upload', 16) }} Fazer upload</button>
       </form>
       <div class="inline-actions" style="margin-bottom:16px;">
-        <a href="{{ url_for('download_template', name='students') }}" class="btn btn-outline btn-sm" style="justify-content:center;">⇩ Baixar template</a>
+        <a href="{{ url_for('download_template', name='students') }}" class="btn btn-outline btn-sm" style="justify-content:center;">{{ icon('download', 16) }} Baixar template</a>
         {% if students_exists %}
-        <a href="{{ url_for('download_csv', name='students') }}" class="btn btn-ghost btn-sm">↓ Baixar atual</a>
+        <a href="{{ url_for('download_csv', name='students') }}" class="btn btn-ghost btn-sm">{{ icon('download', 16) }} Baixar atual</a>
         <form method="post" action="{{ url_for('delete_csv', name='students') }}"
               onsubmit="return confirm('{% if can_upload_all_csv %}Remover students.csv e todos os alunos? Esta ação não pode ser desfeita.{% else %}Remover todos os seus alunos importados? Outros professores não serão afetados.{% endif %}');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -186,7 +187,7 @@
       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px;">
         <div>
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-            <div style="width:42px; height:42px; border-radius:12px; background:#F0E6F3; color:#792D83; font-size:20px; display:flex; align-items:center; justify-content:center;">◈</div>
+            <div class="mw-icon-tile">{{ icon('presentation', 24) }}</div>
             <div>
               <div style="font-size:17px; font-weight:900; color:#111;">lessons.csv</div>
               <div class="font-sm text-gray" style="margin-top:3px;">Cronograma de aulas com datas, conteúdos e atividades extras.</div>
@@ -214,19 +215,19 @@
       <form method="post" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label class="file-dropzone" aria-label="Selecionar arquivo CSV de aulas">
-          <div style="width:54px; height:54px; border-radius:16px; background:#fff; color:#792D83; font-size:26px; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; box-shadow:0 8px 24px rgba(121,45,131,0.08);">⇪</div>
+          <div class="mw-icon-tile mw-icon-tile-lg">{{ icon('upload', 24) }}</div>
           <div style="font-size:13px; font-weight:800; color:#111; margin-bottom:6px;">Selecione o arquivo de aulas</div>
           <div style="font-size:12px; color:#666; margin-bottom:8px;">Cada linha deve representar uma aula real daquela turma.</div>
           <input type="file" name="lessons" accept=".csv"
                  onchange="this.closest('form').querySelector('.file-name').textContent = this.files[0]?.name || ''">
           <div class="file-name" style="min-height:18px; color:#792D83; font-size:12px; font-weight:800;"></div>
         </label>
-        <button type="submit" class="btn btn-primary btn-sm" style="width:100%; justify-content:center; margin-bottom:12px;">↑ Fazer upload</button>
+        <button type="submit" class="btn btn-primary btn-sm" style="width:100%; justify-content:center; margin-bottom:12px;">{{ icon('upload', 16) }} Fazer upload</button>
       </form>
       <div class="inline-actions" style="margin-bottom:16px;">
-        <a href="{{ url_for('download_template', name='lessons') }}" class="btn btn-outline btn-sm" style="justify-content:center;">⇩ Baixar template</a>
+        <a href="{{ url_for('download_template', name='lessons') }}" class="btn btn-outline btn-sm" style="justify-content:center;">{{ icon('download', 16) }} Baixar template</a>
         {% if lessons_exists %}
-        <a href="{{ url_for('download_csv', name='lessons') }}" class="btn btn-ghost btn-sm">↓ Baixar atual</a>
+        <a href="{{ url_for('download_csv', name='lessons') }}" class="btn btn-ghost btn-sm">{{ icon('download', 16) }} Baixar atual</a>
         <form method="post" action="{{ url_for('delete_csv', name='lessons') }}"
               onsubmit="return confirm('{% if can_upload_all_csv %}Remover lessons.csv e todas as aulas? Esta ação não pode ser desfeita.{% else %}Remover todas as aulas das suas turmas? Outras turmas não serão afetadas.{% endif %}');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

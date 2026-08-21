@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% from '_macros/list_filters.html' import filter_panel, filter_turma_group, filter_group_extra, list_filter_script %}
 {% from '_macros/page_toolbar.html' import page_toolbar %}
+{% from '_macros/icons.html' import icon %}
 {% set return_turma = request.args.get('turma', '') %}
 {% set return_month = review_month or request.args.get('month', '') %}
 {% block title %}Alunos{% endblock %}
@@ -135,7 +136,7 @@
 <div class="card" style="text-align:center; padding:48px;">
   <p class="text-gray" style="margin-bottom:16px;">Nenhum aluno cadastrado.</p>
   {% if can_manage_teachers %}
-  <a href="{{ url_for('upload') }}" class="btn btn-primary">↑ Fazer upload de CSV</a>
+  <a href="{{ url_for('upload') }}" class="btn btn-primary">{{ icon('upload', 16) }} Fazer upload de CSV</a>
   {% else %}
   <a href="{{ url_with_month('student_new') }}" class="btn btn-primary">+ Novo aluno</a>
   {% endif %}

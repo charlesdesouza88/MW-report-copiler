@@ -1,3 +1,4 @@
+{% from '_macros/icons.html' import icon %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -12,11 +13,15 @@
 html { max-width: 100%; overflow-x: clip; -webkit-text-size-adjust: 100%; }
 body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; max-width: 100%; overflow-x: clip; overflow-wrap: anywhere; word-break: break-word; }
 img, svg, video { max-width: 100%; height: auto; }
+svg.mw-icon-svg {
+  max-width: none; height: unset; flex-shrink: 0; overflow: visible; display: block;
+}
 
 /* ── Sidebar ── */
 .sidebar {
   width: var(--sidebar-width); min-height: 100vh;
-  background: var(--plum);
+  background: var(--purple-lt);
+  border-right: 1px solid var(--hairline);
   display: flex; flex-direction: column;
   position: fixed; top: 0; left: 0; bottom: 0; z-index: 10;
   overflow-y: auto;
@@ -34,34 +39,44 @@ img, svg, video { max-width: 100%; height: auto; }
 .brand-mark {
   width: 40px; height: 40px; border-radius: 9px;
   object-fit: cover; flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 8px rgba(45, 16, 64, 0.12);
 }
 .brand-text { min-width: 0; flex: 1; }
 .brand-wordmark {
   display: block; width: 100%; max-width: 148px; height: auto;
 }
 .brand-sub {
-  font-size: 8.5px; color: var(--gold); letter-spacing: 1.5px;
-  margin-top: 5px; text-transform: uppercase;
+  font-size: 8.5px; color: var(--purple-dk); letter-spacing: 1.5px;
+  margin-top: 5px; text-transform: uppercase; font-weight: 700;
 }
 .nav-link {
   display: flex; align-items: center; gap: 10px;
-  padding: 11px 20px; color: rgba(255,255,255,0.72);
+  padding: 11px 20px; color: var(--plum);
   text-decoration: none; font-size: 13px; font-weight: 700;
   transition: background 0.12s, color 0.12s;
 }
-.nav-link:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.nav-link:hover { background: rgba(121, 45, 131, 0.08); color: var(--purple); }
 .nav-link.active {
   background: var(--purple); color: #fff;
   box-shadow: inset 3px 0 0 var(--gold-accent);
 }
-.nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
-.nav-spacer { flex: 1; }
-.nav-logout {
-  border-top: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.4); font-size: 12px;
+.nav-icon {
+  width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
-.nav-logout:hover { color: #fff; background: rgba(226, 75, 74, 0.22); }
+.nav-icon svg.mw-icon-svg { width: 20px; height: 20px; }
+.nav-spacer { flex: 1; }
+.nav-user {
+  padding: 12px 20px; font-size: 11px; color: var(--purple-dk);
+  line-height: 1.4; border-top: 1px solid var(--hairline);
+}
+.nav-user-role { color: var(--plum); font-weight: 700; }
+.nav-logout {
+  border-top: 1px solid var(--hairline);
+  color: var(--purple-dk); font-size: 12px;
+}
+.nav-logout:hover { color: var(--red); background: rgba(226, 75, 74, 0.12); }
 
 /* ── Main ── */
 .main {
@@ -145,6 +160,18 @@ img, svg, video { max-width: 100%; height: auto; }
   transition: opacity 0.15s, transform 0.15s ease, box-shadow 0.15s ease;
 }
 .btn svg { flex-shrink: 0; }
+.mw-icon-tile {
+  width: 42px; height: 42px; border-radius: 9px;
+  background: var(--purple-lt); color: var(--purple);
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.mw-icon-tile-lg {
+  width: 54px; height: 54px; border-radius: 12px;
+  background: var(--white); margin: 0 auto 10px;
+  box-shadow: 0 8px 24px rgba(121, 45, 131, 0.08);
+}
+.mw-icon-tile-knockout { background: var(--purple); color: #fff; }
+.mw-icon-tile-emphasis { background: var(--plum); color: var(--gold); }
 .btn:hover { opacity: 0.85; transform: translateY(-1px); }
 .btn:active { transform: translateY(0); }
 .btn-primary { background: var(--purple); color: var(--white); }
@@ -621,6 +648,7 @@ body.nav-open .nav-backdrop { display: block; }
 </style>
 </head>
 <body>
+{% include '_macros/icon_sprite.html' %}
 
 <button type="button" class="nav-backdrop" id="nav-backdrop" aria-label="Fechar menu"></button>
 
@@ -629,66 +657,66 @@ body.nav-open .nav-backdrop { display: block; }
     <div class="brand-lockup">
       <img class="brand-mark" src="{{ url_for('static', filename='img/logo-symbol.png') }}" alt="" width="40" height="40">
       <div class="brand-text">
-        <img class="brand-wordmark" src="{{ url_for('static', filename='img/logo-primary-white.png') }}" alt="Mister Wiz" width="148" height="39">
+        <img class="brand-wordmark" src="{{ url_for('static', filename='img/logo-primary-transparent.png') }}" alt="Mister Wiz" width="148" height="39">
         <div class="brand-sub">{% if current_user and current_user.role == 'teacher' %}Professor{% else %}Admin{% endif %}</div>
       </div>
     </div>
   </div>
   <a href="{{ url_with_month('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
-    <span class="nav-icon">▦</span> Dashboard
+    <span class="nav-icon">{{ icon('house', 20) }}</span> Dashboard
   </a>
   <a href="{{ url_with_month('students') }}" class="nav-link {% if 'student' in request.endpoint and request.endpoint != 'student_transfer_page' %}active{% endif %}">
-    <span class="nav-icon">◉</span> Alunos
+    <span class="nav-icon">{{ icon('users', 20) }}</span> Alunos
   </a>
   <a href="{{ url_with_month('lessons') }}" class="nav-link {% if 'lesson' in request.endpoint %}active{% endif %}">
-    <span class="nav-icon">▤</span> Aulas
+    <span class="nav-icon">{{ icon('presentation', 20) }}</span> Aulas
   </a>
   <a href="{{ url_with_month('extra_sessions') }}" class="nav-link {% if 'extra_session' in request.endpoint %}active{% endif %}">
-    <span class="nav-icon">◷</span> Reforço / Reposição
+    <span class="nav-icon">{{ icon('clock', 20) }}</span> Reforço / Reposição
   </a>
   <a href="{{ url_with_month('upload') }}" class="nav-link {% if request.endpoint in ('upload', 'delete_csv') %}active{% endif %}">
-    <span class="nav-icon">↑</span> Upload CSV
+    <span class="nav-icon">{{ icon('upload', 20) }}</span> Upload CSV
   </a>
   {% if can_manage_teachers %}
   <a href="{{ url_for('manage_teachers') }}" class="nav-link {% if request.endpoint == 'manage_teachers' %}active{% endif %}">
-    <span class="nav-icon">◎</span> Usuários
+    <span class="nav-icon">{{ icon('id-card', 20) }}</span> Usuários
   </a>
   <a href="{{ url_for('turma_transfer') }}" class="nav-link {% if request.endpoint == 'turma_transfer' %}active{% endif %}">
-    <span class="nav-icon">⇄</span> Transferir turma
+    <span class="nav-icon">{{ icon('route', 20) }}</span> Transferir turma
   </a>
   <a href="{{ url_for('student_transfer_page') }}" class="nav-link {% if request.endpoint == 'student_transfer_page' %}active{% endif %}">
-    <span class="nav-icon">➜</span> Transferir alunos
+    <span class="nav-icon">{{ icon('arrow-right', 20) }}</span> Transferir alunos
   </a>
   {% endif %}
   <a href="{{ url_with_month('reports') }}" class="nav-link {% if request.endpoint in ('reports','preview') %}active{% endif %}">
-    <span class="nav-icon">◈</span> Relatórios
+    <span class="nav-icon">{{ icon('clipboard-check', 20) }}</span> Relatórios
   </a>
   {% if can_access_chat %}
   <a href="{{ url_for('chat_room') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('chat_') %}active{% endif %}">
-    <span class="nav-icon">✉</span> Chat
+    <span class="nav-icon">{{ icon('message-circle', 20) }}</span> Chat
     {% if chat_open_bugs %}<span style="margin-left:auto;font-size:10px;background:var(--red);color:#fff;border-radius:999px;padding:1px 7px;font-weight:800;">{{ chat_open_bugs }}</span>{% endif %}
   </a>
   {% endif %}
   {% if current_user %}
   <a href="{{ url_for('teacher_profile') }}" class="nav-link {% if request.endpoint in ('teacher_profile', 'teacher_profile_photo') %}active{% endif %}">
-    <span class="nav-icon">☺</span> Meu perfil
+    <span class="nav-icon">{{ icon('user', 20) }}</span> Meu perfil
   </a>
   {% endif %}
   <div class="nav-spacer"></div>
   {% if current_user %}
-  <div style="padding:12px 20px;font-size:11px;color:rgba(255,255,255,0.45);line-height:1.4;border-top:1px solid rgba(255,255,255,0.08);">
+  <div class="nav-user">
     {{ current_user.email }}<br>
-    <span style="color:rgba(255,255,255,0.65);">{{ role_labels.get(current_user.role, current_user.role) }}</span>
+    <span class="nav-user-role">{{ role_labels.get(current_user.role, current_user.role) }}</span>
   </div>
   {% endif %}
   <a href="{{ url_for('logout') }}" class="nav-link nav-logout">
-    <span class="nav-icon">⏻</span> Sair
+    <span class="nav-icon">{{ icon('log-out', 20) }}</span> Sair
   </a>
 </nav>
 
 <div class="main">
   <header class="page-header">
-    <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Abrir menu" aria-expanded="false">☰</button>
+    <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Abrir menu" aria-expanded="false">{{ icon('menu', 22) }}</button>
     <div class="page-header-body">
       <h1 class="page-title">{{ self.page_title() }}</h1>
       {% if current_user and available_review_semesters %}

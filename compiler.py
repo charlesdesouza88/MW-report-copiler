@@ -656,10 +656,13 @@ def build_attendance_calendar(turma_lessons, missed, tardy_aula_nums, report_mon
                 row.append({'day': day_num, 'status': status})
         weeks.append(row)
 
+    from report_periods import month_label
+
     return {
         'day_headers': _DAY_ABBR,
         'weeks': weeks,
         'has_class': bool(class_dates),
+        'month_label': month_label(f'{year:04d}-{mon:02d}'),
     }
 
 
