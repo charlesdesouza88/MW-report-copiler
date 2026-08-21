@@ -18,11 +18,11 @@
 <div class="alert alert-success">✓ &nbsp;{{ message }}</div>
 {% endif %}
 {% if error %}
-<div class="alert" style="background:#FADBD8; color:#A93226; border:1px solid #F1948A;">✕ &nbsp;{{ error }}</div>
+<div class="alert" style="background:#FADBD8; color:#E24B4A; border:1px solid #F1948A;">✕ &nbsp;{{ error }}</div>
 {% endif %}
 
 <div class="card" style="margin-bottom:20px; padding:18px;">
-  <div style="font-size:12px; font-weight:900; color:#5B2D8E; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px;">Modelo CSV</div>
+  <div style="font-size:12px; font-weight:900; color:#792D83; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px;">Modelo CSV</div>
   <p class="font-sm text-gray" style="margin-bottom:12px;">
     Baixe o arquivo com as <strong>colunas corretas</strong> e linhas de exemplo (Nome, Data, Horário, Assuntos, Observação, Turno, Contatado, Marcado, Realizado, Professor).
     Preencha no Excel ou Google Planilhas e importe abaixo{% if not can_manage_teachers %} ou cadastre manualmente{% endif %}.
@@ -32,7 +32,7 @@
 
 {% if can_manage_teachers %}
 <div class="card" style="margin-bottom:20px; padding:18px;">
-  <div style="font-size:12px; font-weight:900; color:#5B2D8E; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px;">Importar planilha</div>
+  <div style="font-size:12px; font-weight:900; color:#792D83; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px;">Importar planilha</div>
   <p class="font-sm text-gray" style="margin-bottom:12px;">Envie o CSV preenchido (use o modelo acima). Colunas: Nome, Data, Horário, Assuntos, Observação, Turno, Contatado, Marcado, Realizado, Professor.</p>
   <form method="post" action="{{ url_for('extra_sessions_import') }}" enctype="multipart/form-data" class="flex gap-8" style="flex-wrap:wrap; align-items:flex-end;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

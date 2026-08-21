@@ -187,6 +187,7 @@ def test_build_attendance_calendar_supports_dd_mm_dates():
     calendar = build_attendance_calendar(lessons, [], set(), "2026-03")
     assert calendar is not None
     assert calendar["has_class"] is True
+    assert calendar["month_label"] == "Março 2026"
     present_days = [
         cell["day"]
         for week in calendar["weeks"]
@@ -247,6 +248,31 @@ def test_individual_report_renders_labeled_overall_scores():
     assert "bubble-abs" not in html
     assert "Nota" in html
     assert "Critérios" in html
+    assert 'id="ri-calendar-check"' in html
+    assert 'href="#ri-calendar-check"' in html
+    assert 'href="#ri-book-open"' in html
+    assert 'href="#ri-message-circle"' in html
+    assert 'href="#ri-star"' in html
+    assert 'class="mw-icon-tile"' in html
+    assert 'class="legend-item"' in html
+    assert 'grid-template-columns: minmax(132px, 1fr)' in html
+
+
+def test_individual_report_embeds_attendance_calendar_in_frequencia():
+    from pathlib import Path
+
+    from compiler import build_student_ctx
+
+    base = Path(__file__).resolve().parent.parent
+    env = create_report_environment(base / "templates")
+    html = env.get_template("individual_report.html").render(
+        **build_student_ctx(_student(), _lessons(), report_month="2026-01")
+    )
+    assert "pie-cal" in html
+    assert "has-cal" in html
+    assert "Janeiro 2026" in html
+    assert 'class="att-day att-present"' in html or "att-present" in html
+    assert html.count('class="att-cal"') == 1
 
 
 def test_score_delta_badge_directions():

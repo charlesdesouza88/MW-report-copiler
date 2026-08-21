@@ -1,0 +1,55 @@
+/* Mister Wiz brand tokens — Brand & Identity Guide (Aug 2026)
+   Purple leads, gold accents, plum grounds the text.
+   Navy (#1B1464) is logo-wordmark only — never use it in UI.
+   Green/red are functional feedback only. */
+
+@font-face {
+  font-family: Carlito;
+  src: url("../fonts/Carlito-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: Carlito;
+  src: url("../fonts/Carlito-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: Carlito;
+  src: url("../fonts/Carlito-Italic.ttf") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: Carlito;
+  src: url("../fonts/Carlito-BoldItalic.ttf") format("truetype");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  --purple: #792D83;
+  --purple-dk: #5A1A64;
+  --purple-lt: #F0E6F3;
+  --plum: #2D1040;
+  --gold: #EFD27E;
+  --gold-accent: #EBB22E;
+  --green: #2C7A3F;
+  --red: #E24B4A;
+  --soft: #F9F5FA;
+  --hairline: #D9C7E0;
+  --border: #D9C7E0;
+  --text: #2D1040;
+  --gray: #5A1A64;
+  --white: #fff;
+  --bg: #F9F5FA;
+  --radius: 10px;
+  --font: Carlito, Calibri, "Segoe UI", sans-serif;
+  --sidebar-width: 220px;
+  --shadow: 0 8px 24px rgba(45, 16, 64, 0.12);
+}

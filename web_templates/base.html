@@ -1,31 +1,27 @@
+{% from '_macros/icons.html' import icon %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}Dashboard{% endblock %} — Mister Wiz</title>
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo-symbol.png') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/brand.css') }}">
 <style>
-:root {
-  --purple: #5B2D8E;
-  --purple-dk: #4A1F7C;
-  --purple-lt: #F5EEF8;
-  --border: #E2E2E2;
-  --text: #111;
-  --gray: #666;
-  --white: #fff;
-  --radius: 10px;
-  --font: Arial, Helvetica, sans-serif;
-  --sidebar-width: 220px;
-}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { max-width: 100%; overflow-x: clip; -webkit-text-size-adjust: 100%; }
-body { font-family: var(--font); background: #F4F2F8; color: var(--text); min-height: 100vh; max-width: 100%; overflow-x: clip; overflow-wrap: anywhere; word-break: break-word; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; max-width: 100%; overflow-x: clip; overflow-wrap: anywhere; word-break: break-word; }
 img, svg, video { max-width: 100%; height: auto; }
+svg.mw-icon-svg {
+  max-width: none; height: unset; flex-shrink: 0; overflow: visible; display: block;
+}
 
 /* ── Sidebar ── */
 .sidebar {
   width: var(--sidebar-width); min-height: 100vh;
-  background: var(--purple-dk);
+  background: var(--purple-lt);
+  border-right: 1px solid var(--hairline);
   display: flex; flex-direction: column;
   position: fixed; top: 0; left: 0; bottom: 0; z-index: 10;
   overflow-y: auto;
@@ -34,7 +30,7 @@ img, svg, video { max-width: 100%; height: auto; }
 }
 .brand {
   padding: 18px 16px 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.12);
+  border-bottom: 2px solid var(--gold-accent);
   margin-bottom: 6px;
 }
 .brand-lockup {
@@ -43,32 +39,44 @@ img, svg, video { max-width: 100%; height: auto; }
 .brand-mark {
   width: 40px; height: 40px; border-radius: 9px;
   object-fit: cover; flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 8px rgba(45, 16, 64, 0.12);
 }
 .brand-text { min-width: 0; flex: 1; }
 .brand-wordmark {
   display: block; width: 100%; max-width: 148px; height: auto;
-  filter: brightness(0) invert(1);
 }
 .brand-sub {
-  font-size: 8.5px; color: rgba(255,255,255,0.45); letter-spacing: 1.5px;
-  margin-top: 5px; text-transform: uppercase;
+  font-size: 8.5px; color: var(--purple-dk); letter-spacing: 1.5px;
+  margin-top: 5px; text-transform: uppercase; font-weight: 700;
 }
 .nav-link {
   display: flex; align-items: center; gap: 10px;
-  padding: 11px 20px; color: rgba(255,255,255,0.65);
-  text-decoration: none; font-size: 13px; font-weight: 600;
+  padding: 11px 20px; color: var(--plum);
+  text-decoration: none; font-size: 13px; font-weight: 700;
   transition: background 0.12s, color 0.12s;
 }
-.nav-link:hover { background: rgba(255,255,255,0.08); color: #fff; }
-.nav-link.active { background: rgba(255,255,255,0.16); color: #fff; }
-.nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
-.nav-spacer { flex: 1; }
-.nav-logout {
-  border-top: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.4); font-size: 12px;
+.nav-link:hover { background: rgba(121, 45, 131, 0.08); color: var(--purple); }
+.nav-link.active {
+  background: var(--purple); color: #fff;
+  box-shadow: inset 3px 0 0 var(--gold-accent);
 }
-.nav-logout:hover { color: #FF9999; background: rgba(255,0,0,0.08); }
+.nav-icon {
+  width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.nav-icon svg.mw-icon-svg { width: 20px; height: 20px; }
+.nav-spacer { flex: 1; }
+.nav-user {
+  padding: 12px 20px; font-size: 11px; color: var(--purple-dk);
+  line-height: 1.4; border-top: 1px solid var(--hairline);
+}
+.nav-user-role { color: var(--plum); font-weight: 700; }
+.nav-logout {
+  border-top: 1px solid var(--hairline);
+  color: var(--purple-dk); font-size: 12px;
+}
+.nav-logout:hover { color: var(--red); background: rgba(226, 75, 74, 0.12); }
 
 /* ── Main ── */
 .main {
@@ -113,7 +121,7 @@ img, svg, video { max-width: 100%; height: auto; }
 .review-banner {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   padding: 10px 14px; margin-bottom: 16px;
-  background: var(--purple-lt); border: 1px solid #D8C8EB; border-radius: var(--radius);
+  background: var(--purple-lt); border: 1px solid var(--hairline); border-radius: var(--radius);
   font-size: 13px; color: var(--purple-dk);
 }
 .review-banner strong { font-weight: 900; }
@@ -128,15 +136,15 @@ img, svg, video { max-width: 100%; height: auto; }
   background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
-.card:hover { box-shadow: 0 6px 20px rgba(91, 45, 142, 0.08); }
+.card:hover { box-shadow: var(--shadow); }
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
 .stat-card {
   background: var(--white); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 18px 20px;
-  border-top: 3px solid var(--purple);
+  border-top: 3px solid var(--gold-accent);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
-.stat-card:hover { box-shadow: 0 6px 20px rgba(91, 45, 142, 0.08); transform: translateY(-1px); }
+.stat-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
 .stat-label { font-size: 10px; color: var(--gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
 .stat-value { font-size: 38px; font-weight: 900; color: var(--purple); line-height: 1; }
 .stat-sub { font-size: 11px; color: var(--gray); margin-top: 4px; }
@@ -152,11 +160,23 @@ img, svg, video { max-width: 100%; height: auto; }
   transition: opacity 0.15s, transform 0.15s ease, box-shadow 0.15s ease;
 }
 .btn svg { flex-shrink: 0; }
+.mw-icon-tile {
+  width: 42px; height: 42px; border-radius: 9px;
+  background: var(--purple-lt); color: var(--purple);
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.mw-icon-tile-lg {
+  width: 54px; height: 54px; border-radius: 12px;
+  background: var(--white); margin: 0 auto 10px;
+  box-shadow: 0 8px 24px rgba(121, 45, 131, 0.08);
+}
+.mw-icon-tile-knockout { background: var(--purple); color: #fff; }
+.mw-icon-tile-emphasis { background: var(--plum); color: var(--gold); }
 .btn:hover { opacity: 0.85; transform: translateY(-1px); }
 .btn:active { transform: translateY(0); }
 .btn-primary { background: var(--purple); color: var(--white); }
 .btn-outline { background: transparent; color: var(--purple); border: 2px solid var(--purple); }
-.btn-danger { background: #C0392B; color: var(--white); }
+.btn-danger { background: var(--red); color: var(--white); }
 .btn-ghost { background: transparent; color: var(--gray); border: 1px solid var(--border); }
 .btn-ghost:hover { border-color: var(--purple); color: var(--purple); opacity: 1; }
 .btn-sm { padding: 5px 11px; font-size: 11px; border-radius: 5px; }
@@ -255,15 +275,15 @@ input[type="time"].input-datetime::-moz-focus-inner {
 
 /* ── Tags ── */
 .tag { display: inline-block; background: var(--purple); color: var(--white); border-radius: 10px; padding: 2px 8px; font-size: 10px; font-weight: 700; }
-.tag-green { background: #1E8449; }
-.tag-orange { background: #D35400; }
-.tag-gray { background: #888; }
+.tag-green { background: var(--green); }
+.tag-orange { background: var(--gold-accent); color: var(--plum); }
+.tag-gray { background: var(--purple-dk); }
 
 /* ── Alerts ── */
 .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; font-weight: 600; }
-.alert-success { background: #D5F5E3; color: #1A5E33; border: 1px solid #A9DFBF; }
-.alert-warning { background: #FCF3CF; color: #7D6608; border: 1px solid #F9E79F; }
-.alert-info { background: var(--purple-lt); color: var(--purple-dk); border: 1px solid #C8A8E8; }
+.alert-success { background: #E8F3EA; color: var(--green); border: 1px solid #B7D7BE; }
+.alert-warning { background: #FBF3DC; color: var(--plum); border: 1px solid var(--gold); }
+.alert-info { background: var(--purple-lt); color: var(--purple-dk); border: 1px solid var(--hairline); }
 
 /* ── Utilities ── */
 .flex { display: flex; }
@@ -304,7 +324,7 @@ input[type="time"].input-datetime::-moz-focus-inner {
 .turma-list { display: flex; flex-direction: column; gap: 8px; }
 .turma-list-item {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-  gap: 10px; padding: 10px 12px; background: #F4F2F8; border-radius: 7px;
+  gap: 10px; padding: 10px 12px; background: var(--soft); border-radius: 7px;
 }
 .turma-list-item-body { flex: 1 1 160px; min-width: 0; }
 .list-row-actions {
@@ -351,7 +371,7 @@ table td.col-actions { width: 1%; white-space: nowrap; text-align: right; vertic
 .attendance-row {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
   gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
-  background: #FAFAFC;
+  background: var(--soft);
 }
 .attendance-row-name {
   flex: 1 1 160px; min-width: 0; font-weight: 700; font-size: 13px; line-height: 1.35;
@@ -377,12 +397,12 @@ table td.col-actions { width: 1%; white-space: nowrap; text-align: right; vertic
 }
 .filter-search {
   width: 100%; padding: 10px 12px 10px 36px; border: 1px solid var(--border);
-  border-radius: 999px; font-size: 13px; background: #FAFAFC;
+  border-radius: 999px; font-size: 13px; background: var(--soft);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 .filter-search:focus {
   outline: none; border-color: var(--purple); background: var(--white);
-  box-shadow: 0 0 0 3px rgba(91, 45, 142, 0.12);
+  box-shadow: 0 0 0 3px rgba(121, 45, 131, 0.18);
 }
 .filter-meta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .filter-count { font-size: 11px; font-weight: 700; color: var(--gray); white-space: nowrap; }
@@ -447,15 +467,15 @@ tr.filter-row-item.filter-hidden { display: none; }
 }
 
 /* ── CSV template preview ── */
-.csv-preview-wrap { border: 1px solid #E8E0F1; border-radius: 12px; overflow: auto; background: #fff; -webkit-overflow-scrolling: touch; }
+.csv-preview-wrap { border: 1px solid var(--hairline); border-radius: 12px; overflow: auto; background: #fff; -webkit-overflow-scrolling: touch; }
 .csv-preview-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 11px; }
 .csv-preview-table th,
-.csv-preview-table td { padding: 8px 10px; border-bottom: 1px solid #EEE; vertical-align: top; text-align: left; max-width: 220px; }
-.csv-preview-table thead th { background: #5B2D8E; color: #fff; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.35px; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
-.csv-preview-table thead tr.section-row th { background: #4A1F7C; font-size: 8px; letter-spacing: 0.6px; text-transform: uppercase; top: 0; }
-.csv-preview-table thead tr.label-row th { background: #6B3FA0; font-size: 9px; font-weight: 600; text-transform: none; letter-spacing: 0; top: 28px; }
-.csv-preview-table tbody tr:nth-child(even) td { background: #FBF8FF; }
-.csv-preview-table tbody td { color: #333; line-height: 1.45; }
+.csv-preview-table td { padding: 8px 10px; border-bottom: 1px solid var(--hairline); vertical-align: top; text-align: left; max-width: 220px; }
+.csv-preview-table thead th { background: var(--purple); color: #fff; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.35px; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+.csv-preview-table thead tr.section-row th { background: var(--purple-dk); font-size: 8px; letter-spacing: 0.6px; text-transform: uppercase; top: 0; }
+.csv-preview-table thead tr.label-row th { background: var(--plum); font-size: 9px; font-weight: 600; text-transform: none; letter-spacing: 0; top: 28px; }
+.csv-preview-table tbody tr:nth-child(even) td { background: var(--purple-lt); }
+.csv-preview-table tbody td { color: var(--text); line-height: 1.45; }
 .csv-preview-table tbody td.score-cell { text-align: center; font-weight: 900; color: var(--purple); min-width: 36px; }
 .csv-preview-table tbody td.text-cell { min-width: 160px; white-space: normal; }
 .csv-preview-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
@@ -497,7 +517,7 @@ body.nav-open .nav-backdrop { display: block; }
     min-width: 0;
   }
   .page-header {
-    background: var(--purple-dk);
+    background: var(--plum);
     color: #fff;
     border-bottom: none;
     padding: 10px 12px;
@@ -628,74 +648,75 @@ body.nav-open .nav-backdrop { display: block; }
 </style>
 </head>
 <body>
+{% include '_macros/icon_sprite.html' %}
 
 <button type="button" class="nav-backdrop" id="nav-backdrop" aria-label="Fechar menu"></button>
 
 <nav class="sidebar" id="sidebar" aria-label="Menu principal">
   <div class="brand">
     <div class="brand-lockup">
-      <img class="brand-mark" src="{{ url_for('static', filename='img/mister-wiz-icon.png') }}" alt="Mister Wiz" width="40" height="40">
+      <img class="brand-mark" src="{{ url_for('static', filename='img/logo-symbol.png') }}" alt="" width="40" height="40">
       <div class="brand-text">
-        <img class="brand-wordmark" src="{{ url_for('static', filename='img/mister-wiz-wordmark-header.png') }}" alt="Mister Wiz" width="148" height="21">
+        <img class="brand-wordmark" src="{{ url_for('static', filename='img/logo-primary-transparent.png') }}" alt="Mister Wiz" width="148" height="39">
         <div class="brand-sub">{% if current_user and current_user.role == 'teacher' %}Professor{% else %}Admin{% endif %}</div>
       </div>
     </div>
   </div>
   <a href="{{ url_with_month('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
-    <span class="nav-icon">▦</span> Dashboard
+    <span class="nav-icon">{{ icon('house', 20) }}</span> Dashboard
   </a>
   <a href="{{ url_with_month('students') }}" class="nav-link {% if 'student' in request.endpoint and request.endpoint != 'student_transfer_page' %}active{% endif %}">
-    <span class="nav-icon">◉</span> Alunos
+    <span class="nav-icon">{{ icon('users', 20) }}</span> Alunos
   </a>
   <a href="{{ url_with_month('lessons') }}" class="nav-link {% if 'lesson' in request.endpoint %}active{% endif %}">
-    <span class="nav-icon">▤</span> Aulas
+    <span class="nav-icon">{{ icon('presentation', 20) }}</span> Aulas
   </a>
   <a href="{{ url_with_month('extra_sessions') }}" class="nav-link {% if 'extra_session' in request.endpoint %}active{% endif %}">
-    <span class="nav-icon">◷</span> Reforço / Reposição
+    <span class="nav-icon">{{ icon('clock', 20) }}</span> Reforço / Reposição
   </a>
   <a href="{{ url_with_month('upload') }}" class="nav-link {% if request.endpoint in ('upload', 'delete_csv') %}active{% endif %}">
-    <span class="nav-icon">↑</span> Upload CSV
+    <span class="nav-icon">{{ icon('upload', 20) }}</span> Upload CSV
   </a>
   {% if can_manage_teachers %}
   <a href="{{ url_for('manage_teachers') }}" class="nav-link {% if request.endpoint == 'manage_teachers' %}active{% endif %}">
-    <span class="nav-icon">◎</span> Usuários
+    <span class="nav-icon">{{ icon('id-card', 20) }}</span> Usuários
   </a>
   <a href="{{ url_for('turma_transfer') }}" class="nav-link {% if request.endpoint == 'turma_transfer' %}active{% endif %}">
-    <span class="nav-icon">⇄</span> Transferir turma
+    <span class="nav-icon">{{ icon('route', 20) }}</span> Transferir turma
   </a>
   <a href="{{ url_for('student_transfer_page') }}" class="nav-link {% if request.endpoint == 'student_transfer_page' %}active{% endif %}">
-    <span class="nav-icon">➜</span> Transferir alunos
+    <span class="nav-icon">{{ icon('arrow-right', 20) }}</span> Transferir alunos
   </a>
   {% endif %}
   <a href="{{ url_with_month('reports') }}" class="nav-link {% if request.endpoint in ('reports','preview') %}active{% endif %}">
-    <span class="nav-icon">◈</span> Relatórios
+    <span class="nav-icon">{{ icon('clipboard-check', 20) }}</span> Relatórios
   </a>
   {% if can_access_chat %}
   <a href="{{ url_for('chat_room') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('chat_') %}active{% endif %}">
-    <span class="nav-icon">✉</span> Chat
-    {% if chat_open_bugs %}<span style="margin-left:auto;font-size:10px;background:#C0392B;color:#fff;border-radius:999px;padding:1px 7px;font-weight:800;">{{ chat_open_bugs }}</span>{% endif %}
+    <span class="nav-icon">{{ icon('message-circle', 20) }}</span> Chat
+    {% if chat_open_bugs %}<span style="margin-left:auto;font-size:10px;background:var(--red);color:#fff;border-radius:999px;padding:1px 7px;font-weight:800;">{{ chat_open_bugs }}</span>{% endif %}
   </a>
   {% endif %}
   {% if current_user %}
   <a href="{{ url_for('teacher_profile') }}" class="nav-link {% if request.endpoint in ('teacher_profile', 'teacher_profile_photo') %}active{% endif %}">
-    <span class="nav-icon">☺</span> Meu perfil
+    <span class="nav-icon">{{ icon('user', 20) }}</span> Meu perfil
   </a>
   {% endif %}
   <div class="nav-spacer"></div>
   {% if current_user %}
-  <div style="padding:12px 20px;font-size:11px;color:rgba(255,255,255,0.45);line-height:1.4;border-top:1px solid rgba(255,255,255,0.08);">
+  <div class="nav-user">
     {{ current_user.email }}<br>
-    <span style="color:rgba(255,255,255,0.65);">{{ role_labels.get(current_user.role, current_user.role) }}</span>
+    <span class="nav-user-role">{{ role_labels.get(current_user.role, current_user.role) }}</span>
   </div>
   {% endif %}
   <a href="{{ url_for('logout') }}" class="nav-link nav-logout">
-    <span class="nav-icon">⏻</span> Sair
+    <span class="nav-icon">{{ icon('log-out', 20) }}</span> Sair
   </a>
 </nav>
 
 <div class="main">
   <header class="page-header">
-    <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Abrir menu" aria-expanded="false">☰</button>
+    <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Abrir menu" aria-expanded="false">{{ icon('menu', 22) }}</button>
     <div class="page-header-body">
       <h1 class="page-title">{{ self.page_title() }}</h1>
       {% if current_user and available_review_semesters %}
@@ -734,7 +755,7 @@ body.nav-open .nav-backdrop { display: block; }
     </div>
     {% endif %}
     {% if save_conflict %}
-    <div class="alert" style="margin-bottom:12px;background:#FADBD8;color:#A93226;" role="alert">
+    <div class="alert" style="margin-bottom:12px;background:#F8E1E0;color:var(--red);" role="alert">
       ✕ {{ save_conflict }}
     </div>
     {% endif %}

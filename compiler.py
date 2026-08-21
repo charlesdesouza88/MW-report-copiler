@@ -346,9 +346,9 @@ def class_summary_charts(student_data):
     partial = sum(1 for sd in student_data if 50 <= sd['pct'] < 80)
     low = total - present - partial
     slices = [
-        dict(label='≥80%', count=present, color='#5B2D8E'),
-        dict(label='50–79%', count=partial, color='#9B7BB8'),
-        dict(label='<50%', count=low, color='#BBBBBB'),
+        dict(label='≥80%', count=present, color='#792D83'),
+        dict(label='50–79%', count=partial, color='#EBB22E'),
+        dict(label='<50%', count=low, color='#E24B4A'),
     ]
     bar_w = 220
     x = 0
@@ -656,10 +656,13 @@ def build_attendance_calendar(turma_lessons, missed, tardy_aula_nums, report_mon
                 row.append({'day': day_num, 'status': status})
         weeks.append(row)
 
+    from report_periods import month_label
+
     return {
         'day_headers': _DAY_ABBR,
         'weeks': weeks,
         'has_class': bool(class_dates),
+        'month_label': month_label(f'{year:04d}-{mon:02d}'),
     }
 
 

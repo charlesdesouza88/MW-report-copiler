@@ -25,6 +25,7 @@ All outputs are self-contained HTML — open in any browser and **Print → Save
 - **Jinja2** — HTML templating
 - **Inline SVG** — radar/pentagon charts and attendance pie charts (no JS, no external charting libs)
 - **CSS `@page`** — A4 landscape print layout
+- **Brand CSS + Carlito** — identity tokens in `static/css/brand.css`; official lockups in `static/img/`
 - **pytest** — unit and integration tests
 
 ---
@@ -37,11 +38,37 @@ mister-wiz-report-compiler/
 ├── app.py                   # Flask web dashboard
 ├── railway.json             # Railway deploy config (gunicorn)
 ├── requirements.txt
-├── templates/               # Report HTML (Jinja2)
+├── static/
+│   ├── css/brand.css        # Palette, type, CSS variables
+│   ├── fonts/               # Carlito (SIL OFL) — Calibri-compatible UI font
+│   └── img/                 # Official logos + icon sprite (icons.svg)
+├── templates/               # Print report HTML (Jinja2)
 ├── web_templates/           # Dashboard HTML (Flask)
+├── docs/brand.md            # Logo, colour, and type rules for this app
 ├── data/                    # Sample / local CSV data
 └── output/                  # Generated HTML files (git-ignored)
 ```
+
+---
+
+## Brand & UI
+
+The dashboard and print reports follow the **Mister Wiz Brand & Identity Guide**. Tokens live in `static/css/brand.css`; usage rules are in [`docs/brand.md`](docs/brand.md).
+
+| Token | Hex | Use |
+|---|---|---|
+| Primary purple | `#792D83` | Headings, buttons, table headers |
+| Dark purple | `#5A1A64` | Secondary text, labels |
+| Plum | `#2D1040` | Body text, login gradient |
+| Lavender | `#F0E6F3` | Sidebar, soft fills, row banding |
+| Gold / gold accent | `#EFD27E` / `#EBB22E` | Emphasis, dividers, active-nav mark |
+| Green / red | `#2C7A3F` / `#E24B4A` | Success / error only |
+
+**Logos:** colour primary lockup on white or lavender; **white knockout** on plum/purple (never invert the navy wordmark). Aspect ratio **3.81 : 1** — do not stretch. Favicon is the Wiz symbol tile.
+
+**Icons:** Mister Wiz Icon Library in `static/img/icons.svg` — 24 grid, 2 px round stroke, purple on light / white on dark. Do not fill, rotate, or mix with emoji.
+
+**Type:** Carlito in the web UI (Calibri in Word). Do not introduce other blues or greens, and do not use navy (`#1B1464`) outside the logo.
 
 ---
 

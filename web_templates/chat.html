@@ -12,7 +12,7 @@
 <div class="alert alert-success">✓ &nbsp;{{ chat_flash_ok }}</div>
 {% endif %}
 {% if chat_flash_error %}
-<div class="alert" style="background:#FADBD8;color:#A93226;border:1px solid #F1948A;">✕ &nbsp;{{ chat_flash_error }}</div>
+<div class="alert" style="background:#FADBD8;color:#E24B4A;border:1px solid #F1948A;">✕ &nbsp;{{ chat_flash_error }}</div>
 {% endif %}
 
 {% if open_bugs %}
@@ -91,15 +91,15 @@
   background:#fff; border:1px solid var(--border); border-radius:10px;
   padding:12px 14px; margin-bottom:10px;
 }
-.chat-msg-bug { border-left:4px solid #C0392B; }
-.chat-msg-resolved { border-left-color:#1E8449; opacity:0.92; }
+.chat-msg-bug { border-left:4px solid #E24B4A; }
+.chat-msg-resolved { border-left-color:#2C7A3F; opacity:0.92; }
 .chat-msg-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; margin-bottom:6px; }
 .chat-msg-meta { font-size:11px; color:var(--gray); }
 .chat-bug-tag {
   font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.4px;
-  background:#FADBD8; color:#922B21; padding:2px 8px; border-radius:999px;
+  background:#FADBD8; color:#E24B4A; padding:2px 8px; border-radius:999px;
 }
-.chat-msg-resolved .chat-bug-tag { background:#D5F5E3; color:#196F3D; }
+.chat-msg-resolved .chat-bug-tag { background:#D5F5E3; color:#2C7A3F; }
 .chat-msg-body { font-size:14px; line-height:1.45; white-space:pre-wrap; }
 .chat-msg-actions { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 .chat-replies { margin-top:10px; padding-left:14px; border-left:2px solid #E8E0F0; }

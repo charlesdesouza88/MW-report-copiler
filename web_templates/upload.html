@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_macros/icons.html' import icon %}
 {% block title %}Upload CSV{% endblock %}
 {% block page_title %}Upload de dados CSV{% endblock %}
 
@@ -18,9 +19,9 @@
 }
 
 .file-dropzone:focus-within {
-  outline: 3px solid #5B2D8E;
+  outline: 3px solid #792D83;
   outline-offset: 2px;
-  border-color: #5B2D8E;
+  border-color: #792D83;
 }
 
 .file-dropzone input[type="file"] {
@@ -33,7 +34,7 @@
 }
 </style>
 
-<div class="card" style="margin-bottom:20px; background:linear-gradient(135deg, #4A1F7C 0%, #5B2D8E 58%, #7A44B3 100%); color:#fff; border:none; overflow:hidden; position:relative;">
+<div class="card" style="margin-bottom:20px; background:linear-gradient(165deg, #792D83 0%, #2D1040 100%); color:#fff; border:none; overflow:hidden; position:relative;">
   <div style="position:absolute; inset:auto -40px -60px auto; width:180px; height:180px; border-radius:50%; background:rgba(255,255,255,0.08);"></div>
   <div style="position:absolute; inset:20px auto auto 70%; width:90px; height:90px; border-radius:50%; background:rgba(255,255,255,0.05);"></div>
   <div class="upload-hero-inner">
@@ -49,15 +50,15 @@
       <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; font-weight:900; color:rgba(255,255,255,0.65); margin-bottom:10px;">Fluxo recomendado</div>
       <div style="display:flex; flex-direction:column; gap:10px;">
         <div style="display:flex; gap:10px; align-items:flex-start;">
-          <div style="width:24px; height:24px; border-radius:50%; background:#fff; color:#4A1F7C; font-size:12px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0;">1</div>
+          <div style="width:24px; height:24px; border-radius:50%; background:#fff; color:#5A1A64; font-size:12px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0;">1</div>
           <div style="font-size:12px; line-height:1.5; color:#fff;"><strong>Baixe o template</strong><br><span style="color:rgba(255,255,255,0.72);">Use os modelos oficiais para manter nomes de colunas e ordem esperada.</span></div>
         </div>
         <div style="display:flex; gap:10px; align-items:flex-start;">
-          <div style="width:24px; height:24px; border-radius:50%; background:#fff; color:#4A1F7C; font-size:12px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0;">2</div>
+          <div style="width:24px; height:24px; border-radius:50%; background:#fff; color:#5A1A64; font-size:12px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0;">2</div>
           <div style="font-size:12px; line-height:1.5; color:#fff;"><strong>Preencha e envie</strong><br><span style="color:rgba(255,255,255,0.72);">Suba primeiro alunos, depois aulas, com arquivos salvos em CSV UTF-8.</span></div>
         </div>
         <div style="display:flex; gap:10px; align-items:flex-start;">
-          <div style="width:24px; height:24px; border-radius:50%; background:#fff; color:#4A1F7C; font-size:12px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0;">3</div>
+          <div style="width:24px; height:24px; border-radius:50%; background:#fff; color:#5A1A64; font-size:12px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0;">3</div>
           <div style="font-size:12px; line-height:1.5; color:#fff;"><strong>Revise e gere</strong><br><span style="color:rgba(255,255,255,0.72);">Quando os dois arquivos estiverem válidos, gere os relatórios com um clique.</span></div>
         </div>
       </div>
@@ -66,7 +67,7 @@
 </div>
 
 {% for msg in errors %}
-<div class="alert" style="background:#FADBD8; color:#A93226; border:1px solid #F1948A;">✕ &nbsp;{{ msg }}</div>
+<div class="alert" style="background:#FADBD8; color:#E24B4A; border:1px solid #F1948A;">✕ &nbsp;{{ msg }}</div>
 {% endfor %}
 
 {% for msg in messages %}
@@ -77,7 +78,7 @@
 <div class="alert alert-info" style="margin-bottom:16px;">
   ℹ Upload de alunos aplica notas e feedback ao mês em revisão: <strong>{{ review_month_label }}</strong> (altere no topo da página).
 </div>
-<div class="alert" style="background:#F5EEF8; color:#4A1F7C; border:1px solid #D8C8EB; margin-bottom:16px;">
+<div class="alert" style="background:#F0E6F3; color:#5A1A64; border:1px solid #D8C8EB; margin-bottom:16px;">
   Você envia apenas os dados do professor <strong>{{ current_user.teacher_name }}</strong>. Outros professores e turmas deles não são alterados.
 </div>
 {% endif %}
@@ -90,7 +91,7 @@
       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px;">
         <div>
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-            <div style="width:42px; height:42px; border-radius:12px; background:#F5EEF8; color:#5B2D8E; font-size:20px; display:flex; align-items:center; justify-content:center;">◉</div>
+            <div class="mw-icon-tile">{{ icon('users', 24) }}</div>
             <div>
               <div style="font-size:17px; font-weight:900; color:#111;">students.csv</div>
               <div class="font-sm text-gray" style="margin-top:3px;">Base principal com dados dos alunos, notas, faltas e feedbacks.</div>
@@ -104,9 +105,9 @@
         {% endif %}
       </div>
       <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-        <span style="padding:6px 10px; border-radius:999px; background:#F5EEF8; color:#5B2D8E; font-size:11px; font-weight:800;">26 colunas</span>
-        <span style="padding:6px 10px; border-radius:999px; background:#F5EEF8; color:#5B2D8E; font-size:11px; font-weight:800;">Notas de 1 a 5</span>
-        <span style="padding:6px 10px; border-radius:999px; background:#F5EEF8; color:#5B2D8E; font-size:11px; font-weight:800;">UTF-8</span>
+        <span style="padding:6px 10px; border-radius:999px; background:#F0E6F3; color:#792D83; font-size:11px; font-weight:800;">26 colunas</span>
+        <span style="padding:6px 10px; border-radius:999px; background:#F0E6F3; color:#792D83; font-size:11px; font-weight:800;">Notas de 1 a 5</span>
+        <span style="padding:6px 10px; border-radius:999px; background:#F0E6F3; color:#792D83; font-size:11px; font-weight:800;">UTF-8</span>
       </div>
       <div style="font-size:12px; color:#666; line-height:1.6;">
         Campos mais importantes: <strong>student_name</strong>, <strong>turma</strong>, <strong>participacao</strong>, <strong>speaking</strong>, <strong>faltas</strong> e <strong>recomendacoes</strong>.
@@ -118,19 +119,19 @@
       <form method="post" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label class="file-dropzone" aria-label="Selecionar arquivo CSV de alunos">
-          <div style="width:54px; height:54px; border-radius:16px; background:#fff; color:#5B2D8E; font-size:26px; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; box-shadow:0 8px 24px rgba(91,45,142,0.08);">↑</div>
+          <div class="mw-icon-tile mw-icon-tile-lg">{{ icon('upload', 24) }}</div>
           <div style="font-size:13px; font-weight:800; color:#111; margin-bottom:6px;">Selecione o arquivo de alunos</div>
           <div style="font-size:12px; color:#666; margin-bottom:8px;">Use o template oficial para garantir cabeçalhos corretos.</div>
           <input type="file" name="students" accept=".csv"
                  onchange="this.closest('form').querySelector('.file-name').textContent = this.files[0]?.name || ''">
-          <div class="file-name" style="min-height:18px; color:#5B2D8E; font-size:12px; font-weight:800;"></div>
+          <div class="file-name" style="min-height:18px; color:#792D83; font-size:12px; font-weight:800;"></div>
         </label>
-        <button type="submit" class="btn btn-primary btn-sm" style="width:100%; justify-content:center; margin-bottom:12px;">↑ Fazer upload</button>
+        <button type="submit" class="btn btn-primary btn-sm" style="width:100%; justify-content:center; margin-bottom:12px;">{{ icon('upload', 16) }} Fazer upload</button>
       </form>
       <div class="inline-actions" style="margin-bottom:16px;">
-        <a href="{{ url_for('download_template', name='students') }}" class="btn btn-outline btn-sm" style="justify-content:center;">⇩ Baixar template</a>
+        <a href="{{ url_for('download_template', name='students') }}" class="btn btn-outline btn-sm" style="justify-content:center;">{{ icon('download', 16) }} Baixar template</a>
         {% if students_exists %}
-        <a href="{{ url_for('download_csv', name='students') }}" class="btn btn-ghost btn-sm">↓ Baixar atual</a>
+        <a href="{{ url_for('download_csv', name='students') }}" class="btn btn-ghost btn-sm">{{ icon('download', 16) }} Baixar atual</a>
         <form method="post" action="{{ url_for('delete_csv', name='students') }}"
               onsubmit="return confirm('{% if can_upload_all_csv %}Remover students.csv e todos os alunos? Esta ação não pode ser desfeita.{% else %}Remover todos os seus alunos importados? Outros professores não serão afetados.{% endif %}');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -141,7 +142,7 @@
       {% endif %}
 
       <div style="border-top:1px solid #EEE; padding-top:16px;">
-        <div style="font-size:12px; font-weight:900; color:#5B2D8E; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.7px;">Visual do template</div>
+        <div style="font-size:12px; font-weight:900; color:#792D83; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.7px;">Visual do template</div>
         <div class="csv-preview-wrap">
           <table class="csv-preview-table">
             <thead>
@@ -186,7 +187,7 @@
       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px;">
         <div>
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-            <div style="width:42px; height:42px; border-radius:12px; background:#F5EEF8; color:#5B2D8E; font-size:20px; display:flex; align-items:center; justify-content:center;">◈</div>
+            <div class="mw-icon-tile">{{ icon('presentation', 24) }}</div>
             <div>
               <div style="font-size:17px; font-weight:900; color:#111;">lessons.csv</div>
               <div class="font-sm text-gray" style="margin-top:3px;">Cronograma de aulas com datas, conteúdos e atividades extras.</div>
@@ -200,9 +201,9 @@
         {% endif %}
       </div>
       <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-        <span style="padding:6px 10px; border-radius:999px; background:#F5EEF8; color:#5B2D8E; font-size:11px; font-weight:800;">6 colunas</span>
-        <span style="padding:6px 10px; border-radius:999px; background:#F5EEF8; color:#5B2D8E; font-size:11px; font-weight:800;">1 linha por aula</span>
-        <span style="padding:6px 10px; border-radius:999px; background:#F5EEF8; color:#5B2D8E; font-size:11px; font-weight:800;">Código da turma obrigatório</span>
+        <span style="padding:6px 10px; border-radius:999px; background:#F0E6F3; color:#792D83; font-size:11px; font-weight:800;">6 colunas</span>
+        <span style="padding:6px 10px; border-radius:999px; background:#F0E6F3; color:#792D83; font-size:11px; font-weight:800;">1 linha por aula</span>
+        <span style="padding:6px 10px; border-radius:999px; background:#F0E6F3; color:#792D83; font-size:11px; font-weight:800;">Código da turma obrigatório</span>
       </div>
       <div style="font-size:12px; color:#666; line-height:1.6;">
         Campos-chave: <strong>turma</strong>, <strong>aula_num</strong>, <strong>date</strong> e <strong>licao_conteudo</strong>.
@@ -214,19 +215,19 @@
       <form method="post" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label class="file-dropzone" aria-label="Selecionar arquivo CSV de aulas">
-          <div style="width:54px; height:54px; border-radius:16px; background:#fff; color:#5B2D8E; font-size:26px; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; box-shadow:0 8px 24px rgba(91,45,142,0.08);">⇪</div>
+          <div class="mw-icon-tile mw-icon-tile-lg">{{ icon('upload', 24) }}</div>
           <div style="font-size:13px; font-weight:800; color:#111; margin-bottom:6px;">Selecione o arquivo de aulas</div>
           <div style="font-size:12px; color:#666; margin-bottom:8px;">Cada linha deve representar uma aula real daquela turma.</div>
           <input type="file" name="lessons" accept=".csv"
                  onchange="this.closest('form').querySelector('.file-name').textContent = this.files[0]?.name || ''">
-          <div class="file-name" style="min-height:18px; color:#5B2D8E; font-size:12px; font-weight:800;"></div>
+          <div class="file-name" style="min-height:18px; color:#792D83; font-size:12px; font-weight:800;"></div>
         </label>
-        <button type="submit" class="btn btn-primary btn-sm" style="width:100%; justify-content:center; margin-bottom:12px;">↑ Fazer upload</button>
+        <button type="submit" class="btn btn-primary btn-sm" style="width:100%; justify-content:center; margin-bottom:12px;">{{ icon('upload', 16) }} Fazer upload</button>
       </form>
       <div class="inline-actions" style="margin-bottom:16px;">
-        <a href="{{ url_for('download_template', name='lessons') }}" class="btn btn-outline btn-sm" style="justify-content:center;">⇩ Baixar template</a>
+        <a href="{{ url_for('download_template', name='lessons') }}" class="btn btn-outline btn-sm" style="justify-content:center;">{{ icon('download', 16) }} Baixar template</a>
         {% if lessons_exists %}
-        <a href="{{ url_for('download_csv', name='lessons') }}" class="btn btn-ghost btn-sm">↓ Baixar atual</a>
+        <a href="{{ url_for('download_csv', name='lessons') }}" class="btn btn-ghost btn-sm">{{ icon('download', 16) }} Baixar atual</a>
         <form method="post" action="{{ url_for('delete_csv', name='lessons') }}"
               onsubmit="return confirm('{% if can_upload_all_csv %}Remover lessons.csv e todas as aulas? Esta ação não pode ser desfeita.{% else %}Remover todas as aulas das suas turmas? Outras turmas não serão afetadas.{% endif %}');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -237,7 +238,7 @@
       {% endif %}
 
       <div style="border-top:1px solid #EEE; padding-top:16px;">
-        <div style="font-size:12px; font-weight:900; color:#5B2D8E; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.7px;">Visual do template</div>
+        <div style="font-size:12px; font-weight:900; color:#792D83; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.7px;">Visual do template</div>
         <div class="csv-preview-wrap">
           <table class="csv-preview-table">
             <thead>

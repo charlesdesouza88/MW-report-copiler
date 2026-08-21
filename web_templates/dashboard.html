@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_macros/icons.html' import icon %}
 {% block title %}Dashboard{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
 
@@ -73,11 +74,11 @@
     <div class="section-title" style="margin-bottom:14px">Ações rápidas</div>
     <div class="quick-actions-grid">
       {% if can_manage_teachers %}
-      <a href="{{ url_for('upload') }}" class="btn btn-outline quick-action-btn">↑ Upload CSV</a>
+      <a href="{{ url_for('upload') }}" class="btn btn-outline quick-action-btn">{{ icon('upload', 16) }} Upload CSV</a>
       {% endif %}
-      <a href="{{ url_with_month('students') }}" class="btn btn-outline quick-action-btn">◉ Alunos</a>
-      <a href="{{ url_with_month('lessons') }}" class="btn btn-outline quick-action-btn">▤ Aulas</a>
-      <a href="{{ url_with_month('reports') }}" class="btn btn-ghost quick-action-btn">◈ Relatórios</a>
+      <a href="{{ url_with_month('students') }}" class="btn btn-outline quick-action-btn">{{ icon('users', 16) }} Alunos</a>
+      <a href="{{ url_with_month('lessons') }}" class="btn btn-outline quick-action-btn">{{ icon('presentation', 16) }} Aulas</a>
+      <a href="{{ url_with_month('reports') }}" class="btn btn-ghost quick-action-btn">{{ icon('clipboard-check', 16) }} Relatórios</a>
     </div>
     {% if data_ready %}
     <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
@@ -85,7 +86,7 @@
       <form method="post" action="{{ url_for('generate') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="report_month" value="{{ review_month or default_month }}">
-        <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">▶ Gerar todos os relatórios</button>
+        <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">{{ icon('sparkles', 16) }} Gerar todos os relatórios</button>
       </form>
     </div>
     {% endif %}
@@ -98,14 +99,14 @@
     <div class="alert alert-success" style="margin-bottom:12px;">✓ {{ turma_flash_ok }}</div>
     {% endif %}
     {% if turma_flash_error %}
-    <div class="alert" style="margin-bottom:12px;background:#FADBD8;color:#A93226;">✕ {{ turma_flash_error }}</div>
+    <div class="alert" style="margin-bottom:12px;background:#FADBD8;color:#E24B4A;">✕ {{ turma_flash_error }}</div>
     {% endif %}
 
     {% if is_teacher %}
     <p class="font-sm text-gray" style="margin:0 0 12px;">
       Crie a turma aqui no Dashboard. Depois, em <strong>+ Novo aluno</strong>, escolha a turma e o livro/nível de cada aluno.
     </p>
-    <form method="post" action="{{ url_for('turma_create') }}" style="padding:14px;background:#F4F2F8;border-radius:8px;margin-bottom:16px;">
+    <form method="post" action="{{ url_for('turma_create') }}" style="padding:14px;background:#F9F5FA;border-radius:8px;margin-bottom:16px;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid form-grid-2" style="gap:12px;">
         <div class="form-group" style="grid-column:1/-1;">
@@ -173,7 +174,7 @@
     <p class="font-sm text-gray" style="margin:0 0 12px;">
       Como administrador, você pode criar e editar turmas de qualquer professor, além de corrigir alunos, notas e aulas em todo o sistema.
     </p>
-    <form method="post" action="{{ url_for('turma_create') }}" style="padding:14px;background:#F4F2F8;border-radius:8px;margin-bottom:16px;">
+    <form method="post" action="{{ url_for('turma_create') }}" style="padding:14px;background:#F9F5FA;border-radius:8px;margin-bottom:16px;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid form-grid-2" style="gap:12px;">
         <div class="form-group" style="grid-column:1/-1;">

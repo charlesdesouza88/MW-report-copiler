@@ -11,7 +11,7 @@
   <span class="page-toolbar-label">Ações</span>
   <div class="page-toolbar-actions">
     {% if report_rows %}
-    <a href="{{ url_for('download_all', month=selected_month) if selected_month else url_for('download_all') }}" class="btn btn-outline btn-sm">{{ icon_download() }} Baixar todos (.zip)</a>
+    <a href="{{ url_for('download_all', month=selected_month) if selected_month else url_for('download_all') }}" class="btn btn-outline btn-sm">{{ icon_download(16) }} Baixar todos (.zip)</a>
     {% endif %}
     <form method="post" action="{{ url_for('generate') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -22,7 +22,7 @@
         {% endfor %}
       </select>
       {% endif %}
-      <button type="submit" class="btn btn-primary btn-sm">{{ icon_wand() }} Regenerar</button>
+      <button type="submit" class="btn btn-primary btn-sm">{{ icon_wand(16) }} Regenerar</button>
     </form>
   </div>
 </div>
@@ -49,7 +49,7 @@
     {% if available_months %}
     <input type="hidden" name="report_month" value="{{ selected_month or default_month }}">
     {% endif %}
-    <button type="submit" class="btn btn-primary">{{ icon_wand() }} Gerar relatórios</button>
+    <button type="submit" class="btn btn-primary">{{ icon_wand(16) }} Gerar relatórios</button>
   </form>
 </div>
 {% else %}
@@ -108,11 +108,11 @@
       {% if row.month %}<span class="tag">{{ month_label(row.month) }}</span>{% endif %}
     </div>
     <div class="report-card-actions">
-      <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank" class="btn btn-ghost btn-sm">{{ icon_eye() }} Visualizar</a>
+      <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank" class="btn btn-ghost btn-sm">{{ icon_eye(16) }} Visualizar</a>
       <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank"
          onclick="openPrint(event, '{{ url_for('preview', filename=row.filename) }}')"
-         class="btn btn-ghost btn-sm">{{ icon_printer() }} Imprimir</a>
-      <a href="{{ url_for('download_report', filename=row.filename) }}" class="btn btn-primary btn-sm">{{ icon_download() }} Baixar</a>
+         class="btn btn-ghost btn-sm">{{ icon_printer(16) }} Imprimir</a>
+      <a href="{{ url_for('download_report', filename=row.filename) }}" class="btn btn-primary btn-sm">{{ icon_download(16) }} Baixar</a>
     </div>
   </div>
   {% endfor %}
@@ -175,11 +175,11 @@
         </td>
         <td class="col-actions">
           <div class="report-actions">
-            <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank" class="btn btn-ghost btn-xs">{{ icon_eye(13) }} Visualizar</a>
+            <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank" class="btn btn-ghost btn-xs">{{ icon_eye(16) }} Visualizar</a>
             <a href="{{ url_for('preview', filename=row.filename) }}" target="_blank"
                onclick="openPrint(event, '{{ url_for('preview', filename=row.filename) }}')"
-               class="btn btn-ghost btn-xs">{{ icon_printer(13) }} Imprimir</a>
-            <a href="{{ url_for('download_report', filename=row.filename) }}" class="btn btn-primary btn-xs">{{ icon_download(13) }} Baixar</a>
+               class="btn btn-ghost btn-xs">{{ icon_printer(16) }} Imprimir</a>
+            <a href="{{ url_for('download_report', filename=row.filename) }}" class="btn btn-primary btn-xs">{{ icon_download(16) }} Baixar</a>
           </div>
         </td>
       </tr>
@@ -201,7 +201,7 @@
   letter-spacing: 0.4px;
 }
 .report-kind-individual { background: var(--purple-lt); color: var(--purple-dk); }
-.report-kind-diagnostic { background: #E8F4FD; color: #1A5276; }
+.report-kind-diagnostic { background: #F0E6F3; color: #5A1A64; }
 .trend-badge {
   display: inline-block;
   font-size: 12px;
@@ -209,10 +209,10 @@
   padding: 4px 10px;
   border-radius: 999px;
 }
-.trend-improved { background: #E6F4EA; color: #1B7A3D; }
-.trend-declined { background: #FCE8E6; color: #B3261E; }
-.trend-stable { background: #F4F2F8; color: #5B2D8E; }
-.trend-first { background: #F4F2F8; color: #666; }
+.trend-improved { background: #E6F4EA; color: #2C7A3F; }
+.trend-declined { background: #FCE8E6; color: #E24B4A; }
+.trend-stable { background: #F9F5FA; color: #792D83; }
+.trend-first { background: #F9F5FA; color: #666; }
 </style>
 
 {% endblock %}
