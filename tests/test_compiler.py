@@ -275,6 +275,21 @@ def test_individual_report_embeds_attendance_calendar_in_frequencia():
     assert html.count('class="att-cal"') == 1
 
 
+def test_individual_report_shows_month_calendar_without_class_days():
+    from pathlib import Path
+
+    from compiler import build_student_ctx
+
+    base = Path(__file__).resolve().parent.parent
+    env = create_report_environment(base / "templates")
+    html = env.get_template("individual_report.html").render(
+        **build_student_ctx(_student(), [], report_month="2026-07")
+    )
+    assert "pie-cal" in html
+    assert "Julho 2026" in html
+    assert "att-cal" in html
+
+
 def test_score_delta_badge_directions():
     assert score_delta_badge(4, 3)['css'] == 'delta-up'
     assert score_delta_badge(2, 4)['css'] == 'delta-down'
