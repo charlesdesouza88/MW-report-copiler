@@ -1043,6 +1043,28 @@ def _teacher_class_options_for_form(teacher_name, student=None, *, is_new=False)
     return sorted(options, key=lambda r: (r['turma_display'].casefold(), r['turma']))
 
 
+def _serialize_class_option(option):
+    sid = (option.get('semester_id') or '').strip()
+    return {
+        'turma': option['turma'],
+        'turma_display': option['turma_display'],
+        'horario': (option.get('horario') or '').strip(),
+        'needs_schedule': bool(option.get('needs_schedule')),
+        'semester_id': sid,
+        'semester_label': semester_label(sid) if sid else '',
+    }
+
+
+def _teacher_classes_by_teacher(*, is_new=False):
+    """Map teacher name → registry turmas (for student form dropdowns)."""
+    out = {}
+    for name in _teacher_names_for_forms():
+        options = _teacher_class_options_for_form(name, student=None, is_new=is_new)
+        if options:
+            out[name] = [_serialize_class_option(row) for row in options]
+    return out
+
+
 def _teacher_registered_turmas(teacher_name, semester_id=None, *, all_semesters=False):
     registry = _load_teacher_class_registry()
     if all_semesters:
@@ -1216,6 +1238,17 @@ def _validate_student_row(row, all_students, user, *, autosave=False):
     if not name or not turma:
         return 'Informe o nome do aluno e a turma.'
 
+    if has_full_data_access(user['role']) and request.endpoint in ('student_new', 'student_edit'):
+        owner = (row.get('teacher') or request.form.get('teacher') or '').strip()
+        if not owner:
+            return 'Selecione o professor.'
+        registered = _teacher_registered_turmas(owner, all_semesters=True)
+        if registered:
+            if not class_choice:
+                return 'Selecione a turma do aluno.'
+            if turma not in registered:
+                return 'Selecione uma turma cadastrada para o professor escolhido.'
+
     if user['role'] == ROLE_TEACHER and request.endpoint == 'student_new':
         if not is_valid_nivel(nivel):
             return 'Selecione o livro/nível do aluno (KIDS 1–4 ou TEENS 1–5).'
@@ -1248,14 +1281,23 @@ def _validate_student_row(row, all_students, user, *, autosave=False):
 def _student_form_context(all_rows, user, is_new, student, idx, form_error=None):
     teacher_class_options = []
     class_owner_teacher = ''
+    teacher_names = []
+    teacher_classes_by_teacher = {}
+    teacher_picker = False
     if user and user['role'] == ROLE_TEACHER:
         class_owner_teacher = user.get('teacher_name', '')
+        teacher_names = [class_owner_teacher] if class_owner_teacher else []
+        teacher_picker = bool(class_owner_teacher)
+        teacher_classes_by_teacher = _teacher_classes_by_teacher(is_new=is_new)
         teacher_class_options = _teacher_class_options_for_form(
             class_owner_teacher,
             student,
             is_new=is_new,
         )
     elif user and has_full_data_access(user['role']):
+        teacher_picker = True
+        teacher_names = _teacher_names_for_forms()
+        teacher_classes_by_teacher = _teacher_classes_by_teacher(is_new=is_new)
         if request.method == 'POST':
             class_owner_teacher = (request.form.get('teacher') or '').strip()
         elif student:
@@ -1281,11 +1323,26 @@ def _student_form_context(all_rows, user, is_new, student, idx, form_error=None)
     no_teacher_classes = bool(
         user and user['role'] == ROLE_TEACHER and not teacher_class_options,
     )
+    needs_teacher_first = bool(
+        user
+        and has_full_data_access(user['role'])
+        and is_new
+        and not class_owner_teacher,
+    )
+    use_manual_turma = bool(
+        user
+        and has_full_data_access(user['role'])
+        and class_owner_teacher
+        and not teacher_class_options,
+    )
     allow_class_pick = bool(
-        user and (
+        user
+        and not use_manual_turma
+        and not needs_teacher_first
+        and (
             user['role'] == ROLE_TEACHER
-            or (has_full_data_access(user['role']) and teacher_class_options)
-        ),
+            or has_full_data_access(user['role'])
+        )
     )
 
     transfer_history = []
@@ -1304,6 +1361,12 @@ def _student_form_context(all_rows, user, is_new, student, idx, form_error=None)
         nivel_choices=NIVEL_CHOICES,
         teacher_class_options=teacher_class_options,
         class_choice=class_choice,
+        class_owner_teacher=class_owner_teacher,
+        teacher_names=teacher_names,
+        teacher_classes_by_teacher=teacher_classes_by_teacher,
+        teacher_picker=teacher_picker,
+        needs_teacher_first=needs_teacher_first,
+        use_manual_turma=use_manual_turma,
         no_teacher_classes=no_teacher_classes,
         allow_teacher_class_pick=allow_class_pick,
         transfer_history=transfer_history,

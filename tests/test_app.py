@@ -1327,6 +1327,78 @@ def test_student_new_creates_row(monkeypatch, tmp_path):
     assert any(r.get("participacao") == "3" for r in reviews)
 
 
+def test_admin_student_new_teacher_dropdown_and_class_validation(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+    _seed_teacher_classes(
+        data_dir,
+        "Chuck",
+        ("MASTER", "Masters", "Terça-feira", "Quinta-feira", "19:00", "20:00"),
+    )
+    _seed_teacher_classes(
+        data_dir,
+        "Yasmin",
+        ("ROOT", "root", "Segunda-feira", "Quarta-feira", "10:00", "11:00"),
+    )
+
+    client = web_app.app.test_client()
+    _login(client)
+    html = client.get("/students/new").get_data(as_text=True)
+    assert 'id="teacher-select"' in html
+    assert 'id="teacher-classes-data"' in html
+    assert "Yasmin" in html
+    assert "Chuck" in html
+
+    bad = client.post(
+        "/students/new",
+        data={
+            "teacher": "Yasmin",
+            "class_choice": "MASTER",
+            "student_name": "Wrong Class Kid",
+            "nivel": "TEENS 1",
+            "participacao": "3",
+            "comportamento": "3",
+            "speaking": "3",
+            "listening": "3",
+            "foco": "3",
+            "writing": "3",
+            "reading": "3",
+            "gramatica": "3",
+            "faltas": "0",
+        },
+    )
+    assert bad.status_code == 200
+    assert "professor escolhido" in bad.get_data(as_text=True)
+
+    good = client.post(
+        "/students/new",
+        data={
+            "teacher": "Yasmin",
+            "class_choice": "ROOT",
+            "student_name": "Right Class Kid",
+            "nivel": "TEENS 1",
+            "participacao": "3",
+            "comportamento": "3",
+            "speaking": "3",
+            "listening": "3",
+            "foco": "3",
+            "writing": "3",
+            "reading": "3",
+            "gramatica": "3",
+            "faltas": "0",
+        },
+        follow_redirects=False,
+    )
+    assert good.status_code == 302
+    assert "Right Class Kid" in (data_dir / "students.csv").read_text(encoding="utf-8")
+
+
 def test_set_review_month_redirects(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()

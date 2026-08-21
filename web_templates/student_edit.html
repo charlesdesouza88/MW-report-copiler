@@ -70,15 +70,28 @@
         <input type="text" name="student_name" value="{{ student.student_name or '' }}" required>
       </div>
       <div class="form-group">
-        <label>Professor</label>
+        <label>Professor{% if is_new and teacher_picker %} *{% endif %}</label>
+        {% if teacher_picker %}
+        <select id="teacher-select" {% if is_new and current_user.role != 'teacher' %}name="teacher" required{% elif current_user.role != 'teacher' %}name="teacher"{% endif %}{% if current_user and current_user.role == 'teacher' %} disabled{% endif %}>
+          {% if current_user and current_user.role != 'teacher' %}
+          <option value="">— Selecione —</option>
+          {% endif %}
+          {% for name in teacher_names %}
+          <option value="{{ name }}" {% if class_owner_teacher == name %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
         {% if current_user and current_user.role == 'teacher' %}
-        <input type="text" value="{{ current_user.teacher_name or student.teacher or '' }}" readonly style="background:#f4f4f4;">
-        <input type="hidden" name="teacher" value="{{ current_user.teacher_name or student.teacher or '' }}">
+        <input type="hidden" name="teacher" value="{{ class_owner_teacher or current_user.teacher_name }}">
+        {% endif %}
         {% else %}
         <input type="text" name="teacher" value="{{ student.teacher or '' }}">
         {% endif %}
       </div>
-      {% if allow_teacher_class_pick and teacher_class_options %}
+      {% if needs_teacher_first %}
+      <div class="alert alert-info" style="grid-column: 1 / -1;">
+        Selecione o professor para ver as turmas disponíveis.
+      </div>
+      {% elif allow_teacher_class_pick %}
       <div class="form-group" style="grid-column: 1 / -1;">
         <label>Turma *</label>
         <select name="class_choice" id="class-choice" required>
@@ -93,13 +106,25 @@
           Turmas do Dashboard — dias e horário vêm da turma escolhida.
           <a href="{{ url_for('dashboard') }}#criar-turma">+ Criar turma</a>
           {% else %}
-          Turmas cadastradas do professor — dias e horário vêm da turma escolhida.
+          Turmas cadastradas do professor selecionado — dias e horário vêm da turma escolhida.
           {% endif %}
         </p>
       </div>
       {% elif current_user and current_user.role == 'teacher' %}
       <div class="alert alert-warning" style="grid-column: 1 / -1;">
         Nenhuma turma cadastrada. <a href="{{ url_for('dashboard') }}#criar-turma">Crie uma turma no Dashboard</a> antes de salvar.
+      </div>
+      {% elif use_manual_turma %}
+      <div class="alert alert-warning" style="grid-column: 1 / -1;">
+        Este professor ainda não tem turmas no Dashboard. Cadastre uma turma ou use os campos abaixo para turmas legadas.
+      </div>
+      <div class="form-group">
+        <label>Turma (ID) *</label>
+        <input type="text" name="turma" value="{{ student.turma or '' }}" placeholder="ex: MASTER" required>
+      </div>
+      <div class="form-group">
+        <label>Turma (nome exibido)</label>
+        <input type="text" name="turma_display" value="{{ student.turma_display or '' }}" placeholder="ex: Masters">
       </div>
       {% else %}
       <div class="form-group">
@@ -291,7 +316,67 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/student_autosave.js') }}"></script>
+{% if teacher_classes_by_teacher %}
+<script type="application/json" id="teacher-classes-data">{{ teacher_classes_by_teacher | tojson }}</script>
+{% endif %}
 <script>
+(function () {
+  const teacherSelect = document.getElementById('teacher-select');
+  const classSelect = document.getElementById('class-choice');
+  const dataEl = document.getElementById('teacher-classes-data');
+  const reviewSemester = {{ review_semester | tojson }};
+  const initialChoice = {{ class_choice | tojson }};
+
+  function classOptionLabel(option) {
+    let label = option.turma_display || option.turma;
+    if (option.semester_id && option.semester_id !== reviewSemester && option.semester_label) {
+      label += ' — ' + option.semester_label;
+    }
+    if (option.horario) {
+      label += ' — ' + option.horario;
+    } else if (option.needs_schedule) {
+      label += ' — (complete no Dashboard)';
+    }
+    return label;
+  }
+
+  function renderClassOptions(teacher, selectedTurma) {
+    if (!classSelect || !dataEl) return;
+    const classesByTeacher = JSON.parse(dataEl.textContent || '{}');
+    const options = classesByTeacher[teacher] || [];
+    classSelect.innerHTML = '';
+    if (!options.length) {
+      classSelect.disabled = true;
+      classSelect.removeAttribute('required');
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = teacher ? 'Nenhuma turma cadastrada para este professor' : 'Selecione o professor primeiro';
+      classSelect.appendChild(placeholder);
+      return;
+    }
+    classSelect.disabled = false;
+    classSelect.required = true;
+    options.forEach(function (option) {
+      const el = document.createElement('option');
+      el.value = option.turma;
+      el.textContent = classOptionLabel(option);
+      if (selectedTurma && selectedTurma === option.turma) {
+        el.selected = true;
+      }
+      classSelect.appendChild(el);
+    });
+    if (!classSelect.value && options.length) {
+      classSelect.value = options[0].turma;
+    }
+  }
+
+  if (teacherSelect && classSelect && dataEl && !teacherSelect.disabled) {
+    teacherSelect.addEventListener('change', function () {
+      renderClassOptions(teacherSelect.value, '');
+    });
+    renderClassOptions(teacherSelect.value, initialChoice);
+  }
+})();
 document.querySelectorAll('.score-picker').forEach(picker => {
   const fieldId = picker.id.replace('picker-', '');
   const hidden = document.getElementById('val-' + fieldId);
