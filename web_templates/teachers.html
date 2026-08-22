@@ -219,6 +219,7 @@
                 {% endif %}
               </div>
             </details>
+            {% if u.can_manage_user %}
             <details>
               <summary>Editar</summary>
               <form method="post" style="margin-top:10px;padding:12px;background:#F9F7FC;border-radius:8px;">
@@ -256,6 +257,7 @@
               </form>
               {% endif %}
             </details>
+            {% endif %}
             </div>
             </div>
           </td>
