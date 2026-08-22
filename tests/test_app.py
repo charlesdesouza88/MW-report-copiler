@@ -4,7 +4,7 @@ import zipfile
 from pathlib import Path
 
 import app as web_app
-from auth import UserStore
+from auth import ROLE_ADMIN, UserStore
 
 
 def _students_csv():
@@ -193,6 +193,44 @@ def test_users_page_shows_last_access_and_contact_actions(monkeypatch, tmp_path)
     assert "Cadastre o WhatsApp no perfil do professor" in html
     assert "teacher@test.local" in html
     assert "idle@test.local" in html
+
+
+def test_admin_cannot_mutate_superadmin_from_teachers_page(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+    web_app.user_store.create_admin("ops@test.local", "adminpass", ROLE_ADMIN)
+    superadmin = web_app.user_store.get_by_email("admin@test.local")
+
+    client = web_app.app.test_client()
+    _login(client, email="ops@test.local", password="adminpass")
+    page = client.get("/admin/teachers")
+    assert page.status_code == 200
+    superadmin_row = page.get_data(as_text=True).split("admin@test.local", 1)[1].split("</tr>", 1)[0]
+    assert "<summary>Editar</summary>" not in superadmin_row
+
+    response = client.post(
+        "/admin/teachers",
+        data={
+            "action": "update",
+            "user_id": str(superadmin["id"]),
+            "email": "changed-admin@test.local",
+            "password": "newpass123",
+            "teacher_name": "",
+            "active": "",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "Apenas superadmins podem alterar contas superadmin" in response.get_data(as_text=True)
+    assert web_app.user_store.authenticate("admin@test.local", "testpass") is not None
+    assert web_app.user_store.get_by_email("changed-admin@test.local") is None
 
 
 def test_protected_route_requires_login(monkeypatch, tmp_path):

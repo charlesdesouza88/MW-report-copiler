@@ -416,35 +416,51 @@ class UserStore:
         self._save_all(users)
         return next_id
 
-    def update_user(self, user_id, *, email=None, password=None, teacher_name=None, active=None):
+    def update_user(
+        self,
+        user_id,
+        *,
+        email=None,
+        password=None,
+        teacher_name=None,
+        active=None,
+        actor_role=None,
+    ):
         users = self.list_users()
-        found = False
-        for user in users:
-            if user.get('id') != user_id:
-                continue
-            found = True
-            if email is not None:
-                other = self.get_by_email(email)
-                if other and other.get('id') != user_id:
-                    raise ValueError('Este e-mail já está em uso.')
-                user['email'] = normalize_email(email)
-            if password:
-                user['password_hash'] = generate_password_hash(password)
-            if teacher_name is not None:
-                user['teacher_name'] = normalize_teacher_name(teacher_name)
-            if active is not None:
-                user['active'] = bool(active)
-            break
-        if not found:
+        user = next((u for u in users if u.get('id') == user_id), None)
+        if not user:
             raise ValueError('Usuário não encontrado.')
+        is_superadmin = user.get('role') == ROLE_SUPERADMIN
+        if is_superadmin and actor_role is not None and actor_role != ROLE_SUPERADMIN:
+            raise ValueError('Apenas superadmins podem alterar contas superadmin.')
+        if is_superadmin and active is not None and not bool(active):
+            active_superadmins = [
+                u for u in users
+                if u.get('role') == ROLE_SUPERADMIN and u.get('active', True)
+            ]
+            if len(active_superadmins) <= 1:
+                raise ValueError('Não é possível desativar o único superadmin ativo.')
+        if email is not None:
+            other = self.get_by_email(email)
+            if other and other.get('id') != user_id:
+                raise ValueError('Este e-mail já está em uso.')
+            user['email'] = normalize_email(email)
+        if password:
+            user['password_hash'] = generate_password_hash(password)
+        if teacher_name is not None:
+            user['teacher_name'] = normalize_teacher_name(teacher_name)
+        if active is not None:
+            user['active'] = bool(active)
         self._save_all(users)
 
-    def delete_user(self, user_id, *, actor_id=None):
+    def delete_user(self, user_id, *, actor_id=None, actor_role=None):
         users = self.list_users()
         target = next((u for u in users if u.get('id') == user_id), None)
         if not target:
             raise ValueError('Usuário não encontrado.')
         if target.get('role') == ROLE_SUPERADMIN:
+            if actor_role is not None and actor_role != ROLE_SUPERADMIN:
+                raise ValueError('Apenas superadmins podem remover contas superadmin.')
             superadmins = [u for u in users if u.get('role') == ROLE_SUPERADMIN and u.get('active', True)]
             if len(superadmins) <= 1:
                 raise ValueError('Não é possível remover o único superadmin ativo.')

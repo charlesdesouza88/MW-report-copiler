@@ -2,6 +2,7 @@ import io
 
 import app as web_app
 from auth import (
+    ROLE_ADMIN,
     ROLE_SUPERADMIN,
     ROLE_TEACHER,
     UserStore,
@@ -182,3 +183,62 @@ def test_sync_superadmin_password(tmp_path):
     store.sync_superadmin_password('boss@test.local', 'new-pass')
     assert store.authenticate('boss@test.local', 'new-pass') is not None
     assert store.authenticate('boss@test.local', 'old-pass') is None
+
+
+def test_admin_cannot_update_superadmin_account(tmp_path):
+    store = UserStore(json_path=tmp_path / 'users.json')
+    store.initialize()
+    store.ensure_bootstrap_superadmin('boss@test.local', 'secret1')
+    admin_id = store.create_admin('admin@test.local', 'admin-pass', ROLE_ADMIN)
+    superadmin = store.get_by_email('boss@test.local')
+
+    try:
+        store.update_user(
+            superadmin['id'],
+            email='changed@test.local',
+            password='changed-pass',
+            active=False,
+            actor_role=ROLE_ADMIN,
+        )
+    except ValueError as exc:
+        assert 'superadmin' in str(exc)
+    else:
+        raise AssertionError('admin updated a superadmin account')
+
+    assert store.authenticate('boss@test.local', 'secret1') is not None
+    assert store.get_by_email('changed@test.local') is None
+    assert store.get_by_id(admin_id)['role'] == ROLE_ADMIN
+
+
+def test_superadmin_update_cannot_deactivate_only_active_superadmin(tmp_path):
+    store = UserStore(json_path=tmp_path / 'users.json')
+    store.initialize()
+    store.ensure_bootstrap_superadmin('boss@test.local', 'secret1')
+    superadmin = store.get_by_email('boss@test.local')
+
+    try:
+        store.update_user(superadmin['id'], active=False, actor_role=ROLE_SUPERADMIN)
+    except ValueError as exc:
+        assert 'único superadmin ativo' in str(exc)
+    else:
+        raise AssertionError('only active superadmin was deactivated')
+
+    assert store.get_by_email('boss@test.local')['active'] is True
+
+
+def test_admin_cannot_delete_superadmin_account(tmp_path):
+    store = UserStore(json_path=tmp_path / 'users.json')
+    store.initialize()
+    store.ensure_bootstrap_superadmin('boss@test.local', 'secret1')
+    store.create_admin('second@test.local', 'second-pass', ROLE_SUPERADMIN)
+    admin_id = store.create_admin('admin@test.local', 'admin-pass', ROLE_ADMIN)
+    superadmin = store.get_by_email('boss@test.local')
+
+    try:
+        store.delete_user(superadmin['id'], actor_id=admin_id, actor_role=ROLE_ADMIN)
+    except ValueError as exc:
+        assert 'superadmin' in str(exc)
+    else:
+        raise AssertionError('admin deleted a superadmin account')
+
+    assert store.get_by_email('boss@test.local') is not None

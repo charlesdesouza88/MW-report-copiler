@@ -3873,11 +3873,16 @@ def manage_teachers():
                     password=password or None,
                     teacher_name=request.form.get('teacher_name'),
                     active=request.form.get('active') == '1',
+                    actor_role=actor['role'],
                 )
                 messages.append('Usuário atualizado.')
             elif action == 'delete':
                 user_id = int(request.form.get('user_id', '0'))
-                user_store.delete_user(user_id, actor_id=actor['id'])
+                user_store.delete_user(
+                    user_id,
+                    actor_id=actor['id'],
+                    actor_role=actor['role'],
+                )
                 messages.append('Usuário removido.')
         except (ValueError, TypeError) as exc:
             errors.append(str(exc))
@@ -3895,6 +3900,7 @@ def manage_teachers():
         wa_raw = (profile.get('whatsapp') or '').strip()
         enriched_users.append({
             **u,
+            'can_manage_user': actor['role'] == ROLE_SUPERADMIN or u['role'] != ROLE_SUPERADMIN,
             'last_login_at': last_event['logged_at'] if last_event else '',
             'last_login_label': format_logged_at(
                 last_event['logged_at'] if last_event else '',
