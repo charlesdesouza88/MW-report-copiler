@@ -154,7 +154,7 @@ def run_inprocess():
         new_name = 'Flow Test Kid'
         r = client.post(
             '/students/new',
-            data=_student_form(new_name, 'FLOW_TEST'),
+            data=_student_form(new_name, 'MASTER'),
             follow_redirects=False,
         )
         loc = r.headers.get('Location', '')
@@ -187,14 +187,18 @@ def run_inprocess():
             'Reports page after generate',
             r.status_code == 200 and ('Relatório' in rep_html or 'relatório' in rep_html),
         )
+        report_files = list(out_dir.glob('*_report.html'))
         runner.check(
             'Report HTML files on disk',
-            any(out_dir.glob('*_report.html')),
+            bool(report_files),
             str(len(list(out_dir.glob('*.html')))) + ' files',
         )
 
-        r = client.get('/reports/preview/' + next(out_dir.glob('*_report.html')).name)
-        runner.check('Preview report', r.status_code == 200)
+        if report_files:
+            r = client.get('/reports/preview/' + report_files[0].name)
+            runner.check('Preview report', r.status_code == 200)
+        else:
+            runner.check('Preview report', False, 'no report file to preview')
 
     return runner.finish()
 
