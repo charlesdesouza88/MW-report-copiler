@@ -20,9 +20,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import app as web_app  # noqa: E402
-from auth import UserStore  # noqa: E402
-from teacher_classes import save_registry  # noqa: E402
+import app as web_app
+from auth import UserStore
+from teacher_classes import save_registry
 
 STUDENTS_CSV = (
     'teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,'
@@ -180,7 +180,9 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
         '/students/new',
         data={
             'teacher': 'Chuck',
-            'turma': 'ADMIN_TEST',
+            'class_choice': 'MASTER',
+            'turma': 'MASTER',
+            'turma_display': 'Masters',
             'student_name': 'Admin Created',
             'nivel': 'TEENS 1',
             **_scores(),
