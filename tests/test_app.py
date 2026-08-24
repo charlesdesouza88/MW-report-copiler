@@ -381,6 +381,34 @@ def test_reports_preview_path_is_sanitized(monkeypatch, tmp_path):
     assert ok.get_data(as_text=True) == "<html>ok</html>"
 
 
+def test_reports_preview_live_renders_class_medias_row(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    out_dir = tmp_path / "output"
+    data_dir.mkdir()
+    out_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    stale = out_dir / "MASTER_2026-08_class_diagnostic.html"
+    stale.write_text("<html>stale class diagnostic</html>", encoding="utf-8")
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", out_dir)
+    monkeypatch.setattr(web_app, "TMPL_DIR", Path(web_app.__file__).parent / "templates")
+    monkeypatch.setattr(web_app, "SNAPSHOTS_PATH", data_dir / "student_snapshots.json")
+    _init_user_store(monkeypatch, data_dir)
+    _seed_teacher_classes(data_dir, "Chuck", ("MASTER", "Masters"))
+
+    client = web_app.app.test_client()
+    _login(client)
+    response = client.get("/reports/preview/MASTER_2026-08_class_diagnostic.html")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "class-media-row" in html
+    assert "class-overview" in html
+    assert "stale class diagnostic" not in html
+
+
 def test_reports_preview_live_renders_attendance_calendar(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     out_dir = tmp_path / "output"

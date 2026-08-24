@@ -13,6 +13,8 @@
   --mw-line: #F0E6F3;
   --mw-panel: #F9F5FA;
   --mw-panel-accent: #F0E6F3;
+  --mw-gold: #EBB22E;
+  --mw-gap: 12px;
 }
 body {
   font-family: Carlito, Calibri, Arial, sans-serif;
@@ -23,21 +25,51 @@ body {
 }
 .page-break { page-break-before: always; }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  border-bottom: 2px solid #792D83;
-  padding-bottom: 4px;
+.mw-icon { display: block; flex-shrink: 0; overflow: visible; }
+.mw-icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.mw-icon-tile {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: #fff;
+  color: var(--mw-purple);
+  border: 1px solid var(--mw-border);
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
-.logo { display: flex; align-items: center; gap: 7px; line-height: 1; }
+.header {
+  display: grid;
+  grid-template-columns: minmax(132px, 1fr) minmax(0, 2.2fr) minmax(132px, 1fr);
+  align-items: center;
+  column-gap: var(--mw-gap);
+  margin-bottom: 12px;
+  border-bottom: 2px solid #792D83;
+  padding-bottom: 8px;
+}
+.logo { display: flex; align-items: center; gap: 7px; line-height: 1; justify-self: start; }
 .logo-mark { width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0; display: block; object-fit: cover; }
 .logo-wordmark { height: 32px; width: auto; display: block; }
 .header-center { text-align: center; }
 .class-name { font-size: 20px; font-weight: 900; }
-.class-sub { font-size: 10px; color: #555; }
-.period-line { font-size: 10px; font-weight: 700; color: #444; margin-top: 2px; }
+.class-sub {
+  font-size: 10px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.class-sub .mw-icon-tile { width: 22px; height: 22px; border-radius: 6px; }
+.period-line {
+  font-size: 10px;
+  font-weight: 700;
+  color: #444;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.period-line .mw-icon-tile { width: 22px; height: 22px; border-radius: 6px; }
 .trend-pill {
   display: inline-block;
   margin-left: 6px;
@@ -50,27 +82,31 @@ body {
 .trend-declined { background: #FCE8E6; color: #E24B4A; }
 .trend-stable { background: #EDE8F4; color: #792D83; }
 .trend-first { background: #F0F0F0; color: #666; }
-.teacher-block { text-align: right; font-size: 10px; }
+.teacher-block { text-align: right; font-size: 10px; justify-self: end; }
 .teacher-label { color: #792D83; font-weight: 700; }
 .teacher-name { font-size: 16px; font-weight: 900; color: #792D83; }
 
 .section-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
   border-left: 4px solid var(--mw-purple);
-  padding: 8px 10px;
+  padding: 6px 10px;
   margin-bottom: 10px;
   background: var(--mw-panel-accent);
   border-radius: 0 6px 6px 0;
   border-top: 1px solid var(--mw-line);
   border-right: 1px solid var(--mw-line);
   border-bottom: 1px solid var(--mw-line);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
+.section-title .mw-icon-tile { width: 28px; height: 28px; border-radius: 7px; }
 .section-panel {
   border: 1px solid var(--mw-border);
   border-radius: 10px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
   background: #fff;
 }
 .sub-panel-title {
@@ -117,7 +153,11 @@ body {
   padding: 10px 12px;
   border-bottom: 2px solid var(--mw-purple);
   background: var(--mw-panel-accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
+.skill-card-head .mw-icon-tile { width: 26px; height: 26px; border-radius: 6px; }
 .skill-card-body { padding: 10px 12px 12px; }
 .skill-card-name {
   font-size: 12px;
@@ -125,6 +165,9 @@ body {
   margin-bottom: 0;
   color: var(--mw-purple);
   line-height: 1.25;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .skill-scores {
   display: flex;
@@ -230,61 +273,108 @@ body {
 .extra-notes { border: 2px solid #792D83; border-radius: 8px; padding: 8px; font-size: 10px; }
 .extra-notes-title { font-weight: 700; color: #792D83; margin-bottom: 3px; }
 
-.class-summary {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 10px;
-  align-items: stretch;
-  margin-bottom: 16px;
-  padding: 12px 14px;
-  border: 1px solid var(--mw-border);
-  border-radius: 10px;
-  background: #fff;
-}
-.class-summary > * {
-  border: 1px solid var(--mw-border);
-  border-radius: 8px;
-  padding: 10px;
-  background: var(--mw-panel);
-}
-.class-dimension-rings {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+.class-overview {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   margin-bottom: 12px;
   padding: 12px 14px;
   border: 1px solid var(--mw-border);
   border-radius: 10px;
-  background: var(--mw-panel-accent);
+  background: var(--mw-panel);
 }
-.class-dimension-rings-title {
-  grid-column: 1 / -1;
-  text-align: center;
-  font-size: 10px;
+.class-overview-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
   font-weight: 900;
   color: var(--mw-purple);
   text-transform: uppercase;
-  margin-bottom: 2px;
+  letter-spacing: 0.4px;
+  line-height: 1.2;
   padding-bottom: 8px;
-  border-bottom: 2px solid var(--mw-purple);
+  border-bottom: 2px solid var(--mw-gold);
 }
-.class-ring-cell {
+.class-overview-title .mw-icon-tile { width: 28px; height: 28px; border-radius: 7px; }
+.class-overview-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(160px, 0.7fr);
+  gap: 12px;
+  align-items: stretch;
+}
+.class-media-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.class-media-cell {
   text-align: center;
   border: 1px solid var(--mw-border);
   border-radius: 8px;
-  padding: 8px 6px;
+  padding: 10px 6px;
   background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
 }
-.class-summary-donut { text-align: center; flex-shrink: 0; }
-.class-summary-donut-label { font-size: 9px; font-weight: 700; color: #792D83; text-transform: uppercase; margin-bottom: 4px; }
-.class-summary-bars { min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.class-summary-attendance { flex-shrink: 0; min-width: 140px; }
-.class-summary-att-title { font-size: 9px; font-weight: 700; color: #792D83; margin-bottom: 6px; text-transform: uppercase; }
-.class-att-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; font-size: 8px; font-weight: 700; }
+.class-media-cell .mw-icon-tile { width: 28px; height: 28px; border-radius: 7px; }
+.class-media-score {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--mw-purple);
+  line-height: 1;
+}
+.class-media-label { font-size: 9px; font-weight: 700; color: #444; line-height: 1.15; }
+.class-summary-donut {
+  text-align: center;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 8px;
+}
+.class-summary-donut-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #792D83;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.class-summary-donut-label .mw-icon-tile { width: 24px; height: 24px; border-radius: 6px; }
+.class-summary-donut-count { font-size: 9px; color: #666; font-weight: 700; }
+.class-summary-attendance {
+  flex-shrink: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 2px;
+}
+.class-summary-att-title {
+  font-size: 9px;
+  font-weight: 700;
+  color: #792D83;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.3px;
+}
+.class-summary-att-title .mw-icon-tile { width: 24px; height: 24px; border-radius: 6px; }
+.class-att-legend { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 8px; font-weight: 700; }
 .class-att-legend span { display: inline-flex; align-items: center; gap: 3px; }
 .class-att-sq { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
-.class-summary-col-chart { min-width: 0; overflow-x: auto; grid-column: 1 / -1; }
-.class-ring-label { font-size: 8px; font-weight: 700; color: #444; margin-top: 4px; }
 .chart-svg { max-width: 100%; height: auto; display: block; }
 
 @media screen {
@@ -319,14 +409,14 @@ body {
     animation: ringDraw 1s ease-out forwards;
     stroke-dashoffset: var(--ring-circ, 160);
   }
-  .class-ring-cell, .skill-score-item {
+  .class-media-cell, .skill-score-item {
     animation: cellFadeIn 0.5s ease-out forwards;
     opacity: 0;
   }
-  .class-dimension-rings .class-ring-cell:nth-child(2) { animation-delay: 0.05s; }
-  .class-dimension-rings .class-ring-cell:nth-child(3) { animation-delay: 0.12s; }
-  .class-dimension-rings .class-ring-cell:nth-child(4) { animation-delay: 0.19s; }
-  .class-dimension-rings .class-ring-cell:nth-child(5) { animation-delay: 0.26s; }
+  .class-media-row .class-media-cell:nth-child(1) { animation-delay: 0.05s; }
+  .class-media-row .class-media-cell:nth-child(2) { animation-delay: 0.12s; }
+  .class-media-row .class-media-cell:nth-child(3) { animation-delay: 0.19s; }
+  .class-media-row .class-media-cell:nth-child(4) { animation-delay: 0.26s; }
   html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
   body {
     width: 100%;
@@ -337,17 +427,21 @@ body {
     background: #E8E4EE;
     font-size: 11px;
   }
-  .header { flex-wrap: wrap; gap: 10px; }
+  .header {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    row-gap: 8px;
+  }
+  .logo, .teacher-block { justify-self: center; text-align: center; }
   .class-name { font-size: clamp(18px, 4vw, 24px); word-break: break-word; }
   .teacher-name { font-size: clamp(14px, 2.5vw, 18px); }
   .section-title { font-size: clamp(13px, 2.5vw, 16px); }
   .skill-cards { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
   .skill-bubble { width: 50px; height: 50px; font-size: 26px; }
   .skill-mini-web svg { width: 72px; height: 76px; }
-  .class-summary { grid-template-columns: 1fr; gap: 10px; }
-  .class-dimension-rings { grid-template-columns: repeat(2, 1fr); }
-  .class-summary-col-chart { margin-top: 0; }
-  .class-summary-bars svg { max-width: 100%; height: auto; }
+  .class-overview-body { grid-template-columns: 1fr; gap: 10px; }
+  .class-media-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .criteria-grid { grid-template-columns: 1fr; }
   .dates-grid { grid-template-columns: 1fr; }
   .profile-table, .dev-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
@@ -355,10 +449,19 @@ body {
 }
 @media screen and (min-width: 640px) {
   body { padding: 16px 20px 28px; font-size: 12px; }
+  .header {
+    grid-template-columns: minmax(132px, 1fr) minmax(0, 2.2fr) minmax(132px, 1fr);
+    justify-items: stretch;
+    text-align: initial;
+    row-gap: 0;
+  }
+  .logo { justify-self: start; }
+  .teacher-block { justify-self: end; text-align: right; }
   .skill-cards { grid-template-columns: repeat(2, 1fr); }
   .criteria-grid { grid-template-columns: 1fr 1fr; }
   .dates-grid { grid-template-columns: repeat(3, 1fr); }
-  .class-summary { grid-template-columns: auto 1fr auto; }
+  .class-overview-body { grid-template-columns: auto minmax(0, 1fr) minmax(160px, 0.7fr); }
+  .class-media-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .anim-col-bar {
     transform-box: fill-box;
     transform-origin: bottom center;
@@ -374,7 +477,7 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .anim-col-bar, .anim-h-bar, .anim-compare-bar, .anim-ring-progress,
-  .class-ring-cell, .skill-score-item {
+  .class-media-cell, .skill-score-item {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
@@ -383,15 +486,41 @@ body {
 }
 @media print {
   body { width: 277mm; background: #fff; padding: 0; }
+  .header {
+    grid-template-columns: minmax(132px, 1fr) minmax(0, 2.2fr) minmax(132px, 1fr);
+    justify-items: stretch;
+    text-align: initial;
+  }
+  .logo { justify-self: start; }
+  .teacher-block { justify-self: end; text-align: right; }
   .skill-cards { grid-template-columns: repeat(4, 1fr); }
   .skill-bubble { width: 52px; height: 52px; font-size: 26px; }
   .skill-score-label { font-size: 10.5px; }
   .skill-mini-web svg { width: 72px; height: 76px; }
-  .class-summary, .class-dimension-rings, .class-summary-col-chart { display: none; }
+  .class-overview { break-inside: avoid; }
+  .class-overview-body { grid-template-columns: auto minmax(0, 1fr) minmax(140px, 0.7fr); }
+  .class-media-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 </style>
 </head>
 <body>
+<svg class="mw-icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+  <symbol id="ri-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+  <symbol id="ri-calendar-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="m9 15 2 2 4-4"/></symbol>
+  <symbol id="ri-book-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v16"/><path d="M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></symbol>
+  <symbol id="ri-message-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></symbol>
+  <symbol id="ri-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></symbol>
+  <symbol id="ri-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></symbol>
+  <symbol id="ri-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="ri-backpack" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 10h8"/><path d="M8 18h8"/><path d="M8 22v-6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></symbol>
+  <symbol id="ri-trending-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></symbol>
+</svg>
+{% macro report_icon(name, size=16) -%}
+<svg class="mw-icon" width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ri-{{ name }}"/></svg>
+{%- endmacro %}
+{% macro icon_tile(name, size=16) -%}
+<span class="mw-icon-tile">{{ report_icon(name, size) }}</span>
+{%- endmacro %}
 
 <div class="header">
   <div class="logo">
@@ -400,9 +529,9 @@ body {
   </div>
   <div class="header-center">
     <div class="class-name">{{ turma_display }} — {{ nivel }}</div>
-    <div class="class-sub">{{ horario }}</div>
+    <div class="class-sub">{{ icon_tile('clock', 16) }} {{ horario }}</div>
     {% if report_month_label %}
-    <div class="period-line">Período: {{ report_month_label }}</div>
+    <div class="period-line">{{ icon_tile('calendar-check', 16) }} Período: {{ report_month_label }}</div>
     {% endif %}
   </div>
   <div class="teacher-block">
@@ -412,85 +541,59 @@ body {
 </div>
 
 {% if class_summary %}
-<div class="class-dimension-rings">
-  <div class="class-dimension-rings-title">Médias da turma — índices do período</div>
-  {% for ring in class_summary.dimension_rings.rings %}
-  <div class="class-ring-cell">
-    <svg class="chart-svg" width="{{ class_summary.dimension_rings.ring_size }}" height="{{ class_summary.dimension_rings.ring_size }}" viewBox="0 0 {{ class_summary.dimension_rings.ring_size }} {{ class_summary.dimension_rings.ring_size }}">
-      <circle cx="{{ ring.donut.cx }}" cy="{{ ring.donut.cy }}" r="{{ ring.donut.r }}" fill="none" stroke="#E8E4EE" stroke-width="{{ ring.donut.stroke }}"/>
-      <circle class="anim-ring-progress" style="--ring-circ: {{ ring.donut.circ }}; animation-delay: {{ loop.index0 * 0.15 }}s" cx="{{ ring.donut.cx }}" cy="{{ ring.donut.cy }}" r="{{ ring.donut.r }}" fill="none" stroke="#792D83" stroke-width="{{ ring.donut.stroke }}" stroke-dasharray="{{ ring.donut.cur_dash }}" stroke-linecap="round" transform="rotate(-90 {{ ring.donut.cx }} {{ ring.donut.cy }})"/>
-      <text x="{{ ring.donut.cx }}" y="{{ ring.donut.cy + 5 }}" text-anchor="middle" font-size="15" font-weight="bold" fill="#792D83" font-family="Carlito, Calibri, Arial, sans-serif">{{ ring.score }}</text>
-    </svg>
-    <div class="class-ring-label">{{ ring.label }}</div>
+{% set media_icons = {
+  'Presença': 'calendar-check',
+  'Desenv.': 'book-open',
+  'Particip.': 'message-circle',
+  'Comport.': 'star'
+} %}
+<div class="class-overview">
+  <div class="class-overview-title">
+    {{ icon_tile('gauge', 16) }}
+    Médias da turma — índices do período
   </div>
-  {% endfor %}
-</div>
-<div class="class-summary">
-  <div class="class-summary-donut">
-    <div class="class-summary-donut-label">Índice da turma</div>
-    <svg class="chart-svg" width="{{ class_summary.composite_donut.size }}" height="{{ class_summary.composite_donut.size }}" viewBox="0 0 {{ class_summary.composite_donut.size }} {{ class_summary.composite_donut.size }}">
-      <circle cx="{{ class_summary.composite_donut.cx }}" cy="{{ class_summary.composite_donut.cy }}" r="{{ class_summary.composite_donut.r }}" fill="none" stroke="#E8E4EE" stroke-width="{{ class_summary.composite_donut.stroke }}"/>
-      <circle class="anim-ring-progress" style="--ring-circ: {{ class_summary.composite_donut.circ }}" cx="{{ class_summary.composite_donut.cx }}" cy="{{ class_summary.composite_donut.cy }}" r="{{ class_summary.composite_donut.r }}" fill="none" stroke="#792D83" stroke-width="{{ class_summary.composite_donut.stroke }}" stroke-dasharray="{{ class_summary.composite_donut.cur_dash }}" stroke-linecap="round" transform="rotate(-90 {{ class_summary.composite_donut.cx }} {{ class_summary.composite_donut.cy }})"/>
-      <text x="{{ class_summary.composite_donut.cx }}" y="{{ class_summary.composite_donut.cy + 5 }}" text-anchor="middle" font-size="20" font-weight="bold" fill="#792D83" font-family="Carlito, Calibri, Arial, sans-serif">{{ class_summary.composite_avg }}</text>
-    </svg>
-    <div style="font-size:9px;color:#666;margin-top:2px;">{{ class_summary.student_count }} alunos</div>
-  </div>
-  <div class="class-summary-bars">
-    <div class="class-summary-att-title">Médias da turma</div>
-    <svg class="chart-svg" width="{{ class_summary.bars.width }}" height="{{ class_summary.bars.height }}" viewBox="0 0 {{ class_summary.bars.width }} {{ class_summary.bars.height }}" font-family="Carlito, Calibri, Arial, sans-serif" role="img" aria-label="Médias da turma por dimensão">
-      {% for row in class_summary.bars.rows %}
-      <text x="{{ row.label_x }}" y="{{ row.y + 11 }}" font-size="10" font-weight="bold" fill="#333">{{ row.label }}</text>
-      <rect class="anim-compare-bar" style="animation-delay: {{ loop.index0 * 0.1 }}s" x="{{ row.bar_x }}" y="{{ row.current_y }}" width="{{ row.current_w }}" height="{{ class_summary.bars.bar_h }}" rx="3" fill="#792D83"/>
-      <text x="{{ row.bar_x + class_summary.bars.bar_max_w + 6 }}" y="{{ row.current_y + 10 }}" font-size="10" font-weight="bold" fill="#792D83">{{ row.current }}</text>
-      {% endfor %}
-    </svg>
-  </div>
-  <div class="class-summary-attendance">
-    <div class="class-summary-att-title">Presença da turma</div>
-    <svg class="chart-svg" width="{{ class_summary.attendance_bar.width }}" height="{{ class_summary.attendance_bar.height + 4 }}" viewBox="0 0 {{ class_summary.attendance_bar.width }} {{ class_summary.attendance_bar.height + 4 }}" role="img" aria-label="Distribuição de presença">
-      {% for sl in class_summary.attendance_bar.slices %}
-      {% if sl.w > 0 %}
-      <rect x="{{ sl.x }}" y="0" width="{{ sl.w }}" height="{{ class_summary.attendance_bar.height }}" fill="{{ sl.color }}" rx="2"/>
-      {% endif %}
-      {% endfor %}
-    </svg>
-    <div class="class-att-legend">
-      {% for sl in class_summary.attendance_bar.slices %}
-      <span><span class="class-att-sq" style="background:{{ sl.color }}"></span>{{ sl.label }} ({{ sl.count }})</span>
+  <div class="class-overview-body">
+    <div class="class-summary-donut">
+      <div class="class-summary-donut-label">{{ icon_tile('users', 16) }} Índice da turma</div>
+      <svg class="chart-svg" width="{{ class_summary.composite_donut.size }}" height="{{ class_summary.composite_donut.size }}" viewBox="0 0 {{ class_summary.composite_donut.size }} {{ class_summary.composite_donut.size }}">
+        <circle cx="{{ class_summary.composite_donut.cx }}" cy="{{ class_summary.composite_donut.cy }}" r="{{ class_summary.composite_donut.r }}" fill="none" stroke="#E8E4EE" stroke-width="{{ class_summary.composite_donut.stroke }}"/>
+        <circle class="anim-ring-progress" style="--ring-circ: {{ class_summary.composite_donut.circ }}" cx="{{ class_summary.composite_donut.cx }}" cy="{{ class_summary.composite_donut.cy }}" r="{{ class_summary.composite_donut.r }}" fill="none" stroke="#792D83" stroke-width="{{ class_summary.composite_donut.stroke }}" stroke-dasharray="{{ class_summary.composite_donut.cur_dash }}" stroke-linecap="round" transform="rotate(-90 {{ class_summary.composite_donut.cx }} {{ class_summary.composite_donut.cy }})"/>
+        <text x="{{ class_summary.composite_donut.cx }}" y="{{ class_summary.composite_donut.cy + 5 }}" text-anchor="middle" font-size="20" font-weight="bold" fill="#792D83" font-family="Carlito, Calibri, Arial, sans-serif">{{ class_summary.composite_avg }}</text>
+      </svg>
+      <div class="class-summary-donut-count">{{ class_summary.student_count }} alunos</div>
+    </div>
+    <div class="class-media-row">
+      {% for ring in class_summary.dimension_rings.rings %}
+      <div class="class-media-cell">
+        {% if media_icons.get(ring.label) %}
+        <span class="mw-icon-tile">{{ report_icon(media_icons[ring.label], 16) }}</span>
+        {% endif %}
+        <div class="class-media-score">{{ ring.score }}</div>
+        <div class="class-media-label">{{ ring.label }}</div>
+      </div>
       {% endfor %}
     </div>
-  </div>
-  <div class="class-summary-col-chart">
-    <div class="class-summary-att-title">Gráfico de colunas — médias</div>
-    <svg class="chart-svg" width="{{ class_summary.column_chart.width }}" height="{{ class_summary.column_chart.height }}" viewBox="0 0 {{ class_summary.column_chart.width }} {{ class_summary.column_chart.height }}" font-family="Carlito, Calibri, Arial, sans-serif" role="img" aria-label="Médias da turma">
-      {% if class_summary.column_chart.title %}
-      <text x="{{ (class_summary.column_chart.width / 2)|int }}" y="12" text-anchor="middle" font-size="8" font-weight="bold" fill="#792D83">{{ class_summary.column_chart.title }}</text>
-      {% endif %}
-      {% for tick in class_summary.column_chart.y_ticks %}
-      <text x="{{ tick.label_x }}" y="{{ tick.y + 3 }}" text-anchor="end" font-size="7" fill="#888" dominant-baseline="middle">{{ tick.level }}</text>
-      <line x1="{{ class_summary.column_chart.axis_x }}" y1="{{ tick.y }}" x2="{{ class_summary.column_chart.width - 6 }}" y2="{{ tick.y }}" stroke="#EEE" stroke-width="1"/>
-      {% endfor %}
-      <line x1="{{ class_summary.column_chart.axis_x }}" y1="{{ class_summary.column_chart.pad_top }}" x2="{{ class_summary.column_chart.axis_x }}" y2="{{ class_summary.column_chart.plot_bottom }}" stroke="#CCC" stroke-width="1"/>
-      <line x1="{{ class_summary.column_chart.axis_x }}" y1="{{ class_summary.column_chart.plot_bottom }}" x2="{{ class_summary.column_chart.width - 6 }}" y2="{{ class_summary.column_chart.plot_bottom }}" stroke="#CCC" stroke-width="1"/>
-      {% for col in class_summary.column_chart.cols %}
-      <rect x="{{ col.x }}" y="{{ col.track_y }}" width="{{ col.w }}" height="{{ col.track_h }}" fill="#E8E8E8" rx="4"/>
-      <rect class="anim-col-bar" style="animation-delay: {{ loop.index0 * 0.12 }}s" x="{{ col.x }}" y="{{ col.y }}" width="{{ col.w }}" height="{{ col.h }}" fill="#792D83" rx="4"/>
-      {% endfor %}
-      <g class="chart-score-labels">
-      {% for col in class_summary.column_chart.cols %}
-      <text x="{{ col.text_x }}" y="{{ col.score_text_y }}" text-anchor="middle" font-size="11" font-weight="bold" fill="{% if col.score_inside %}#fff{% else %}#792D83{% endif %}" dominant-baseline="middle">{{ col.score }}</text>
-      {% endfor %}
-      </g>
-      {% for col in class_summary.column_chart.cols %}
-      <text x="{{ col.label_x }}" y="{{ class_summary.column_chart.label_y }}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="#444">{{ col.label }}</text>
-      {% endfor %}
-    </svg>
+    <div class="class-summary-attendance">
+      <div class="class-summary-att-title">{{ icon_tile('calendar-check', 16) }} Presença da turma</div>
+      <svg class="chart-svg" width="{{ class_summary.attendance_bar.width }}" height="{{ class_summary.attendance_bar.height + 4 }}" viewBox="0 0 {{ class_summary.attendance_bar.width }} {{ class_summary.attendance_bar.height + 4 }}" role="img" aria-label="Distribuição de presença">
+        {% for sl in class_summary.attendance_bar.slices %}
+        {% if sl.w > 0 %}
+        <rect x="{{ sl.x }}" y="0" width="{{ sl.w }}" height="{{ class_summary.attendance_bar.height }}" fill="{{ sl.color }}" rx="2"/>
+        {% endif %}
+        {% endfor %}
+      </svg>
+      <div class="class-att-legend">
+        {% for sl in class_summary.attendance_bar.slices %}
+        <span><span class="class-att-sq" style="background:{{ sl.color }}"></span>{{ sl.label }} ({{ sl.count }})</span>
+        {% endfor %}
+      </div>
+    </div>
   </div>
 </div>
 {% endif %}
 
 <div class="section-panel">
-<div class="section-title">Membros da Turma</div>
+<div class="section-title">{{ icon_tile('users', 16) }} Membros da Turma</div>
 <table class="profile-table">
   <thead>
     <tr>
@@ -518,12 +621,12 @@ body {
 </div>
 
 <div class="section-panel">
-<div class="section-title">Habilidades por Aluno</div>
+<div class="section-title">{{ icon_tile('book-open', 16) }} Habilidades por Aluno</div>
 <div class="skill-cards">
   {% for sd in students %}
   <div class="skill-card">
     <div class="skill-card-head">
-      <div class="skill-card-name">{{ sd.student.student_name.split()[0] }} {{ sd.student.student_name.split()[-1] }}</div>
+      <div class="skill-card-name">{{ icon_tile('backpack', 16) }} {{ sd.student.student_name.split()[0] }} {{ sd.student.student_name.split()[-1] }}</div>
     </div>
     <div class="skill-card-body">
     <div class="skill-scores">
@@ -576,9 +679,9 @@ body {
   </div>
   <div class="header-center">
     <div class="class-name">{{ turma_display }} — {{ nivel }}</div>
-    <div class="class-sub">{{ horario }}</div>
+    <div class="class-sub">{{ icon_tile('clock', 16) }} {{ horario }}</div>
     {% if report_month_label %}
-    <div class="period-line">Período: {{ report_month_label }}</div>
+    <div class="period-line">{{ icon_tile('calendar-check', 16) }} Período: {{ report_month_label }}</div>
     {% endif %}
   </div>
   <div class="teacher-block">
@@ -587,7 +690,7 @@ body {
   </div>
 </div>
 
-<div class="section-title">Índices de Desenvolvimento</div>
+<div class="section-title">{{ icon_tile('trending-up', 16) }} Índices de Desenvolvimento</div>
 <table class="dev-table">
   <thead>
     <tr>
@@ -620,7 +723,7 @@ body {
 
 {% set extra_students = students | selectattr('student.aula_extra') | list %}
 {% if extra_students %}
-<div class="section-title">Direcionamento de Reforço</div>
+<div class="section-title">{{ icon_tile('star', 16) }} Direcionamento de Reforço</div>
 <div class="reinforcement">
   {% for sd in extra_students %}
   <div class="reinf-item">

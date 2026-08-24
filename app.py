@@ -23,7 +23,7 @@ from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from compiler import (build_student_ctx, create_report_environment,
+from compiler import (build_class_ctx, build_student_ctx, create_report_environment,
                       generate_class_diagnostics, generate_individual_reports,
                       group_by_turma, load_csv, turmas_without_lessons)
 
@@ -4165,6 +4165,41 @@ def _live_render_individual_preview(path):
     return env.get_template('individual_report.html').render(**ctx)
 
 
+def _live_render_class_preview(path):
+    """Rebuild a class diagnostic from current templates so preview
+    reflects template changes without requiring a full generate."""
+    name = Path(path).name
+    if 'class_diagnostic' not in name:
+        return None
+    turma = _turma_from_diagnostic_filename(name)
+    if not turma:
+        return None
+    month = report_month_from_filename(name)
+    all_students, students = _scoped_students(
+        review_month=month, apply_attendance=True,
+    )
+    _, lessons = _scoped_lessons(all_students)
+    group = [
+        row for row in students
+        if not row.get('_transfer_alias')
+        and row.get('turma', '').strip() == turma
+    ]
+    if not group:
+        group = [
+            row for row in all_students
+            if not row.get('_transfer_alias')
+            and row.get('turma', '').strip() == turma
+        ]
+    if not group:
+        return None
+    snapshots = load_snapshots(SNAPSHOTS_PATH)
+    env = create_report_environment(TMPL_DIR)
+    ctx = build_class_ctx(
+        turma, group, lessons, report_month=month, snapshots=snapshots,
+    )
+    return env.get_template('class_diagnostic.html').render(**ctx)
+
+
 @app.route('/reports/preview/<path:filename>')
 @login_required
 def preview(filename):
@@ -4172,7 +4207,7 @@ def preview(filename):
     if not path:
         abort(404)
     try:
-        live = _live_render_individual_preview(path)
+        live = _live_render_class_preview(path) or _live_render_individual_preview(path)
         if live:
             return live
     except Exception:
