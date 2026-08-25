@@ -33,6 +33,7 @@ LESSONS_CSV = (
     'turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n'
     'MASTER,1,01/02/2026,Lesson 1,,\n'
     'MASTER,2,15/02/2026,Lesson 2,,\n'
+    'FLOW_TEST,1,03/02/2026,Flow test lesson,,\n'
 )
 
 
@@ -126,6 +127,7 @@ def run_inprocess():
         web_app.DATA_DIR = data_dir
         web_app.OUT_DIR = out_dir
         web_app.SNAPSHOTS_PATH = data_dir / 'student_snapshots.json'
+        web_app.TEACHER_CLASSES_PATH = data_dir / 'teacher_classes.json'
         web_app.db_store = None
         web_app.DB_ENABLED = False
         web_app.user_store = store
@@ -239,22 +241,41 @@ def run_live(base: str):
                     return opener.open(loc if loc.startswith('http') else base + loc, timeout=60)
             raise
 
-    r = post('/login', {'email': email, 'password': password})
+    def csrf_from_html(html: str) -> str:
+        match = re.search(r'name="csrf_token"\s+value="([^"]+)"', html)
+        return match.group(1) if match else ''
+
+    r = post('/login', {
+        'email': email,
+        'password': password,
+        'csrf_token': csrf_from_html(get('/login').read().decode('utf-8', errors='replace')),
+    })
     runner.check('Login', getattr(r, 'status', r.code) in (200, 302))
 
     html = get('/').read().decode('utf-8', errors='replace')
     runner.check('Dashboard', 'Gerar' in html or 'Relatório' in html)
 
     html = get('/students/new').read().decode('utf-8', errors='replace')
+    student_form_csrf = csrf_from_html(html)
     runner.check('New student form', 'Novo aluno' in html)
 
-    bad_resp = post('/students/new', {'student_name': 'X', 'turma': '', 'teacher': 'Chuck'})
+    bad_resp = post('/students/new', {
+        'student_name': 'X',
+        'turma': '',
+        'teacher': 'Chuck',
+        'csrf_token': student_form_csrf,
+    })
     bad_body = bad_resp.read().decode('utf-8', errors='replace')
     runner.check('New student validation', 'Informe o nome do aluno e a turma' in bad_body)
 
     new_name = 'Live Flow Kid'
+    new_student = _student_form(new_name, 'LIVE_FLOW')
+    new_student['class_choice'] = 'LIVE_FLOW'
+    new_student['csrf_token'] = csrf_from_html(
+        get('/students/new').read().decode('utf-8', errors='replace')
+    )
     try:
-        post('/students/new', _student_form(new_name, 'LIVE_FLOW'), allow_redirect=False)
+        post('/students/new', new_student, allow_redirect=False)
         create_ok = False
         loc = ''
     except urllib.error.HTTPError as e:
@@ -266,7 +287,10 @@ def run_live(base: str):
     runner.check('Students list', new_name in html)
 
     try:
-        post('/generate', {'report_month': '2026-02'}, allow_redirect=False)
+        post('/generate', {
+            'report_month': '2026-02',
+            'csrf_token': csrf_from_html(get('/').read().decode('utf-8', errors='replace')),
+        }, allow_redirect=False)
         gen_ok = False
         gen_loc = ''
     except urllib.error.HTTPError as e:

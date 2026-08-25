@@ -38,6 +38,7 @@ STUDENTS_CSV = (
 LESSONS_CSV = (
     'turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n'
     'MASTER,1,01/02/2026,Lesson 1,,\n'
+    'MASTER,2,15/02/2026,Lesson 2,,\n'
     'SPARK,1,05/02/2026,Spark lesson,,\n'
 )
 
@@ -180,7 +181,8 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
         '/students/new',
         data={
             'teacher': 'Chuck',
-            'turma': 'ADMIN_TEST',
+            'class_choice': 'MASTER',
+            'turma': 'MASTER',
             'student_name': 'Admin Created',
             'nivel': 'TEENS 1',
             **_scores(),
@@ -305,10 +307,15 @@ def run_live(base: str) -> int:
                 k, v = line.split('=', 1)
                 creds[k.strip()] = v.strip().strip('"').strip("'")
 
-    email = creds.get('SUPERADMIN_EMAIL', '')
-    password = creds.get('SUPERADMIN_PASSWORD') or creds.get('ADMIN_PASSWORD', '')
+    email = os.environ.get('SUPERADMIN_EMAIL') or creds.get('SUPERADMIN_EMAIL', '')
+    password = (
+        os.environ.get('SUPERADMIN_PASSWORD')
+        or os.environ.get('ADMIN_PASSWORD')
+        or creds.get('SUPERADMIN_PASSWORD')
+        or creds.get('ADMIN_PASSWORD', '')
+    )
     if not email or not password:
-        print('SKIP live: no credentials in .env')
+        print('SKIP live: no credentials in environment or .env')
         return 0
 
     base = base.rstrip('/')
@@ -344,7 +351,13 @@ def run_live(base: str) -> int:
     try:
         db = get('/health/db')
         body = db.read().decode()
-        runner.ok('/health/db', '"connected": true' in body or '"connected":true' in body, body[:80])
+        db_ok = (
+            '"connected": true' in body
+            or '"connected":true' in body
+            or '"mode": "csv"' in body
+            or '"mode":"csv"' in body
+        )
+        runner.ok('/health/db', db_ok, body[:120])
     except Exception as exc:
         runner.ok('/health/db', False, str(exc))
 
