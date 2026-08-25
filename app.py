@@ -107,10 +107,7 @@ from student_reviews import (MONTHLY_REVIEW_FIELDS, ROSTER_FIELDS,
                              migrate_roster_scores_to_month,
                              rows_from_store, save_monthly_reviews,
                              split_student_row, store_from_rows,
-                             migrate_roster_scores_to_month,
                              remove_reviews_for_student,
-                             rows_from_store, save_monthly_reviews,
-                             split_student_row, store_from_rows,
                              upsert_monthly_review)
 
 try:

@@ -33,6 +33,7 @@ LESSONS_CSV = (
     'turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n'
     'MASTER,1,01/02/2026,Lesson 1,,\n'
     'MASTER,2,15/02/2026,Lesson 2,,\n'
+    'FLOW_TEST,1,03/02/2026,Flow test lesson,,\n'
 )
 
 
@@ -126,6 +127,7 @@ def run_inprocess():
         web_app.DATA_DIR = data_dir
         web_app.OUT_DIR = out_dir
         web_app.SNAPSHOTS_PATH = data_dir / 'student_snapshots.json'
+        web_app.TEACHER_CLASSES_PATH = data_dir / 'teacher_classes.json'
         web_app.db_store = None
         web_app.DB_ENABLED = False
         web_app.user_store = store
@@ -253,8 +255,10 @@ def run_live(base: str):
     runner.check('New student validation', 'Informe o nome do aluno e a turma' in bad_body)
 
     new_name = 'Live Flow Kid'
+    new_student = _student_form(new_name, 'LIVE_FLOW')
+    new_student['class_choice'] = 'LIVE_FLOW'
     try:
-        post('/students/new', _student_form(new_name, 'LIVE_FLOW'), allow_redirect=False)
+        post('/students/new', new_student, allow_redirect=False)
         create_ok = False
         loc = ''
     except urllib.error.HTTPError as e:
