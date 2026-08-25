@@ -256,15 +256,24 @@ def run_live(base: str):
     runner.check('Dashboard', 'Gerar' in html or 'Relatório' in html)
 
     html = get('/students/new').read().decode('utf-8', errors='replace')
+    student_form_csrf = csrf_from_html(html)
     runner.check('New student form', 'Novo aluno' in html)
 
-    bad_resp = post('/students/new', {'student_name': 'X', 'turma': '', 'teacher': 'Chuck'})
+    bad_resp = post('/students/new', {
+        'student_name': 'X',
+        'turma': '',
+        'teacher': 'Chuck',
+        'csrf_token': student_form_csrf,
+    })
     bad_body = bad_resp.read().decode('utf-8', errors='replace')
     runner.check('New student validation', 'Informe o nome do aluno e a turma' in bad_body)
 
     new_name = 'Live Flow Kid'
     new_student = _student_form(new_name, 'LIVE_FLOW')
     new_student['class_choice'] = 'LIVE_FLOW'
+    new_student['csrf_token'] = csrf_from_html(
+        get('/students/new').read().decode('utf-8', errors='replace')
+    )
     try:
         post('/students/new', new_student, allow_redirect=False)
         create_ok = False
@@ -278,7 +287,10 @@ def run_live(base: str):
     runner.check('Students list', new_name in html)
 
     try:
-        post('/generate', {'report_month': '2026-02'}, allow_redirect=False)
+        post('/generate', {
+            'report_month': '2026-02',
+            'csrf_token': csrf_from_html(get('/').read().decode('utf-8', errors='replace')),
+        }, allow_redirect=False)
         gen_ok = False
         gen_loc = ''
     except urllib.error.HTTPError as e:
