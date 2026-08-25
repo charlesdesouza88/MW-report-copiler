@@ -38,6 +38,7 @@ STUDENTS_CSV = (
 LESSONS_CSV = (
     'turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n'
     'MASTER,1,01/02/2026,Lesson 1,,\n'
+    'MASTER,2,15/02/2026,Lesson 2,,\n'
     'SPARK,1,05/02/2026,Spark lesson,,\n'
 )
 
@@ -180,7 +181,8 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
         '/students/new',
         data={
             'teacher': 'Chuck',
-            'turma': 'ADMIN_TEST',
+            'class_choice': 'MASTER',
+            'turma': 'MASTER',
             'student_name': 'Admin Created',
             'nivel': 'TEENS 1',
             **_scores(),
