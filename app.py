@@ -2302,6 +2302,7 @@ def health_auth():
 @limiter.limit('10 per minute')
 def login():
     error = None
+    invalid_login_message = 'E-mail ou senha incorretos.'
     user_count = len(user_store.list_users())
     bootstrap_email = SUPERADMIN_EMAIL or 'admin@misterwiz.local'
 
@@ -2319,21 +2320,12 @@ def login():
                 'SUPERADMIN_PASSWORD nas variáveis de ambiente (Railway) e reinicie o app.'
             )
         elif not SUPERADMIN_PASSWORD and user_store.get_by_email(email) is None:
-            error = (
-                f'E-mail ou senha incorretos. Primeiro acesso do administrador: use '
-                f'{bootstrap_email} e a senha definida em SUPERADMIN_PASSWORD.'
-            )
+            error = invalid_login_message
         else:
             known = user_store.get_by_email(email)
             if known and not known.get('active', True):
-                error = 'Esta conta está desativada. Peça a um administrador para reativá-la.'
-            elif known:
-                error = 'Senha incorreta para este e-mail.'
-            else:
-                error = (
-                    f'E-mail não cadastrado. Administrador: use {bootstrap_email}. '
-                    f'Professores: use o e-mail criado em Usuários.'
-                )
+                logger.info('Rejected login for inactive account %s', known.get('email', ''))
+            error = invalid_login_message
     return render_template(
         'login.html',
         error=error,

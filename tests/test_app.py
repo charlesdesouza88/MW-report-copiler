@@ -143,6 +143,32 @@ def test_login_success_sets_session(monkeypatch, tmp_path):
     assert len(events) == 2
 
 
+def test_login_failures_do_not_enumerate_accounts(monkeypatch, tmp_path):
+    monkeypatch.setattr(web_app, "DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.DATA_DIR.mkdir()
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, web_app.DATA_DIR)
+    teacher_id = web_app.user_store.create_teacher("teacher@test.local", "teachpass", "Chuck")
+    web_app.user_store.update_user(teacher_id, active=False)
+
+    client = web_app.app.test_client()
+    attempts = [
+        ("missing@test.local", "whatever"),
+        ("admin@test.local", "wrongpass"),
+        ("teacher@test.local", "teachpass"),
+    ]
+
+    for email, password in attempts:
+        response = client.post("/login", data={"email": email, "password": password})
+        html = response.get_data(as_text=True)
+        assert response.status_code == 200
+        assert "E-mail ou senha incorretos." in html
+        assert "Senha incorreta" not in html
+        assert "E-mail não cadastrado" not in html
+        assert "conta está desativada" not in html
+
+
 def test_users_page_shows_last_access_and_contact_actions(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
