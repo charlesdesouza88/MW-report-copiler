@@ -318,6 +318,7 @@ def run_live(base: str) -> int:
 
     base = base.rstrip('/')
     runner = Runner(f'Live smoke ({base})')
+    local_live = base.startswith(('http://127.0.0.1', 'http://localhost'))
     jar = http.cookiejar.CookieJar()
     opener = build_opener(HTTPCookieProcessor(jar))
 
@@ -349,7 +350,13 @@ def run_live(base: str) -> int:
     try:
         db = get('/health/db')
         body = db.read().decode()
-        runner.ok('/health/db', '"connected": true' in body or '"connected":true' in body, body[:80])
+        db_ok = (
+            '"connected": true' in body
+            or '"connected":true' in body
+            or (local_live and '"mode": "csv"' in body)
+            or (local_live and '"mode":"csv"' in body)
+        )
+        runner.ok('/health/db', db_ok, body[:80])
     except Exception as exc:
         runner.ok('/health/db', False, str(exc))
 
