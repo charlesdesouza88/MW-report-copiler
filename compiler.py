@@ -5,15 +5,18 @@ import calendar as _calendar
 import csv
 import math
 import sys
-from datetime import date as _date, datetime as _datetime
+from datetime import date as _date
+from datetime import datetime as _datetime
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from lesson_attendance import _turma_key
-from report_names import (class_diagnostic_filename, safe_child_path,
-                          student_report_filename)
-
+from report_names import (
+    class_diagnostic_filename,
+    safe_child_path,
+    student_report_filename,
+)
 
 # ── SVG helpers ──────────────────────────────────────────────────────────────
 
@@ -286,7 +289,12 @@ def score_ring_row(items, ring_size=58, stroke=7, gap=12):
 
 def composite_sparkline(snapshots, turma, student_name, report_month, current_composite, max_points=4):
     """SVG sparkline of composite scores across recent months (needs ≥2 points)."""
-    from report_periods import _snapshot_key, month_label, previous_calendar_month, student_snapshot_id
+    from report_periods import (
+        _snapshot_key,
+        month_label,
+        previous_calendar_month,
+        student_snapshot_id,
+    )
 
     if not report_month:
         return None
@@ -433,7 +441,12 @@ EXPANDED_RADAR_LABELS = [
 
 
 def build_month_comparison(ctx, snapshots, turma, student_name, report_month, trend=None):
-    from report_periods import month_label, prior_month_snapshot, previous_calendar_month, student_composite_score
+    from report_periods import (
+        month_label,
+        previous_calendar_month,
+        prior_month_snapshot,
+        student_composite_score,
+    )
 
     prev_month = previous_calendar_month(report_month)
     prior = prior_month_snapshot(snapshots or {}, turma, student_name, report_month)
