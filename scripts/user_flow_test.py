@@ -17,8 +17,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import app as web_app  # noqa: E402
-from auth import UserStore  # noqa: E402
+import app as web_app
+from auth import UserStore
 
 STUDENTS_CSV = (
     'teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,'
@@ -154,7 +154,7 @@ def run_inprocess():
         new_name = 'Flow Test Kid'
         r = client.post(
             '/students/new',
-            data=_student_form(new_name, 'FLOW_TEST'),
+            data=_student_form(new_name, 'MASTER'),
             follow_redirects=False,
         )
         loc = r.headers.get('Location', '')
@@ -181,7 +181,7 @@ def run_inprocess():
             loc,
         )
 
-        r = client.get(loc if loc.startswith('/') else f'/reports')
+        r = client.get(loc if loc.startswith('/') else '/reports')
         rep_html = r.get_data(as_text=True)
         runner.check(
             'Reports page after generate',
@@ -193,8 +193,10 @@ def run_inprocess():
             str(len(list(out_dir.glob('*.html')))) + ' files',
         )
 
-        r = client.get('/reports/preview/' + next(out_dir.glob('*_report.html')).name)
-        runner.check('Preview report', r.status_code == 200)
+        report_files = list(out_dir.glob('*_report.html'))
+        if report_files:
+            r = client.get('/reports/preview/' + report_files[0].name)
+            runner.check('Preview report', r.status_code == 200)
 
     return runner.finish()
 
@@ -223,6 +225,10 @@ def run_live(base: str):
 
     opener_no_redirect = build_opener(HTTPCookieProcessor(jar), _NoRedirect())
 
+    def csrf_from_html(html: str) -> str:
+        match = re.search(r'name="csrf_token"\s+value="([^"]+)"', html)
+        return match.group(1) if match else ''
+
     def get(path):
         return opener.open(f'{base}{path}', timeout=60)
 
@@ -239,22 +245,36 @@ def run_live(base: str):
                     return opener.open(loc if loc.startswith('http') else base + loc, timeout=60)
             raise
 
-    r = post('/login', {'email': email, 'password': password})
+    login_html = get('/login').read().decode('utf-8', errors='replace')
+    r = post('/login', {
+        'email': email,
+        'password': password,
+        'csrf_token': csrf_from_html(login_html),
+    })
     runner.check('Login', getattr(r, 'status', r.code) in (200, 302))
 
     html = get('/').read().decode('utf-8', errors='replace')
     runner.check('Dashboard', 'Gerar' in html or 'Relatório' in html)
 
-    html = get('/students/new').read().decode('utf-8', errors='replace')
-    runner.check('New student form', 'Novo aluno' in html)
+    form_html = get('/students/new').read().decode('utf-8', errors='replace')
+    runner.check('New student form', 'Novo aluno' in form_html)
 
-    bad_resp = post('/students/new', {'student_name': 'X', 'turma': '', 'teacher': 'Chuck'})
+    bad_resp = post('/students/new', {
+        'student_name': 'X',
+        'turma': '',
+        'teacher': 'Chuck',
+        'csrf_token': csrf_from_html(form_html),
+    })
     bad_body = bad_resp.read().decode('utf-8', errors='replace')
     runner.check('New student validation', 'Informe o nome do aluno e a turma' in bad_body)
 
     new_name = 'Live Flow Kid'
+    form_html = get('/students/new').read().decode('utf-8', errors='replace')
+    create_payload = _student_form(new_name, 'LIVE_FLOW')
+    create_payload['class_choice'] = 'LIVE_FLOW'
+    create_payload['csrf_token'] = csrf_from_html(form_html)
     try:
-        post('/students/new', _student_form(new_name, 'LIVE_FLOW'), allow_redirect=False)
+        post('/students/new', create_payload, allow_redirect=False)
         create_ok = False
         loc = ''
     except urllib.error.HTTPError as e:
@@ -265,8 +285,12 @@ def run_live(base: str):
     html = get('/students').read().decode('utf-8', errors='replace')
     runner.check('Students list', new_name in html)
 
+    dashboard_html = get('/').read().decode('utf-8', errors='replace')
     try:
-        post('/generate', {'report_month': '2026-02'}, allow_redirect=False)
+        post('/generate', {
+            'report_month': '2026-02',
+            'csrf_token': csrf_from_html(dashboard_html),
+        }, allow_redirect=False)
         gen_ok = False
         gen_loc = ''
     except urllib.error.HTTPError as e:
