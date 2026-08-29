@@ -33,6 +33,7 @@ LESSONS_CSV = (
     'turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n'
     'MASTER,1,01/02/2026,Lesson 1,,\n'
     'MASTER,2,15/02/2026,Lesson 2,,\n'
+    'FLOW_TEST,1,01/02/2026,Lesson 1,,\n'
 )
 
 
@@ -239,22 +240,40 @@ def run_live(base: str):
                     return opener.open(loc if loc.startswith('http') else base + loc, timeout=60)
             raise
 
-    r = post('/login', {'email': email, 'password': password})
+    def csrf_from_html(html: str) -> str:
+        match = re.search(r'name="csrf_token"\s+value="([^"]+)"', html)
+        return match.group(1) if match else ''
+
+    login_html = get('/login').read().decode('utf-8', errors='replace')
+    r = post('/login', {
+        'email': email,
+        'password': password,
+        'csrf_token': csrf_from_html(login_html),
+    })
     runner.check('Login', getattr(r, 'status', r.code) in (200, 302))
 
     html = get('/').read().decode('utf-8', errors='replace')
     runner.check('Dashboard', 'Gerar' in html or 'Relatório' in html)
 
-    html = get('/students/new').read().decode('utf-8', errors='replace')
-    runner.check('New student form', 'Novo aluno' in html)
+    student_form_html = get('/students/new').read().decode('utf-8', errors='replace')
+    runner.check('New student form', 'Novo aluno' in student_form_html)
 
-    bad_resp = post('/students/new', {'student_name': 'X', 'turma': '', 'teacher': 'Chuck'})
+    bad_resp = post('/students/new', {
+        'student_name': 'X',
+        'turma': '',
+        'teacher': 'Chuck',
+        'csrf_token': csrf_from_html(student_form_html),
+    })
     bad_body = bad_resp.read().decode('utf-8', errors='replace')
     runner.check('New student validation', 'Informe o nome do aluno e a turma' in bad_body)
 
     new_name = 'Live Flow Kid'
     try:
-        post('/students/new', _student_form(new_name, 'LIVE_FLOW'), allow_redirect=False)
+        form_data = _student_form(new_name, 'COMET')
+        form_data['csrf_token'] = csrf_from_html(
+            get('/students/new').read().decode('utf-8', errors='replace'),
+        )
+        post('/students/new', form_data, allow_redirect=False)
         create_ok = False
         loc = ''
     except urllib.error.HTTPError as e:
@@ -266,7 +285,11 @@ def run_live(base: str):
     runner.check('Students list', new_name in html)
 
     try:
-        post('/generate', {'report_month': '2026-02'}, allow_redirect=False)
+        dashboard_html = get('/').read().decode('utf-8', errors='replace')
+        post('/generate', {
+            'report_month': '2026-02',
+            'csrf_token': csrf_from_html(dashboard_html),
+        }, allow_redirect=False)
         gen_ok = False
         gen_loc = ''
     except urllib.error.HTTPError as e:
