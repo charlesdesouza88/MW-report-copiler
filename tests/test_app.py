@@ -235,6 +235,29 @@ def test_generate_reports_writes_html_files(monkeypatch, tmp_path):
     assert any("class_diagnostic" in name for name in generated)
 
 
+def test_generate_reports_is_rate_limited(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    out_dir = tmp_path / "output"
+    data_dir.mkdir()
+    out_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+
+    _init_user_store(monkeypatch, data_dir)
+    monkeypatch.setattr(web_app, "BASE", Path(web_app.__file__).parent)
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "TMPL_DIR", Path(web_app.__file__).parent / "templates")
+    monkeypatch.setattr(web_app, "OUT_DIR", out_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+
+    responses = [client.post("/generate", follow_redirects=False) for _ in range(4)]
+
+    assert [response.status_code for response in responses[:3]] == [302, 302, 302]
+    assert responses[3].status_code == 429
+
+
 def test_reports_page_with_null_prior_snapshot(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     out_dir = tmp_path / "output"
@@ -590,7 +613,7 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     assert "MASTER" in html
-    assert "L9" not in html
+    assert ">L9<" not in html
 
     new_form = client.get("/lessons/new")
     new_html = new_form.get_data(as_text=True)

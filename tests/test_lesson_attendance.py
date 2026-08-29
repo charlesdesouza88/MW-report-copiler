@@ -161,13 +161,13 @@ def test_recompute_faltas_does_not_zero_untracked_students():
     students = [
         {
             'turma': 'LIVE_FLOW',
-            'student_name': 'Live Flow Kid',
+            'student_name': 'Live Flow Student',
             'faltas': '0',
             'missed_aulas': '',
         },
         {
             'turma': 'COMET',
-            'student_name': 'Davi Ribeiro Silva',
+            'student_name': 'Legacy Student',
             'faltas': '2',
             'missed_aulas': '3,7',
         },
@@ -179,7 +179,7 @@ def test_recompute_faltas_does_not_zero_untracked_students():
         {
             'turma': 'LIVE_FLOW',
             'aula_num': '6',
-            'student_name': 'Live Flow Kid',
+            'student_name': 'Live Flow Student',
             'status': 'absent',
         },
     ]
@@ -238,7 +238,10 @@ def test_recompute_preserves_manual_faltas_without_missed_aulas():
 
 
 def test_remove_attendance_for_student_and_lesson():
-    from lesson_attendance import remove_attendance_for_lesson, remove_attendance_for_student
+    from lesson_attendance import (
+        remove_attendance_for_lesson,
+        remove_attendance_for_student,
+    )
 
     rows = [
         {'turma': 'MASTER', 'aula_num': '1', 'student_name': 'Jane Doe', 'status': 'absent'},

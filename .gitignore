@@ -1,7 +1,11 @@
 output/*.html
 data/users.json
+data/login_events.json
 data/student_snapshots.json
 data/student_monthly_reviews.json
+data/student_transfers.json
+data/teacher_chat.json
+data/teacher_profiles.json
 __pycache__/
 *.pyc
 .env

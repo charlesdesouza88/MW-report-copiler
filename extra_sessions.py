@@ -112,7 +112,7 @@ DEFAULT_ATENDIMENTOS_TEMPLATE_ROWS = [
         'Contatado': STATUS_OK,
         'Marcado': STATUS_OK,
         'Realizado': '',
-        'Professor': 'Chuck',
+        'Professor': 'Sample Teacher',
     },
     {
         'Nome do aluno ou responsável': 'John Smith (Comet - A)',
@@ -124,7 +124,7 @@ DEFAULT_ATENDIMENTOS_TEMPLATE_ROWS = [
         'Contatado': STATUS_OK,
         'Marcado': STATUS_OK,
         'Realizado': STATUS_NO,
-        'Professor': 'Amanda',
+        'Professor': 'Second Teacher',
     },
 ]
 

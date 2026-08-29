@@ -6,6 +6,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+RUN adduser --disabled-password --gecos "" appuser \
+    && mkdir -p data output \
+    && chown -R appuser:appuser /app
+USER appuser
 
 ENV PYTHONUNBUFFERED=1
 
