@@ -371,7 +371,7 @@ def _lesson_for_session(lessons, turma, day, month):
 
 
 def turma_from_filename(filename, teacher_name=None):
-    """Extract turma code from names like 'Bárbara - Março - Rise.csv'."""
+    """Extract turma code from names like 'Teacher - Março - Rise.csv'."""
     stem = Path(filename).stem
     parts = [part.strip() for part in re.split(r'\s*-\s*', stem) if part.strip()]
     teacher_key = _norm_header(teacher_name or '')

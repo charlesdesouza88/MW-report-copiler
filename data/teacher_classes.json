@@ -1,86 +1,39 @@
 {
-  "Chuck": [
-    {
-      "turma": "TEENS_1",
-      "turma_display": "Prize",
-      "class_weekdays": [
-        "Quarta-feira",
-        "Sexta-feira"
-      ],
-      "class_time_start": "22:00",
-      "class_time_end": "23:00",
-      "horario": "Quarta-feira e Sexta-feira 22:00 - 23:00",
-      "semester_id": "2026-S1"
-    },
-    {
-      "turma": "LIVE_FLOW",
-      "turma_display": "Test class",
-      "class_weekdays": [
-        "Terça-feira",
-        "Quinta-feira"
-      ],
-      "class_time_start": "20:00",
-      "class_time_end": "21:00",
-      "horario": "Terça-feira e Quinta-feira 20:00 - 21:00",
-      "semester_id": "2026-S1"
-    },
-    {
-      "turma": "TEENS_2",
-      "turma_display": "Teens 2",
-      "class_weekdays": [
-        "Quarta-feira",
-        "Sexta-feira"
-      ],
-      "class_time_start": "22:00",
-      "class_time_end": "23:00",
-      "horario": "Quarta-feira e Sexta-feira 22:00 - 23:00",
-      "semester_id": "2026-S1"
-    },
-    {
-      "turma": "MASTER",
-      "turma_display": "Masters Updated",
-      "class_weekdays": [
-        "Segunda-feira",
-        "Quarta-feira"
-      ],
-      "class_time_start": "18:00",
-      "class_time_end": "19:00",
-      "horario": "Segunda-feira e Quarta-feira 18:00 - 19:00",
-      "semester_id": "2026-S2"
-    },
-    {
-      "turma": "NEW_CLASS",
-      "turma_display": "New Class",
-      "class_weekdays": [
-        "Terça-feira",
-        "Quinta-feira"
-      ],
-      "class_time_start": "19:00",
-      "class_time_end": "20:00",
-      "horario": "Terça-feira e Quinta-feira 19:00 - 20:00",
-      "semester_id": "2026-S2"
-    },
-    {
-      "turma": "MASTER",
-      "turma_display": "Masters Updated",
-      "class_weekdays": [],
-      "class_time_start": "18:00",
-      "class_time_end": "19:00",
-      "horario": "Segunda-feira e Quarta-feira 18:00 - 19:00",
-      "semester_id": "2026-S1",
-      "legacy_import": true
-    }
-  ],
-  "Paula": [
+  "Sample Teacher": [
     {
       "turma": "MASTER",
       "turma_display": "Masters",
+      "class_weekdays": [
+        "Tuesday",
+        "Thursday"
+      ],
+      "class_time_start": "19:00",
+      "class_time_end": "20:00",
+      "horario": "Tuesday and Thursday 19:00 - 20:00",
+      "semester_id": "2026-S1"
+    },
+    {
+      "turma": "SPARK",
+      "turma_display": "Spark",
+      "class_weekdays": [
+        "Monday",
+        "Wednesday"
+      ],
+      "class_time_start": "08:00",
+      "class_time_end": "09:30",
+      "horario": "Monday and Wednesday 08:00 - 09:30",
+      "semester_id": "2026-S1"
+    }
+  ],
+  "Chuck": [
+    {
+      "turma": "LIVE_FLOW",
+      "turma_display": "Test class",
       "class_weekdays": [],
-      "class_time_start": "13:00",
-      "class_time_end": "14:00",
-      "horario": "Terça-feira e Sexta-feira 13:00 - 14:00",
-      "semester_id": "2026-S2",
-      "legacy_import": true
+      "class_time_start": "20:00",
+      "class_time_end": "21:00",
+      "horario": "Tuesday and Thursday 20:00 - 21:00",
+      "semester_id": "2026-S1"
     }
   ]
 }
