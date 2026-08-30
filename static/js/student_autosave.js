@@ -38,6 +38,15 @@
     return data;
   }
 
+  function buildFormData() {
+    const data = new FormData(form);
+    if (!data.has('csrf_token')) {
+      const token = form.querySelector('input[name="csrf_token"]')?.value;
+      if (token) data.append('csrf_token', token);
+    }
+    return data;
+  }
+
   function applyFormData(data) {
     Object.entries(data).forEach(([key, value]) => {
       const el = form.elements.namedItem(key);
@@ -110,7 +119,7 @@
     try {
       const response = await fetch(autosaveUrl, {
         method: 'POST',
-        body: new FormData(form),
+        body: buildFormData(),
         credentials: 'same-origin',
         headers: { Accept: 'application/json', 'X-Auto-Save': '1' },
         redirect: 'manual',
@@ -211,8 +220,7 @@
     if (document.visibilityState === 'hidden' && dirty) {
       saveLocalDraft();
       if (autosaveUrl && navigator.sendBeacon) {
-        const data = new FormData(form);
-        navigator.sendBeacon(autosaveUrl, data);
+        navigator.sendBeacon(autosaveUrl, buildFormData());
       }
     }
   });
