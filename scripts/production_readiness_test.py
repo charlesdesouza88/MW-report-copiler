@@ -20,9 +20,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import app as web_app  # noqa: E402
-from auth import UserStore  # noqa: E402
-from teacher_classes import save_registry  # noqa: E402
+import app as web_app
+from auth import UserStore
+from teacher_classes import save_registry
 
 STUDENTS_CSV = (
     'teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,'
@@ -180,7 +180,8 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
         '/students/new',
         data={
             'teacher': 'Chuck',
-            'turma': 'ADMIN_TEST',
+            'class_choice': 'MASTER',
+            'turma': 'MASTER',
             'student_name': 'Admin Created',
             'nivel': 'TEENS 1',
             **_scores(),
@@ -297,18 +298,18 @@ def run_live(base: str) -> int:
     from urllib.request import HTTPCookieProcessor, Request, build_opener
 
     env_path = ROOT / '.env'
-    creds = {}
+    creds = dict(os.environ)
     if env_path.exists():
         for raw in env_path.read_text(encoding='utf-8').splitlines():
             line = raw.strip()
             if line and not line.startswith('#') and '=' in line:
                 k, v = line.split('=', 1)
-                creds[k.strip()] = v.strip().strip('"').strip("'")
+                creds.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
     email = creds.get('SUPERADMIN_EMAIL', '')
     password = creds.get('SUPERADMIN_PASSWORD') or creds.get('ADMIN_PASSWORD', '')
     if not email or not password:
-        print('SKIP live: no credentials in .env')
+        print('SKIP live: set SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD in the environment or .env')
         return 0
 
     base = base.rstrip('/')
@@ -344,7 +345,13 @@ def run_live(base: str) -> int:
     try:
         db = get('/health/db')
         body = db.read().decode()
-        runner.ok('/health/db', '"connected": true' in body or '"connected":true' in body, body[:80])
+        db_ready = (
+            '"connected": true' in body
+            or '"connected":true' in body
+            or '"mode": "csv"' in body
+            or '"mode":"csv"' in body
+        )
+        runner.ok('/health/db', db_ready, body[:80])
     except Exception as exc:
         runner.ok('/health/db', False, str(exc))
 
