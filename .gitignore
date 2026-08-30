@@ -1,5 +1,6 @@
 output/*.html
 data/users.json
+data/login_events.json
 data/student_snapshots.json
 data/student_monthly_reviews.json
 __pycache__/
