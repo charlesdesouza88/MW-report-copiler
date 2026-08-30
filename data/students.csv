@@ -1,23 +1,13 @@
 teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,speaking,listening,foco,writing,reading,gramatica,trabalho_equipe,organizacao,pontualidade,respeito_regras,faltas,missed_aulas,aula_extra,feedback_participacao,feedback_foco,feedback_trabalho_equipe,recomendacoes,observacao
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Bernardo Souza Barbosa,4,5,4,4,4,4,4,4,5,5,5,5,0,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Cecília Pires Lauar,4,4,2,2,4,2,2,2,4,4,4,4,0,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Davi Ribeiro Silva,4,5,3,4,4,3,3,3,5,5,5,5,2,,Reposição,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Enzo Chaves Rodrigues Lima,4,5,5,5,4,5,5,5,5,5,5,5,3,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Fernanda Trindade Ribeiro,5,4,4,3,4,4,4,4,4,4,4,4,1,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Gabriel Martins Santana Schettini,4,4,4,4,3,4,4,4,4,4,4,4,0,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Heitor Gonçalves de Oliveira,4,4,3,3,4,3,3,3,4,4,4,4,0,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Henrique Kessim Pires Lauar,5,3,5,4,3,5,4,4,3,3,3,3,0,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Lais Machado Castro Neves,2,5,1,1,3,1,1,1,5,5,5,5,2,,Reforço,,,,,"A aluna nao traz o material (caderno,lápis e borracha), se recusa a participar das atividades e de falar frases em inglês e questiona a relevância dos conteúdos"
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Luma Chaves Rodrigues Lima,3,5,2,2,2,1,1,2,5,5,5,5,3,,Reforço,,,,,"A aluna apresenta ótimo comportamento em sala, demonstrando respeito e postura adequada. No entanto, ainda demonstra insegurança ao se expressar e inglês e participar das atividades orais."
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Maria Fernanda Carvalho Pires,3,5,3,3,1,2,3,3,5,5,5,5,1,,Reforço,,,,,A aluna apresenta dificuldade de atenção durante as aulas. Ao copiar do quadro costuma duplicar palavras e até mesmo confundir a ordem delas. Com acompanhamento e aulas extras pode desenvolver maior foco e melhorar o desempenho.
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Rafael Fiallho Silveira,3,3,5,4,2,5,5,5,3,3,3,3,3,,,,,,,
-Chuck,LIVE_FLOW,Test class,,Terça-feira e Quinta-feira 20:00 - 21:00,Live Flow Kid,,,,,,,,,,,,,,,,,,,,
-Chuck,LIVE_FLOW,Test class,Book 1,Terça-feira e Quinta-feira 20:00 - 21:00,Live Flow Kid,3,3,3,3,3,3,3,3,3,3,3,3,0,,,,,,,
-Chuck,LIVE_FLOW,Test class,Book 1,Terça-feira e Quinta-feira 20:00 - 21:00,Live Flow Kid,3,3,3,3,3,3,3,3,3,3,3,3,0,,,,,,,
-Chuck,LIVE_FLOW,Test class,Book 1,Terça-feira e Quinta-feira 20:00 - 21:00,Live Flow Kid,3,3,3,3,3,3,3,3,3,3,3,3,0,,,,,,,
-Chuck,LIVE_FLOW,Test class,Book 1,Terça-feira e Quinta-feira 20:00 - 21:00,Live Flow Kid,3,3,3,3,3,3,3,3,3,3,3,3,0,,,,,,,
-Chuck,LIVE_FLOW,Test class,Book 1,Terça-feira e Quinta-feira 20:00 - 21:00,Live Flow Kid,3,3,3,3,3,3,3,3,3,3,3,3,0,,,,,,,
-Chuck,TEENS_1,Prize,TEENS 1,Quarta-feira e Sexta-feira 22:00 - 23:00,daniel,3,3,3,3,3,3,3,3,3,3,3,3,0,,,,,,,
-Chuck,LIVE_FLOW,Test class,Book 1,Terça-feira e Quinta-feira 20:00 - 21:00,Live Flow Kid,3,3,3,3,3,3,3,3,3,3,3,3,0,,,,,,,
-Chuck,LIVE_FLOW,Test class,Book 1,Mon 10:00,Live Flow Kid,3,3,3,3,3,3,3,3,3,3,3,3,0,,,,,,,
-Chuck,MASTER,Masters,TEENS 3,Terça-feira e Sexta-feira 13:00 - 14:00,Test,,,,,,,,,,,,,,,,,,,,
+Teacher A,COMET,Comet,Kids 2,"Monday and Wednesday, 08:00-09:30",Sample Student 01,4,5,4,4,4,4,4,4,5,5,5,5,0,,,,,,,
+Teacher A,COMET,Comet,Kids 2,"Monday and Wednesday, 08:00-09:30",Sample Student 02,4,4,2,2,4,2,2,2,4,4,4,4,0,,,,,,,
+Teacher A,COMET,Comet,Kids 2,"Monday and Wednesday, 08:00-09:30",Sample Student 03,4,5,3,4,4,3,3,3,5,5,5,5,2,,Reforco,,,,,
+Teacher A,COMET,Comet,Kids 2,"Monday and Wednesday, 08:00-09:30",Sample Student 04,4,5,5,5,4,5,5,5,5,5,5,5,3,,,,,,,
+Teacher A,COMET,Comet,Kids 2,"Monday and Wednesday, 08:00-09:30",Sample Student 05,5,4,4,3,4,4,4,4,4,4,4,4,1,,,,,,,
+Teacher A,COMET,Comet,Kids 2,"Monday and Wednesday, 08:00-09:30",Sample Student 06,4,4,4,4,3,4,4,4,4,4,4,4,0,,,,,,,
+Teacher A,COMET,Comet,Kids 2,"Monday and Wednesday, 08:00-09:30",Sample Student 07,4,4,3,3,4,3,3,3,4,4,4,4,0,,,,,,,
+Teacher A,COMET,Comet,Kids 2,"Monday and Wednesday, 08:00-09:30",Sample Student 08,5,3,5,4,3,5,4,4,3,3,3,3,0,,,,,,,
+Teacher A,COMET,Comet,Kids 2,"Monday and Wednesday, 08:00-09:30",Sample Student 09,2,5,1,1,3,1,1,1,5,5,5,5,2,,Reforco,,,,,Anonymized sample note for local report generation.
+Teacher A,COMET,Comet,Kids 2,"Monday and Wednesday, 08:00-09:30",Sample Student 10,3,5,2,2,2,1,1,2,5,5,5,5,3,,Reforco,,,,,Anonymized sample note for local report generation.
+Teacher A,COMET,Comet,Kids 2,"Monday and Wednesday, 08:00-09:30",Sample Student 11,3,5,3,3,1,2,3,3,5,5,5,5,1,,Reforco,,,,,Anonymized sample note for local report generation.
+Teacher A,COMET,Comet,Kids 2,"Monday and Wednesday, 08:00-09:30",Sample Student 12,3,3,5,4,2,5,5,5,3,3,3,3,3,,,,,,,

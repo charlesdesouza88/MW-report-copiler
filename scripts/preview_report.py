@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from compiler import (  # noqa: E402
+from compiler import (
     create_report_environment,
     generate_class_diagnostics,
     generate_individual_reports,
