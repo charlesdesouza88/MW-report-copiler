@@ -1,5 +1,6 @@
 from compiler import (
     build_attendance_calendar,
+    build_class_ctx,
     build_student_ctx,
     composite_donut_chart,
     create_report_environment,
@@ -256,6 +257,26 @@ def test_individual_report_renders_labeled_overall_scores():
     assert 'class="mw-icon-tile"' in html
     assert 'class="legend-item"' in html
     assert 'grid-template-columns: minmax(132px, 1fr)' in html
+
+
+def test_class_diagnostic_combines_medias_into_one_row():
+    from pathlib import Path
+
+    base = Path(__file__).resolve().parent.parent
+    env = create_report_environment(base / "templates")
+    html = env.get_template("class_diagnostic.html").render(
+        **build_class_ctx("MASTER", [_student()], _lessons(), report_month="2026-08")
+    )
+
+    assert html.count('class="class-overview"') == 1
+    assert html.count('class="class-media-row"') == 1
+    assert html.count('class="class-media-cell"') == 4
+    assert 'class="class-ring-cell"' not in html
+    assert "Gráfico de colunas" not in html
+    assert 'href="#ri-calendar-check"' in html
+    assert 'href="#ri-book-open"' in html
+    assert 'href="#ri-users"' in html
+    assert "Médias da turma — índices do período" in html
 
 
 def test_individual_report_embeds_attendance_calendar_in_frequencia():
