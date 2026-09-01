@@ -429,6 +429,8 @@ class UserStore:
                     raise ValueError('Este e-mail já está em uso.')
                 user['email'] = normalize_email(email)
             if password:
+                if len(password) < _MIN_PASSWORD_LEN:
+                    raise ValueError(f'A senha deve ter pelo menos {_MIN_PASSWORD_LEN} caracteres.')
                 user['password_hash'] = generate_password_hash(password)
             if teacher_name is not None:
                 user['teacher_name'] = normalize_teacher_name(teacher_name)

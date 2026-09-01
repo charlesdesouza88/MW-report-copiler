@@ -143,6 +143,48 @@ def test_login_success_sets_session(monkeypatch, tmp_path):
     assert len(events) == 2
 
 
+def test_login_page_does_not_disclose_bootstrap_email(monkeypatch, tmp_path):
+    monkeypatch.setattr(web_app, "DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.DATA_DIR.mkdir()
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, web_app.DATA_DIR)
+    monkeypatch.setattr(web_app, "db_store", None)
+
+    client = web_app.app.test_client()
+    response = client.get("/login")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "admin@test.local" not in html
+    assert "Use o e-mail cadastrado" in html
+
+
+def test_login_failures_use_generic_message(monkeypatch, tmp_path):
+    monkeypatch.setattr(web_app, "DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.DATA_DIR.mkdir()
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, web_app.DATA_DIR)
+    monkeypatch.setattr(web_app, "db_store", None)
+
+    client = web_app.app.test_client()
+    wrong_password = client.post(
+        "/login",
+        data={"email": "admin@test.local", "password": "wrongpass"},
+    ).get_data(as_text=True)
+    unknown_email = client.post(
+        "/login",
+        data={"email": "unknown@test.local", "password": "wrongpass"},
+    ).get_data(as_text=True)
+
+    assert "E-mail ou senha incorretos." in wrong_password
+    assert "E-mail ou senha incorretos." in unknown_email
+    assert "Senha incorreta" not in wrong_password
+    assert "E-mail não cadastrado" not in unknown_email
+    assert "admin@test.local" not in unknown_email
+
+
 def test_users_page_shows_last_access_and_contact_actions(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
