@@ -194,3 +194,100 @@ def test_clear_aula_extra_after_completed_session():
     }
     updated = clear_aula_extra_after_completed_session(students, session)
     assert updated[0]['aula_extra'] == ''
+
+
+def test_row_matches_turma_display_and_code():
+    from extra_sessions import apply_open_extra_sessions_to_students
+
+    students = [{
+        'teacher': 'Amanda',
+        'student_name': 'Lais Machado',
+        'turma': 'COMET',
+        'turma_display': 'Comet',
+        'aula_extra': '',
+    }]
+    sessions = [{
+        'teacher': 'Amanda',
+        'student_name': 'Lais Machado (Comet - A)',
+        'turma': 'Comet - A',
+        'session_type': 'Reforço',
+        'realizado': '',
+    }]
+    overlay = apply_open_extra_sessions_to_students(students, sessions)
+    assert overlay[0]['aula_extra'] == 'Reforço'
+
+
+def test_apply_open_extra_sessions_ignores_completed():
+    from extra_sessions import apply_open_extra_sessions_to_students
+
+    students = [{
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe',
+        'turma': 'MASTER',
+        'turma_display': 'Masters',
+        'aula_extra': '',
+    }]
+    sessions = [{
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe',
+        'turma': 'MASTER',
+        'session_type': 'Reforço',
+        'realizado': 'OK',
+    }]
+    overlay = apply_open_extra_sessions_to_students(students, sessions)
+    assert overlay[0]['aula_extra'] == ''
+
+
+def test_apply_open_extra_sessions_normalizes_legacy_flag():
+    from extra_sessions import apply_open_extra_sessions_to_students
+
+    students = [{
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe',
+        'turma': 'MASTER',
+        'aula_extra': 'Reposicao',
+    }]
+    overlay = apply_open_extra_sessions_to_students(students, [])
+    assert overlay[0]['aula_extra'] == 'Reposição'
+
+
+def test_apply_pending_session_flag_sets_empty_student():
+    from extra_sessions import apply_pending_session_flag_to_students
+
+    students = [{
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe',
+        'turma': 'MASTER',
+        'turma_display': 'Masters',
+        'aula_extra': '',
+    }]
+    session = {
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe (Masters)',
+        'turma': 'Masters',
+        'session_type': 'Reposição',
+        'realizado': '',
+    }
+    updated = apply_pending_session_flag_to_students(students, session)
+    assert updated[0]['aula_extra'] == 'Reposição'
+
+
+def test_sync_reflags_after_completed_session():
+    student = {
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe',
+        'turma': 'MASTER',
+        'aula_extra': 'Reforço',
+    }
+    completed = {
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe (MASTER)',
+        'turma': 'MASTER',
+        'session_type': 'Reforço',
+        'realizado': 'OK',
+        'observacao': '',
+    }
+    rows = sync_student_extra_sessions([completed], student)
+    pending = [row for row in rows if not is_status_ok(row.get('realizado'))]
+    assert len(pending) == 1
+    assert pending[0]['session_type'] == 'Reforço'

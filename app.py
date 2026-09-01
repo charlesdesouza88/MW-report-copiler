@@ -36,8 +36,10 @@ from auth import (ROLE_ADMIN, ROLE_LABELS, ROLE_SUPERADMIN, ROLE_TEACHER,
                   user_public_dict)
 from csv_import import parse_upload_csv
 from extra_sessions import (AUTO_AULA_EXTRA_MARKER, EXTRA_SESSION_FIELD_LABELS,
-                            EXTRA_SESSION_FIELDS, build_atendimentos_template_csv,
-                            SESSION_TYPE_CHOICES, clear_aula_extra_after_completed_session,
+                            EXTRA_SESSION_FIELDS, apply_open_extra_sessions_to_students,
+                            apply_pending_session_flag_to_students,
+                            build_atendimentos_template_csv,
+                            SESSION_TYPE_CHOICES,
                             coerce_session_status_fields, display_status, is_status_ok,
                             normalize_aula_extra, parse_import_csv,
                             reconcile_flagged_students, remove_sessions_for_student,
@@ -892,6 +894,7 @@ def _scoped_students(review_month=None, merge=True, apply_attendance=False):
             _load_lesson_attendance(),
             review_month,
         )
+    visible = apply_open_extra_sessions_to_students(visible, _load_extra_sessions())
     return roster, visible
 
 
@@ -1992,6 +1995,21 @@ def _sync_student_aula_extra_sessions(student):
         _save_extra_sessions(updated)
 
 
+def _sync_extra_session_to_student_flag(session_row):
+    """Keep monthly aula_extra in sync when an extra session is created or completed."""
+    if is_status_ok(session_row.get('realizado')):
+        month = _get_review_month()
+    else:
+        month = parse_lesson_month(session_row.get('date', '')) or _get_review_month()
+    if not month:
+        return
+    roster = _load_roster_students()
+    merged = _merged_roster_for_month(roster, month)
+    updated = apply_pending_session_flag_to_students(merged, session_row)
+    if updated is not merged:
+        _persist_monthly_rows(updated, month)
+
+
 def _reconcile_flagged_extra_sessions(students):
     all_rows = _load_extra_sessions()
     updated = reconcile_flagged_students(all_rows, students)
@@ -2792,6 +2810,7 @@ def students():
     all_students, rows = _scoped_students()
     if user and user['role'] == ROLE_TEACHER:
         _sync_teacher_registry(user, all_students)
+    _reconcile_flagged_extra_sessions(rows)
     turma_labels = _turma_display_map(rows, user)
     turma_filters = _turma_filters(rows, user)
     return render_template(
@@ -3125,6 +3144,7 @@ def extra_session_new():
             abort(400)
         all_rows.append(new_row)
         _save_extra_sessions(all_rows)
+        _sync_extra_session_to_student_flag(new_row)
         return redirect(url_for('extra_sessions'))
 
     defaults = {f: '' for f in EXTRA_SESSION_FIELDS}
@@ -3161,13 +3181,7 @@ def extra_session_edit(idx):
             abort(404)
         all_rows[global_idx] = updated
         _save_extra_sessions(all_rows)
-        if is_status_ok(updated.get('realizado')):
-            review_month = _get_review_month()
-            roster = _load_roster_students()
-            merged = _merged_roster_for_month(roster, review_month)
-            cleared = clear_aula_extra_after_completed_session(merged, updated)
-            if cleared is not merged:
-                _persist_monthly_rows(cleared, review_month)
+        _sync_extra_session_to_student_flag(updated)
         return redirect(url_for('extra_sessions'))
 
     return render_template(
@@ -3219,6 +3233,8 @@ def extra_sessions_import():
         existing.extend(rows)
         _save_extra_sessions(existing)
         session['extra_session_flash_message'] = f'{len(rows)} atendimento(s) adicionado(s).'
+    for row in rows:
+        _sync_extra_session_to_student_flag(row)
     for row in rows:
         month = parse_lesson_month(row.get('date', ''))
         if month:
