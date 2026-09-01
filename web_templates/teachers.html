@@ -239,7 +239,7 @@
                 {% endif %}
                 <div style="margin-bottom:8px;">
                   <label style="font-size:10px;font-weight:700;color:#666;">Nova senha (opcional)</label>
-                  <input type="password" name="password" placeholder="Deixe em branco para manter" style="width:100%;padding:8px;border:1px solid #DDD;border-radius:6px;">
+                  <input type="password" name="password" placeholder="Deixe em branco para manter" minlength="8" style="width:100%;padding:8px;border:1px solid #DDD;border-radius:6px;">
                 </div>
                 <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:10px;">
                   <input type="checkbox" name="active" value="1" {% if u.active %}checked{% endif %}>

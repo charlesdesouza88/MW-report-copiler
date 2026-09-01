@@ -2286,6 +2286,7 @@ def health_db():
 @app.route('/health/auth')
 def health_auth():
     """Auth diagnostics (JSON). Public payload intentionally excludes PII."""
+    _init_application_services()
     status = user_store.auth_status(SUPERADMIN_EMAIL)
     public_status = {
         'user_count': status['user_count'],
@@ -2318,22 +2319,8 @@ def login():
                 'Nenhuma conta foi criada no servidor. Defina SUPERADMIN_EMAIL e '
                 'SUPERADMIN_PASSWORD nas variáveis de ambiente (Railway) e reinicie o app.'
             )
-        elif not SUPERADMIN_PASSWORD and user_store.get_by_email(email) is None:
-            error = (
-                f'E-mail ou senha incorretos. Primeiro acesso do administrador: use '
-                f'{bootstrap_email} e a senha definida em SUPERADMIN_PASSWORD.'
-            )
         else:
-            known = user_store.get_by_email(email)
-            if known and not known.get('active', True):
-                error = 'Esta conta está desativada. Peça a um administrador para reativá-la.'
-            elif known:
-                error = 'Senha incorreta para este e-mail.'
-            else:
-                error = (
-                    f'E-mail não cadastrado. Administrador: use {bootstrap_email}. '
-                    f'Professores: use o e-mail criado em Usuários.'
-                )
+            error = 'E-mail ou senha incorretos.'
     return render_template(
         'login.html',
         error=error,
