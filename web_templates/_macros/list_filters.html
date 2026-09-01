@@ -89,8 +89,14 @@
   if (!window.__mwListFiltersEngine) {
     window.__mwListFiltersEngine = true;
 
-    function datasetKey(filterKey) {
-      return (filterKey || '').replace(/_/g, '-');
+    function rowFilterValue(row, filterKey) {
+      var attr = 'data-' + String(filterKey || '').replace(/_/g, '-');
+      var fromAttr = row.getAttribute(attr);
+      if (fromAttr !== null) return fromAttr;
+      var camel = String(filterKey || '').replace(/[-_]([a-z])/g, function (_, c) {
+        return c.toUpperCase();
+      });
+      return (row.dataset && row.dataset[camel]) || '';
     }
 
     function parseState(storageKey, urlKeys, defaults) {
@@ -176,7 +182,7 @@
             var key = filterKeys[i];
             var filterVal = state[key] || '';
             if (!filterVal) continue;
-            var rowVal = row.dataset[datasetKey(key)] || '';
+            var rowVal = rowFilterValue(row, key);
             if (filterVal === '__none__') {
               if (rowVal && rowVal !== '__none__') return false;
             } else if (rowVal !== filterVal) {

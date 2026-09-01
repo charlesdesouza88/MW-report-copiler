@@ -322,6 +322,28 @@ def _display_name_key(name):
     return cleaned
 
 
+def _turmas_compatible(row, student):
+    """Match extra-session turma to a student code or display name.
+
+    Spreadsheet imports store labels like 'Comet - A' while the roster uses
+    codes such as COMET plus turma_display 'Comet'. Exact code match still
+    wins when both sides use the same token.
+    """
+    extra = (row.get('turma') or '').strip().casefold()
+    code = (student.get('turma') or '').strip().casefold()
+    display = (student.get('turma_display') or '').strip().casefold()
+    if not extra or not code:
+        return True
+    if extra == code or (display and extra == display):
+        return True
+    for token in (code, display):
+        if not token:
+            continue
+        if extra.startswith(token + ' ') or extra.startswith(token + '-') or extra.startswith(token + ' -'):
+            return True
+    return False
+
+
 def _row_matches_student(row, student):
     if _display_name_key(row.get('student_name')) != _display_name_key(student.get('student_name')):
         return False
@@ -331,11 +353,7 @@ def _row_matches_student(row, student):
         return False
     # Prefer matching on turma when both sides declare one — two students with
     # the same name under the same teacher but different turmas must not mix.
-    row_turma = (row.get('turma') or '').strip().upper()
-    student_turma = (student.get('turma') or '').strip().upper()
-    if row_turma and student_turma:
-        return row_turma == student_turma
-    return True
+    return _turmas_compatible(row, student)
 
 
 def remove_sessions_for_student(rows, student):
@@ -343,15 +361,74 @@ def remove_sessions_for_student(rows, student):
 
 
 def has_open_session_for_student(rows, student, session_type):
-    """True when a pending or completed session exists for this student and type."""
+    """True when a pending (not completed) session exists for this student and type."""
     target = (session_type or '').strip()
     for row in rows:
         if not _row_matches_student(row, student):
             continue
         if (row.get('session_type') or '').strip() != target:
             continue
+        if is_status_ok(row.get('realizado')):
+            continue
         return True
     return False
+
+
+def pending_session_type_for_student(rows, student):
+    """Canonical Reforço/Reposição if this student has a pending extra session."""
+    found = ''
+    for row in rows or []:
+        if not _row_matches_student(row, student):
+            continue
+        if is_status_ok(row.get('realizado')):
+            continue
+        session_type = normalize_aula_extra(row.get('session_type'))
+        if not session_type:
+            continue
+        if session_type == 'Reposição':
+            return 'Reposição'
+        found = session_type
+    return found
+
+
+def apply_open_extra_sessions_to_students(students, session_rows):
+    """Normalize aula_extra and overlay pending extra sessions onto the roster.
+
+    Monthly reviews start blank each month, so kids with an open reforço or
+    reposição would otherwise disappear from the Alunos filter.
+    """
+    out = []
+    for student in students or []:
+        row = dict(student)
+        flagged = normalize_aula_extra(row.get('aula_extra'))
+        if flagged:
+            row['aula_extra'] = flagged
+        else:
+            overlay = pending_session_type_for_student(session_rows, student)
+            if overlay:
+                row['aula_extra'] = overlay
+        out.append(row)
+    return out
+
+
+def apply_pending_session_flag_to_students(students, session_row):
+    """Write aula_extra from an extra session: set when pending, clear when done."""
+    if is_status_ok(session_row.get('realizado')):
+        return clear_aula_extra_after_completed_session(students, session_row)
+    session_type = normalize_aula_extra(session_row.get('session_type'))
+    if not session_type:
+        return students
+    out = []
+    changed = False
+    for student in students or []:
+        row = dict(student)
+        if _row_matches_student(session_row, student):
+            current = normalize_aula_extra(row.get('aula_extra'))
+            if not current:
+                row['aula_extra'] = session_type
+                changed = True
+        out.append(row)
+    return out if changed else students
 
 
 def student_row_from_aula_extra_flag(student):
