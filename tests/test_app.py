@@ -381,6 +381,34 @@ def test_reports_preview_path_is_sanitized(monkeypatch, tmp_path):
     assert ok.get_data(as_text=True) == "<html>ok</html>"
 
 
+def test_reports_preview_live_renders_class_medias_row(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    out_dir = tmp_path / "output"
+    data_dir.mkdir()
+    out_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    stale = out_dir / "MASTER_2026-08_class_diagnostic.html"
+    stale.write_text("<html>stale class diagnostic</html>", encoding="utf-8")
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", out_dir)
+    monkeypatch.setattr(web_app, "TMPL_DIR", Path(web_app.__file__).parent / "templates")
+    monkeypatch.setattr(web_app, "SNAPSHOTS_PATH", data_dir / "student_snapshots.json")
+    _init_user_store(monkeypatch, data_dir)
+    _seed_teacher_classes(data_dir, "Chuck", ("MASTER", "Masters"))
+
+    client = web_app.app.test_client()
+    _login(client)
+    response = client.get("/reports/preview/MASTER_2026-08_class_diagnostic.html")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "class-media-row" in html
+    assert "class-overview" in html
+    assert "stale class diagnostic" not in html
+
+
 def test_reports_preview_live_renders_attendance_calendar(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     out_dir = tmp_path / "output"
@@ -539,6 +567,115 @@ def test_students_page_has_dual_view_markup(monkeypatch, tmp_path):
     assert "students-table-view" in html
     assert "students-cards-view" in html
     assert "student-card-item" in html
+
+
+def test_list_filter_script_reads_kebab_case_data_attributes():
+    """aula_extra chips must read data-aula-extra, not dataset['aula-extra']."""
+    text = Path("web_templates/_macros/list_filters.html").read_text(encoding="utf-8")
+    assert "function rowFilterValue" in text
+    assert "row.getAttribute(attr)" in text
+    assert "row.dataset[datasetKey(key)]" not in text
+
+
+def test_pending_extra_session_shows_in_students_aula_extra_filter(monkeypatch, tmp_path):
+    """Kids with open reforço must appear on Alunos even when the month review is blank."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(
+        _students_csv().replace("Reposicao", ""),
+        encoding="utf-8",
+    )
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,10/07/2026,Lesson Jul,,\n"
+        "MASTER,2,12/08/2026,Lesson Aug,,\n",
+        encoding="utf-8",
+    )
+    (data_dir / "student_monthly_reviews.json").write_text(
+        json.dumps([{
+            "report_month": "2026-07",
+            "turma": "MASTER",
+            "student_name": "Jane Doe",
+            "participacao": "4",
+            "aula_extra": "",
+        }]),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "db_store", None)
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+
+    web_app._save_extra_sessions([{
+        "teacher": "Chuck",
+        "student_name": "Jane Doe (Masters)",
+        "turma": "Masters",
+        "date": "15/08/2026",
+        "horario": "09:00",
+        "turno": "Manhã",
+        "session_type": "Reforço",
+        "assuntos": "Reforço",
+        "observacao": "",
+        "contatado": "",
+        "marcado": "",
+        "realizado": "",
+    }])
+
+    client = web_app.app.test_client()
+    _login(client)
+    html = client.get("/students?month=2026-08").get_data(as_text=True)
+    assert 'data-aula-extra="Reforço"' in html
+    assert "Jane Doe" in html
+
+
+def test_new_extra_session_flags_student_on_alunos_page(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(
+        _students_csv().replace("Reposicao", ""),
+        encoding="utf-8",
+    )
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,12/08/2026,Lesson Aug,,\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "db_store", None)
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+    created = client.post(
+        "/extra-sessions/new",
+        data={
+            "student_name": "Jane Doe",
+            "turma": "MASTER",
+            "teacher": "Chuck",
+            "session_type": "Reposição",
+            "date_picker": "2026-08-15",
+            "horario": "09:00",
+            "turno": "Manhã",
+            "assuntos": "Reposição aula 2",
+            "observacao": "",
+            "contatado": "",
+            "marcado": "",
+            "realizado": "",
+        },
+        follow_redirects=True,
+    )
+    assert created.status_code == 200
+    html = client.get("/students?month=2026-08").get_data(as_text=True)
+    assert 'data-aula-extra="Reposição"' in html
 
 
 def test_upload_page_shows_csv_template_preview(monkeypatch, tmp_path):

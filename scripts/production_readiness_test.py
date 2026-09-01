@@ -180,7 +180,8 @@ def journey_admin(client, runner: Runner, out_dir: Path | None = None):
         '/students/new',
         data={
             'teacher': 'Chuck',
-            'turma': 'ADMIN_TEST',
+            'class_choice': 'MASTER',
+            'turma': 'MASTER',
             'student_name': 'Admin Created',
             'nivel': 'TEENS 1',
             **_scores(),
