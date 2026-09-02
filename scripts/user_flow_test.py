@@ -56,6 +56,7 @@ def _student_form(name, turma, teacher='Chuck'):
         'nivel': 'Book 1',
         'horario': 'Mon 10:00',
         'student_name': name,
+        'class_choice': turma,
         'participacao': '3',
         'comportamento': '3',
         'speaking': '3',
