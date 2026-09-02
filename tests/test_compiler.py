@@ -489,6 +489,7 @@ def test_load_csv_strips_excel_bom(tmp_path):
 
 def test_attendance_calendar_accepts_legacy_ddmm_dates():
     from datetime import datetime
+
     from compiler import build_attendance_calendar
 
     year = datetime.now().year
