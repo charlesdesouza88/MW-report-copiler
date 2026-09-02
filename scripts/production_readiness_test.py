@@ -38,6 +38,7 @@ STUDENTS_CSV = (
 LESSONS_CSV = (
     'turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n'
     'MASTER,1,01/02/2026,Lesson 1,,\n'
+    'MASTER,2,15/02/2026,Lesson 2,,\n'
     'SPARK,1,05/02/2026,Spark lesson,,\n'
 )
 
