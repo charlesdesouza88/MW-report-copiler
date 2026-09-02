@@ -88,6 +88,7 @@ from login_events import (append_login, contact_email_for_user,
 from class_transfer import (apply_transfer, build_transfer_export_zip,
                             list_teachers_from_students, preview_transfer,
                             turmas_for_teacher)
+from csv_export import csv_text
 from report_periods import (available_report_months, available_semesters,
                             compute_month_trend, current_semester,
                             default_report_month, default_semester,
@@ -106,9 +107,6 @@ from student_transfer import (load_transfer_log, save_transfer_log,
 from student_reviews import (MONTHLY_REVIEW_FIELDS, ROSTER_FIELDS,
                              apply_upload_row, extract_roster_fields,
                              load_monthly_reviews, merge_roster_for_month,
-                             migrate_roster_scores_to_month,
-                             rows_from_store, save_monthly_reviews,
-                             split_student_row, store_from_rows,
                              migrate_roster_scores_to_month,
                              remove_reviews_for_student,
                              rows_from_store, save_monthly_reviews,
@@ -614,11 +612,7 @@ def _load_template_rows(name):
 def _build_template_csv(name):
     fields = STUDENT_FIELDS if name == 'students' else LESSON_FIELDS
     rows = _load_template_rows(name)
-    buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=fields, extrasaction='ignore')
-    writer.writeheader()
-    writer.writerows(rows)
-    return '\ufeff' + buf.getvalue()
+    return csv_text(fields, rows, bom=True)
 
 
 def _read_csv_text(uploaded_file):
@@ -3404,11 +3398,7 @@ def download_template(name):
             abort(403)
         fields = STUDENT_FIELDS if name == 'students' else LESSON_FIELDS
         rows = _teacher_template_rows(name, user)
-        buf = io.StringIO()
-        writer = csv.DictWriter(buf, fieldnames=fields, extrasaction='ignore')
-        writer.writeheader()
-        writer.writerows(rows)
-        buf = '\ufeff' + buf.getvalue()
+        buf = csv_text(fields, rows, bom=True)
     data = io.BytesIO(buf.encode('utf-8'))
     data.seek(0)
     return send_file(
@@ -3443,34 +3433,31 @@ def download_csv(name):
         if not rows:
             abort(404)
         fields = STUDENT_FIELDS if name == 'students' else LESSON_FIELDS
-        buf = io.StringIO()
-        writer = csv.DictWriter(buf, fieldnames=fields, extrasaction='ignore')
-        writer.writeheader()
-        writer.writerows(rows)
-        data = io.BytesIO(buf.getvalue().encode('utf-8'))
+        data = io.BytesIO(csv_text(fields, rows).encode('utf-8'))
         data.seek(0)
         return send_file(data, as_attachment=True, download_name=f'{name}.csv', mimetype='text/csv')
 
     path = DATA_DIR / f'{name}.csv'
     if not path.exists():
         abort(404)
-    if has_full_data_access(user['role']):
-        return send_file(path, as_attachment=True, download_name=f'{name}.csv')
-
     all_students = load_csv(DATA_DIR / 'students.csv') if (DATA_DIR / 'students.csv').exists() else []
-    all_lessons = load_csv(path) if name == 'lessons' else []
     if name == 'students':
-        rows = filter_students_for_user(all_students, user)
+        rows = (
+            all_students
+            if has_full_data_access(user['role'])
+            else filter_students_for_user(all_students, user)
+        )
     else:
-        rows = filter_lessons_for_user(all_lessons, all_students, user)
+        all_lessons = load_csv(path)
+        rows = (
+            all_lessons
+            if has_full_data_access(user['role'])
+            else filter_lessons_for_user(all_lessons, all_students, user)
+        )
     if not rows:
         abort(404)
     fields = STUDENT_FIELDS if name == 'students' else LESSON_FIELDS
-    buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=fields, extrasaction='ignore')
-    writer.writeheader()
-    writer.writerows(rows)
-    data = io.BytesIO(buf.getvalue().encode('utf-8'))
+    data = io.BytesIO(csv_text(fields, rows).encode('utf-8'))
     data.seek(0)
     return send_file(data, as_attachment=True, download_name=f'{name}.csv', mimetype='text/csv')
 

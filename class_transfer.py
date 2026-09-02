@@ -1,10 +1,10 @@
 """Transfer a turma (class) from one teacher to another — students, registry, and related data."""
 
-import csv
 import io
 import zipfile
 
 from auth import normalize_teacher_name
+from csv_export import csv_text
 from csv_import import LESSON_FIELDS, STUDENT_FIELDS
 from teacher_classes import (
     class_display_from_student_rows,
@@ -228,11 +228,7 @@ def build_transfer_export_zip(students, lessons, registry, from_teacher, to_teac
         ):
             if not rows:
                 continue
-            csv_buf = io.StringIO()
-            writer = csv.DictWriter(csv_buf, fieldnames=fields, extrasaction='ignore')
-            writer.writeheader()
-            writer.writerows(rows)
-            zf.writestr(name, csv_buf.getvalue().encode('utf-8'))
+            zf.writestr(name, csv_text(fields, rows).encode('utf-8'))
 
         readme = (
             f'Transferência de turma: {summary["turma_display"]} ({summary["turma"]})\n'
