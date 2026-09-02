@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 from auth import normalize_teacher_name
+from csv_export import csv_text
 from form_ui import capitalize_student_name, date_from_form, time_from_form
 
 EXTRA_SESSION_FIELDS = [
@@ -207,11 +208,7 @@ def build_atendimentos_template_csv(template_dir, teacher_name=None):
     if teacher_name:
         for row in rows:
             row['Professor'] = teacher_name
-    buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=ATENDIMENTOS_CSV_HEADERS, extrasaction='ignore')
-    writer.writeheader()
-    writer.writerows(rows)
-    return '\ufeff' + buf.getvalue()
+    return csv_text(ATENDIMENTOS_CSV_HEADERS, rows, bom=True)
 
 
 def row_from_form(form):

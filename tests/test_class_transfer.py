@@ -1,3 +1,4 @@
+import csv
 import io
 import zipfile
 
@@ -72,7 +73,12 @@ def test_turmas_for_teacher_combines_registry_and_students():
 
 
 def test_move_class_between_teachers_registry(tmp_path):
-    from teacher_classes import list_for_teacher, load_registry, move_class_between_teachers, save_registry
+    from teacher_classes import (
+        list_for_teacher,
+        load_registry,
+        move_class_between_teachers,
+        save_registry,
+    )
 
     path = tmp_path / 'teacher_classes.json'
     data = {}
@@ -156,3 +162,23 @@ def test_build_transfer_export_zip():
     lessons_csv = zf.read('lessons.csv').decode('utf-8')
     assert 'MASTER' in lessons_csv
     assert lessons_csv.count('MASTER') >= 2
+
+
+def test_build_transfer_export_zip_neutralizes_spreadsheet_formulas():
+    registry = {}
+    _seed_class(registry, 'Chuck', 'MASTER', 'Masters')
+    students = _sample_students()
+    students[0]['student_name'] = '=2+2'
+    lessons = _sample_lessons()
+    lessons[0]['licao_conteudo'] = '+SUM(A1:A2)'
+
+    payload, _, err = build_transfer_export_zip(
+        students, lessons, registry, 'Chuck', 'Paula', 'MASTER',
+    )
+
+    assert err is None
+    zf = zipfile.ZipFile(io.BytesIO(payload))
+    student_rows = list(csv.DictReader(io.StringIO(zf.read('students.csv').decode('utf-8'))))
+    lesson_rows = list(csv.DictReader(io.StringIO(zf.read('lessons.csv').decode('utf-8'))))
+    assert student_rows[0]['student_name'] == "'=2+2"
+    assert lesson_rows[0]['licao_conteudo'] == "'+SUM(A1:A2)"

@@ -1,3 +1,4 @@
+import csv
 import io
 import json
 import zipfile
@@ -479,6 +480,29 @@ def test_upload_template_students_download(monkeypatch, tmp_path):
     assert b"Jane Doe" in response.data
 
 
+def test_download_students_csv_neutralizes_spreadsheet_formulas(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    out_dir = tmp_path / "output"
+    data_dir.mkdir()
+    out_dir.mkdir()
+    malicious = _students_csv().replace("Jane Doe", "=2+2").replace("Practice speaking", "@cmd")
+    (data_dir / "students.csv").write_text(malicious, encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", out_dir)
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+
+    response = client.get("/upload/download/students")
+
+    assert response.status_code == 200
+    row = next(csv.DictReader(io.StringIO(response.get_data(as_text=True))))
+    assert row["student_name"] == "'=2+2"
+    assert row["recomendacoes"] == "'@cmd"
+
+
 def test_login_page_has_viewport(monkeypatch, tmp_path):
     monkeypatch.setattr(web_app, "DATA_DIR", tmp_path / "data")
     monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
@@ -727,7 +751,7 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     assert "MASTER" in html
-    assert "L9" not in html
+    assert "OTHER" not in html
 
     new_form = client.get("/lessons/new")
     new_html = new_form.get_data(as_text=True)
