@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import http.cookiejar
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -54,6 +55,10 @@ def main():
     def get(path):
         return opener.open(f'{base}{path}', timeout=60)
 
+    def csrf_from_html(html):
+        match = re.search(r'name="csrf_token"\s+value="([^"]+)"', html)
+        return match.group(1) if match else ''
+
     ok = True
     try:
         health = get('/health').read().decode()
@@ -62,7 +67,12 @@ def main():
         print(f'[FAIL] /health: {exc}')
         ok = False
 
-    post('/login', {'email': email, 'password': password})
+    login_page = get('/login').read().decode('utf-8', errors='replace')
+    post('/login', {
+        'email': email,
+        'password': password,
+        'csrf_token': csrf_from_html(login_page),
+    })
     dash = get('/').read().decode('utf-8', errors='replace')
     students = get('/students').read().decode('utf-8', errors='replace')
 
