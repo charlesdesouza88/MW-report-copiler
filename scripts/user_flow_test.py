@@ -269,10 +269,11 @@ def run_live(base: str):
     runner.check('New student validation', 'Informe o nome do aluno e a turma' in bad_body)
 
     new_name = 'Live Flow Kid'
+    created_month = ''
     try:
         post(
             '/students/new',
-            {**_student_form(new_name, 'MASTER'), 'csrf_token': student_csrf},
+            {**_student_form(new_name, 'LIVE_FLOW'), 'csrf_token': student_csrf},
             allow_redirect=False,
         )
         create_ok = False
@@ -280,6 +281,10 @@ def run_live(base: str):
     except urllib.error.HTTPError as e:
         loc = e.headers.get('Location', '')
         create_ok = e.code in (302, 303) and '/students' in (loc or '')
+        created_month = (
+            urllib.parse.parse_qs(urllib.parse.urlparse(loc).query).get('month', [''])[0]
+            if loc else ''
+        )
     runner.check('Create student redirect', create_ok, loc or '')
 
     html = get('/students').read().decode('utf-8', errors='replace')
@@ -289,7 +294,10 @@ def run_live(base: str):
         dash_html = get('/').read().decode('utf-8', errors='replace')
         post(
             '/generate',
-            {'report_month': '2026-02', 'csrf_token': csrf_from_html(dash_html)},
+            {
+                'report_month': created_month,
+                'csrf_token': csrf_from_html(dash_html),
+            },
             allow_redirect=False,
         )
         gen_ok = False
