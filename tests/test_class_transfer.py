@@ -73,7 +73,12 @@ def test_turmas_for_teacher_combines_registry_and_students():
 
 
 def test_move_class_between_teachers_registry(tmp_path):
-    from teacher_classes import list_for_teacher, load_registry, move_class_between_teachers, save_registry
+    from teacher_classes import (
+        list_for_teacher,
+        load_registry,
+        move_class_between_teachers,
+        save_registry,
+    )
 
     path = tmp_path / 'teacher_classes.json'
     data = {}
