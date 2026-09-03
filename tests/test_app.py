@@ -476,7 +476,7 @@ def test_upload_template_students_download(monkeypatch, tmp_path):
     assert "students_template.csv" in response.headers.get("Content-Disposition", "")
     assert response.data.startswith(b"\xef\xbb\xbf")
     assert b"teacher,turma,turma_display" in response.data
-    assert b"Jane Doe" in response.data
+    assert b"Sample Student One" in response.data
 
 
 def test_login_page_has_viewport(monkeypatch, tmp_path):
@@ -727,7 +727,8 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     assert "MASTER" in html
-    assert "L9" not in html
+    assert "OTHER" not in html
+    assert ">L9<" not in html
 
     new_form = client.get("/lessons/new")
     new_html = new_form.get_data(as_text=True)

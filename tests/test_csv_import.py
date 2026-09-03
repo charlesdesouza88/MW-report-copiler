@@ -16,7 +16,6 @@ from csv_import import (
     write_lessons_csv,
 )
 
-
 SAMPLE_PLAN = """\
 ,,,,,,
 ,"SPARK - KIDS 1 (Segunda e quarta, 8:00-9:30)",,,,,PRAZO: Semanal - Segunda-feira
@@ -45,7 +44,7 @@ def test_parse_students_csv_compiler_format():
     rows, errors = parse_students_csv(text)
     assert not errors
     assert len(rows) == 1
-    assert rows[0]['student_name'] == 'Jane Doe'
+    assert rows[0]['student_name'] == 'Sample Student One'
 
 
 def test_merge_lessons_replaces_one_turma():
