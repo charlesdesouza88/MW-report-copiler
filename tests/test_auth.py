@@ -103,6 +103,23 @@ def test_user_store_create_teacher(tmp_path):
     assert user['teacher_name'] == 'Chuck'
 
 
+def test_user_store_update_rejects_short_password(tmp_path):
+    store = UserStore(json_path=tmp_path / 'users.json')
+    store.initialize()
+    store.create_teacher('chuck@test.local', 'secret22', 'Chuck')
+    user_id = store.get_by_email('chuck@test.local')['id']
+
+    try:
+        store.update_user(user_id, password='short')
+    except ValueError as exc:
+        assert 'pelo menos 8 caracteres' in str(exc)
+    else:
+        raise AssertionError('short update password should fail')
+
+    assert store.authenticate('chuck@test.local', 'secret22') is not None
+    assert store.authenticate('chuck@test.local', 'short') is None
+
+
 def test_teacher_can_upload_scoped_csv(monkeypatch, tmp_path):
     data_dir = tmp_path / 'data'
     data_dir.mkdir()

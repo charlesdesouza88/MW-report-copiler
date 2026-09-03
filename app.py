@@ -386,16 +386,11 @@ def _database_status():
         }
     try:
         db_store.check_connection()
-        students = db_store.load_students()
-        lessons = db_store.load_lessons()
         return {
             'configured': True,
             'connected': True,
             'mode': 'postgresql',
             'message': 'Connected to PostgreSQL.',
-            'student_rows': len(students),
-            'lesson_rows': len(lessons),
-            'extra_session_rows': len(db_store.load_extra_sessions()),
         }
     except Exception as exc:
         logger.exception('Database health check failed: %s', exc)
@@ -403,7 +398,7 @@ def _database_status():
             'configured': True,
             'connected': False,
             'mode': 'postgresql',
-            'message': f'Database ping failed: {exc}',
+            'message': 'Database ping failed.',
         }
 
 
