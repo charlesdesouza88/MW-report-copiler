@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from extra_sessions import (
-    AUTO_AULA_EXTRA_MARKER,
     ATENDIMENTOS_CSV_HEADERS,
     build_atendimentos_template_csv,
     clear_aula_extra_after_completed_session,
@@ -18,7 +17,6 @@ from extra_sessions import (
     row_from_form,
     sync_student_extra_sessions,
 )
-
 
 SAMPLE_CSV = """\
 ,Nome do aluno ou responsável,Data ,Horário,Assuntos trabalhados,Observação,Turno,Contatado,Marcado,Realizado,Professor

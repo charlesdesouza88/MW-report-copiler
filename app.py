@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Mister Wiz Report Compiler — Web Dashboard"""
 
-import csv
 import base64
+import csv
 import functools
 import io
 import json
@@ -17,103 +17,210 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from flask import (Flask, Response, abort, g, jsonify, redirect, render_template, request,
-                   send_file, session, url_for)
-from flask_wtf.csrf import CSRFProtect, CSRFError
+from flask import (
+    Flask,
+    Response,
+    abort,
+    g,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    session,
+    url_for,
+)
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFError, CSRFProtect
 
-from compiler import (build_class_ctx, build_student_ctx, create_report_environment,
-                      generate_class_diagnostics, generate_individual_reports,
-                      group_by_turma, load_csv, turmas_without_lessons)
-
-from auth import (ROLE_ADMIN, ROLE_LABELS, ROLE_SUPERADMIN, ROLE_TEACHER,
-                  UserStore, can_manage_teachers, filter_extra_sessions_for_user,
-                  filter_lessons_for_user, filter_reports_for_user,
-                  filter_students_for_user, find_extra_session_global_index,
-                  find_lesson_global_index, find_student_global_index,
-                  has_full_data_access, normalize_teacher_name, teacher_turmas,
-                  user_public_dict)
+from auth import (
+    ROLE_ADMIN,
+    ROLE_LABELS,
+    ROLE_SUPERADMIN,
+    ROLE_TEACHER,
+    UserStore,
+    can_manage_teachers,
+    filter_extra_sessions_for_user,
+    filter_lessons_for_user,
+    filter_reports_for_user,
+    filter_students_for_user,
+    find_extra_session_global_index,
+    find_lesson_global_index,
+    find_student_global_index,
+    has_full_data_access,
+    normalize_teacher_name,
+    teacher_turmas,
+    user_public_dict,
+)
+from class_transfer import (
+    apply_transfer,
+    build_transfer_export_zip,
+    list_teachers_from_students,
+    preview_transfer,
+    turmas_for_teacher,
+)
+from compiler import (
+    build_class_ctx,
+    build_student_ctx,
+    create_report_environment,
+    generate_class_diagnostics,
+    generate_individual_reports,
+    group_by_turma,
+    load_csv,
+    turmas_without_lessons,
+)
 from csv_import import parse_upload_csv
-from extra_sessions import (AUTO_AULA_EXTRA_MARKER, EXTRA_SESSION_FIELD_LABELS,
-                            EXTRA_SESSION_FIELDS, apply_open_extra_sessions_to_students,
-                            apply_pending_session_flag_to_students,
-                            build_atendimentos_template_csv,
-                            SESSION_TYPE_CHOICES,
-                            coerce_session_status_fields, display_status, is_status_ok,
-                            normalize_aula_extra, parse_import_csv,
-                            reconcile_flagged_students, remove_sessions_for_student,
-                            row_from_form, sync_student_extra_sessions)
-from lesson_attendance import (ATTENDANCE_CHOICES, ATTENDANCE_FIELDS,
-                               ATTENDANCE_LABELS, attendance_map_for_lesson,
-                               normalize_attendance_status, parse_attendance_form,
-                               reconcile_presence_after_lesson_removed,
-                               recompute_faltas_from_attendance,
-                               remove_attendance_for_lesson,
-                               remove_attendance_for_student,
-                               replace_lesson_attendance, students_by_turma,
-                               students_for_turma,
-                               students_with_attendance_in_month)
-from form_ui import (HABILIDADES_CHOICES, LICAO_CONTEUDO_CHOICES,
-                     LICAO_ESPECIAL_CHOICES, NIVEL_CHOICES, WEEKDAY_CHOICES,
-                     capitalize_student_name, date_from_form,
-                     format_class_schedule, format_date_for_input,
-                     is_valid_nivel, licao_choice_for_value, next_aula_num,
-                     normalize_habilidades, parse_time_range_from_horario,
-                     storage_date_to_iso,
-                     storage_time_to_input, suggest_licao_conteudo,
-                     time_from_form, turma_next_aula_map)
-from teacher_classes import (add_class as register_teacher_class,
-                             apply_registry_to_students,
-                             class_display_from_student_rows,
-                             count_students_in_turma, dedupe_class_options,
-                             ensure_semester_ids,
-                             find_class, list_for_teacher, load_registry,
-                             registry_from_rows, registry_to_rows,
-                             remove_class as delete_teacher_class,
-                             save_registry, sync_teacher_classes_from_students,
-                             turma_codes_for_teacher,
-                             update_class as update_teacher_class)
-from teacher_chat import (KIND_BUG, KIND_CHAT, ROOM_TITLE, append_message,
-                          can_access_chat, can_resolve_bugs, load_messages,
-                          messages_after, open_bug_count, resolve_bug,
-                          save_messages, thread_tree)
-from teacher_profiles import (can_edit_profile, can_view_profile, encode_photo,
-                              get_or_empty, load_profiles, photo_data_url,
-                              save_profiles, upsert_profile)
-from login_events import (append_login, contact_email_for_user,
-                          events_newest_first, format_logged_at,
-                          last_login_by_user_id, load_events, mailto_href,
-                          save_events, whatsapp_digits, whatsapp_href)
-from class_transfer import (apply_transfer, build_transfer_export_zip,
-                            list_teachers_from_students, preview_transfer,
-                            turmas_for_teacher)
-from report_periods import (available_report_months, available_semesters,
-                            compute_month_trend, current_semester,
-                            default_report_month, default_semester,
-                            filter_lessons_by_month, filter_lessons_by_semester,
-                            filter_months_by_semester,
-                            filter_report_files_by_month,
-                            filter_rows_by_semester_date,
-                            individual_report_filename, load_snapshots,
-                            month_in_semester, month_label, parse_lesson_month,
-                            report_month_from_filename, save_snapshots,
-                            semester_for_month, semester_label,
-                            student_composite_score, upsert_month_snapshots)
-from student_transfer import (load_transfer_log, save_transfer_log,
-                              students_with_transfer_aliases,
-                              transfer_students, transfers_for_student)
-from student_reviews import (MONTHLY_REVIEW_FIELDS, ROSTER_FIELDS,
-                             apply_upload_row, extract_roster_fields,
-                             load_monthly_reviews, merge_roster_for_month,
-                             migrate_roster_scores_to_month,
-                             rows_from_store, save_monthly_reviews,
-                             split_student_row, store_from_rows,
-                             migrate_roster_scores_to_month,
-                             remove_reviews_for_student,
-                             rows_from_store, save_monthly_reviews,
-                             split_student_row, store_from_rows,
-                             upsert_monthly_review)
+from extra_sessions import (
+    AUTO_AULA_EXTRA_MARKER,
+    EXTRA_SESSION_FIELD_LABELS,
+    EXTRA_SESSION_FIELDS,
+    SESSION_TYPE_CHOICES,
+    apply_open_extra_sessions_to_students,
+    apply_pending_session_flag_to_students,
+    build_atendimentos_template_csv,
+    coerce_session_status_fields,
+    display_status,
+    is_status_ok,
+    normalize_aula_extra,
+    parse_import_csv,
+    reconcile_flagged_students,
+    remove_sessions_for_student,
+    row_from_form,
+    sync_student_extra_sessions,
+)
+from form_ui import (
+    HABILIDADES_CHOICES,
+    LICAO_CONTEUDO_CHOICES,
+    LICAO_ESPECIAL_CHOICES,
+    NIVEL_CHOICES,
+    WEEKDAY_CHOICES,
+    capitalize_student_name,
+    date_from_form,
+    format_date_for_input,
+    is_valid_nivel,
+    licao_choice_for_value,
+    next_aula_num,
+    normalize_habilidades,
+    parse_time_range_from_horario,
+    storage_date_to_iso,
+    storage_time_to_input,
+    suggest_licao_conteudo,
+    time_from_form,
+    turma_next_aula_map,
+)
+from lesson_attendance import (
+    ATTENDANCE_CHOICES,
+    ATTENDANCE_FIELDS,
+    ATTENDANCE_LABELS,
+    attendance_map_for_lesson,
+    parse_attendance_form,
+    recompute_faltas_from_attendance,
+    reconcile_presence_after_lesson_removed,
+    remove_attendance_for_lesson,
+    remove_attendance_for_student,
+    replace_lesson_attendance,
+    students_by_turma,
+    students_for_turma,
+    students_with_attendance_in_month,
+)
+from login_events import (
+    append_login,
+    contact_email_for_user,
+    events_newest_first,
+    format_logged_at,
+    last_login_by_user_id,
+    load_events,
+    mailto_href,
+    save_events,
+    whatsapp_digits,
+    whatsapp_href,
+)
+from report_periods import (
+    available_report_months,
+    available_semesters,
+    compute_month_trend,
+    default_report_month,
+    default_semester,
+    filter_lessons_by_month,
+    filter_lessons_by_semester,
+    filter_months_by_semester,
+    filter_report_files_by_month,
+    filter_rows_by_semester_date,
+    individual_report_filename,
+    load_snapshots,
+    month_in_semester,
+    month_label,
+    parse_lesson_month,
+    report_month_from_filename,
+    save_snapshots,
+    semester_for_month,
+    semester_label,
+    student_composite_score,
+    upsert_month_snapshots,
+)
+from student_reviews import (
+    ROSTER_FIELDS,
+    apply_upload_row,
+    load_monthly_reviews,
+    merge_roster_for_month,
+    migrate_roster_scores_to_month,
+    remove_reviews_for_student,
+    rows_from_store,
+    save_monthly_reviews,
+    split_student_row,
+    store_from_rows,
+    upsert_monthly_review,
+)
+from student_transfer import (
+    load_transfer_log,
+    save_transfer_log,
+    students_with_transfer_aliases,
+    transfer_students,
+    transfers_for_student,
+)
+from teacher_chat import (
+    KIND_BUG,
+    KIND_CHAT,
+    ROOM_TITLE,
+    append_message,
+    can_access_chat,
+    can_resolve_bugs,
+    load_messages,
+    messages_after,
+    open_bug_count,
+    resolve_bug,
+    save_messages,
+    thread_tree,
+)
+from teacher_classes import add_class as register_teacher_class
+from teacher_classes import (
+    apply_registry_to_students,
+    class_display_from_student_rows,
+    count_students_in_turma,
+    dedupe_class_options,
+    ensure_semester_ids,
+    find_class,
+    list_for_teacher,
+    load_registry,
+    registry_from_rows,
+    registry_to_rows,
+    save_registry,
+    sync_teacher_classes_from_students,
+    turma_codes_for_teacher,
+)
+from teacher_classes import remove_class as delete_teacher_class
+from teacher_classes import update_class as update_teacher_class
+from teacher_profiles import (
+    can_edit_profile,
+    can_view_profile,
+    encode_photo,
+    get_or_empty,
+    load_profiles,
+    photo_data_url,
+    save_profiles,
+    upsert_profile,
+)
 
 try:
     from db_store import DatabaseStore, StaleDataError
@@ -1314,9 +1421,7 @@ def _student_form_context(all_rows, user, is_new, student, idx, form_error=None)
     class_choice = ''
     if request.method == 'POST':
         class_choice = (request.form.get('class_choice') or '').strip()
-    elif user and user['role'] == ROLE_TEACHER and student and (student.get('turma') or '').strip():
-        class_choice = (student.get('turma') or '').strip()
-    elif user and has_full_data_access(user['role']) and student and (student.get('turma') or '').strip():
+    elif user and user['role'] == ROLE_TEACHER and student and (student.get('turma') or '').strip() or user and has_full_data_access(user['role']) and student and (student.get('turma') or '').strip():
         class_choice = (student.get('turma') or '').strip()
     elif is_new and user and user['role'] == ROLE_TEACHER and teacher_class_options:
         wanted = (request.args.get('turma') or '').strip()
@@ -4079,9 +4184,7 @@ def reports():
         _, lessons = _scoped_lessons(all_students)
         selected_month = (request.args.get('month') or '').strip()
         available_months = _available_review_months(lessons)
-        if not selected_month:
-            selected_month = _get_review_month(lessons)
-        elif selected_month not in available_months:
+        if not selected_month or selected_month not in available_months:
             selected_month = _get_review_month(lessons)
 
         students_for_reports = _students_with_report_aliases(all_students)
