@@ -1,1 +1,4 @@
 turma,aula_num,student_name,status
+MASTER,1,Sample Student One,present
+MASTER,2,Sample Student One,absent
+MASTER,1,Sample Student Two,present

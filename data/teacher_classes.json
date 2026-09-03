@@ -1,15 +1,30 @@
 {
-  "Amanda": [
+  "Teacher One": [
     {
-      "turma": "COMET",
-      "turma_display": "Comet",
+      "turma": "MASTER",
+      "turma_display": "Masters",
       "class_weekdays": [
-        "Segunda-feira",
-        "Quarta-feira"
+        "Tuesday",
+        "Thursday"
       ],
-      "class_time_start": "08:00",
-      "class_time_end": "09:30",
-      "horario": "Segunda-feira e Quarta-feira 08:00 - 09:30",
+      "class_time_start": "19:00",
+      "class_time_end": "20:00",
+      "horario": "Tuesday and Thursday 19:00 - 20:00",
+      "semester_id": "2026-S1",
+      "legacy_import": true
+    }
+  ],
+  "Teacher Two": [
+    {
+      "turma": "LIVE_FLOW",
+      "turma_display": "Live Flow",
+      "class_weekdays": [
+        "Tuesday",
+        "Thursday"
+      ],
+      "class_time_start": "20:00",
+      "class_time_end": "21:00",
+      "horario": "Tuesday and Thursday 20:00 - 21:00",
       "semester_id": "2026-S1",
       "legacy_import": true
     }

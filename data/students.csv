@@ -1,13 +1,4 @@
 teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,speaking,listening,foco,writing,reading,gramatica,trabalho_equipe,organizacao,pontualidade,respeito_regras,faltas,missed_aulas,aula_extra,feedback_participacao,feedback_foco,feedback_trabalho_equipe,recomendacoes,observacao
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Bernardo Souza Barbosa,4,5,4,4,4,4,4,4,5,5,5,5,0,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Cecília Pires Lauar,4,4,2,2,4,2,2,2,4,4,4,4,0,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Davi Ribeiro Silva,4,5,3,4,4,3,3,3,5,5,5,5,2,,Reposição,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Enzo Chaves Rodrigues Lima,4,5,5,5,4,5,5,5,5,5,5,5,3,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Fernanda Trindade Ribeiro,5,4,4,3,4,4,4,4,4,4,4,4,1,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Gabriel Martins Santana Schettini,4,4,4,4,3,4,4,4,4,4,4,4,0,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Heitor Gonçalves de Oliveira,4,4,3,3,4,3,3,3,4,4,4,4,0,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Henrique Kessim Pires Lauar,5,3,5,4,3,5,4,4,3,3,3,3,0,,,,,,,
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Lais Machado Castro Neves,2,5,1,1,3,1,1,1,5,5,5,5,2,,Reforço,,,,,"A aluna nao traz o material (caderno,lápis e borracha), se recusa a participar das atividades e de falar frases em inglês e questiona a relevância dos conteúdos"
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Luma Chaves Rodrigues Lima,3,5,2,2,2,1,1,2,5,5,5,5,3,,Reforço,,,,,"A aluna apresenta ótimo comportamento em sala, demonstrando respeito e postura adequada. No entanto, ainda demonstra insegurança ao se expressar e inglês e participar das atividades orais."
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Maria Fernanda Carvalho Pires,3,5,3,3,1,2,3,3,5,5,5,5,1,,Reforço,,,,,A aluna apresenta dificuldade de atenção durante as aulas. Ao copiar do quadro costuma duplicar palavras e até mesmo confundir a ordem delas. Com acompanhamento e aulas extras pode desenvolver maior foco e melhorar o desempenho.
-Amanda,COMET,Comet,Kids 2,"Segunda e quarta, 8:00-9:30",Rafael Fiallho Silveira,3,3,5,4,2,5,5,5,3,3,3,3,3,,,,,,,
+Teacher One,MASTER,Masters,Adults Book 4,"Tue and Thu, 19:00 - 20:00",Sample Student One,4,4,4,5,4,3,4,3,4,4,4,4,1,"2",,Participates well in class.,Usually stays focused.,Works well with classmates.,Practice speaking twice per week.,Sanitized sample row.
+Teacher One,MASTER,Masters,Adults Book 4,"Tue and Thu, 19:00 - 20:00",Sample Student Two,3,4,3,4,3,3,4,3,4,4,4,4,0,,,,,,Sanitized sample row.
+Teacher Two,LIVE_FLOW,Live Flow,Book 1,"Tue and Thu, 20:00 - 21:00",Sample Student Three,3,3,3,3,3,3,3,3,3,3,3,3,0,,,,,,Sanitized live-audit seed row.
