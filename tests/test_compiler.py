@@ -283,10 +283,17 @@ def test_individual_report_matches_stakeholder_layout():
     assert "Comparativo Mensal" not in html
     assert 'class="pie-cal"' not in html
     assert "grid-template-columns: 1fr 1fr" in html
+    assert "grid-template-columns: auto minmax(0, 1fr) auto" in html
+    assert "aspect-ratio: 297 / 210" not in html
+    assert "overflow: visible" in html
+    assert "padding-top: 18px" not in html
     assert 'class="logo-wordmark"' in html
     assert "data:image/png;base64," in html
     assert "W✦Z" not in html
     assert "logo-mister" not in html
+    assert "Adults Book 4" in html
+    assert "Tue/Thu 19:00" in html
+    assert "Período:" not in html
 
 
 def test_class_diagnostic_combines_medias_into_one_row():
@@ -324,8 +331,11 @@ def test_individual_report_embeds_attendance_calendar_in_presenca():
     )
     assert "pie-cal" in html
     assert "has-cal" in html
-    assert "margin-top: 18px" in html
+    assert "padding-top: 18px" not in html
     assert "Janeiro 2026" in html
+    assert "Período: Janeiro 2026" in html
+    assert "Primeiro período" in html
+    assert "Tue/Thu 19:00" in html
     assert html.count('class="att-cal"') == 1
     assert "att-present" in html or "att-absent" in html or "att-noclass" in html
     assert "Comparativo Mensal" not in html

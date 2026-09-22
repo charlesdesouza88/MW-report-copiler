@@ -9,7 +9,7 @@ Use Chrome DevTools device toolbar at **375px** (phone), **768px** (tablet), and
 | Route | Pass criteria |
 |-------|----------------|
 | `/login` | No horizontal scroll; submit button full width; inputs do not trigger iOS zoom; **primary colour lockup** on the white card (not inverted) |
-| `/` | Stats readable; hamburger opens/closes drawer; generate button reachable; sidebar is **lavender** with the **colour** lockup |
+| `/` | Stats readable; hamburger opens/closes drawer; generate button reachable; sidebar is **lavender** with the **colour** lockup; phone/tablet plum top bar uses the **white knockout** wordmark |
 | `/students` | Cards on phone (&lt;768px); table on tablet+; turma filter works on both views |
 | `/admin/teachers` | **Perfil** tappable; Contato / Editar stacked and aligned; table headers **white on purple** (login history included) |
 | `/upload` | Hero and CSV panels stack on phone; file picker tappable |

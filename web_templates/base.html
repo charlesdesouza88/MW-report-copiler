@@ -490,6 +490,19 @@ tr.filter-row-item.filter-hidden { display: none; }
   cursor: pointer; flex-shrink: 0; align-items: center; justify-content: center;
 }
 .menu-toggle:hover { background: rgba(255,255,255,0.2); }
+.header-brand {
+  display: none;
+  align-items: center;
+  flex-shrink: 0;
+  line-height: 0;
+  text-decoration: none;
+}
+.header-wordmark {
+  display: block;
+  height: 20px;
+  width: auto;
+  aspect-ratio: 1410 / 210;
+}
 .nav-backdrop {
   display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
   z-index: 15; border: none; padding: 0; cursor: pointer;
@@ -533,8 +546,9 @@ body.nav-open .nav-backdrop { display: block; }
     z-index: 40;
   }
   .menu-toggle { display: inline-flex; }
+  .header-brand { display: inline-flex; }
+  .page-header-body { flex: 1 1 100%; flex-direction: column; align-items: stretch; gap: 10px; }
   .page-title { color: #fff; flex: 1; min-width: 0; }
-  .page-header-body { flex-direction: column; align-items: stretch; gap: 10px; }
   .page-title { order: 1; }
   .review-month-form { order: 2; }
   .topbar-actions { order: 3; }
@@ -718,6 +732,9 @@ body.nav-open .nav-backdrop { display: block; }
 <div class="main">
   <header class="page-header">
     <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Abrir menu" aria-expanded="false">{{ icon('menu', 22) }}</button>
+    <a class="header-brand" href="{{ url_with_month('dashboard') }}">
+      <img class="header-wordmark" src="{{ url_for('static', filename='img/logo-primary-white.png') }}" alt="Mister Wiz" width="134" height="20">
+    </a>
     <div class="page-header-body">
       <h1 class="page-title">{{ self.page_title() }}</h1>
       {% if current_user and available_review_semesters %}
