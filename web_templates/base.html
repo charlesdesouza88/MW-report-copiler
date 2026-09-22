@@ -29,25 +29,18 @@ svg.mw-icon-svg {
   padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 .brand {
-  padding: 18px 16px 14px;
+  padding: 12px 12px 8px;
   border-bottom: 2px solid var(--gold-accent);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
-.brand-lockup {
-  display: flex; align-items: center; gap: 10px;
-}
-.brand-mark {
-  width: 40px; height: 40px; border-radius: 9px;
-  object-fit: cover; flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(45, 16, 64, 0.12);
-}
-.brand-text { min-width: 0; flex: 1; }
+.brand-lockup { display: block; }
 .brand-wordmark {
-  display: block; width: 100%; max-width: 148px; height: auto;
+  display: block; width: 100%; height: auto;
+  aspect-ratio: 1374 / 174;
 }
 .brand-sub {
-  font-size: 8.5px; color: var(--purple-dk); letter-spacing: 1.5px;
-  margin-top: 5px; text-transform: uppercase; font-weight: 700;
+  font-size: 10px; color: var(--purple-dk); letter-spacing: 1.4px;
+  margin-top: 4px; text-transform: uppercase; font-weight: 700;
 }
 .nav-link {
   display: flex; align-items: center; gap: 10px;
@@ -489,6 +482,19 @@ tr.filter-row-item.filter-hidden { display: none; }
   cursor: pointer; flex-shrink: 0; align-items: center; justify-content: center;
 }
 .menu-toggle:hover { background: rgba(255,255,255,0.2); }
+.header-brand {
+  display: none;
+  align-items: center;
+  flex-shrink: 0;
+  line-height: 0;
+  text-decoration: none;
+}
+.header-wordmark {
+  display: block;
+  height: 26px;
+  width: auto;
+  aspect-ratio: 1374 / 174;
+}
 .nav-backdrop {
   display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
   z-index: 15; border: none; padding: 0; cursor: pointer;
@@ -532,8 +538,9 @@ body.nav-open .nav-backdrop { display: block; }
     z-index: 40;
   }
   .menu-toggle { display: inline-flex; }
+  .header-brand { display: inline-flex; }
+  .page-header-body { flex: 1 1 100%; flex-direction: column; align-items: stretch; gap: 10px; }
   .page-title { color: #fff; flex: 1; min-width: 0; }
-  .page-header-body { flex-direction: column; align-items: stretch; gap: 10px; }
   .page-title { order: 1; }
   .review-month-form { order: 2; }
   .topbar-actions { order: 3; }
@@ -567,7 +574,6 @@ body.nav-open .nav-backdrop { display: block; }
   .stat-grid { grid-template-columns: 1fr; }
   .stat-value { font-size: 34px; }
   .page-title { font-size: 15px; line-height: 1.25; }
-  .brand-mark { width: 36px; height: 36px; }
   .student-card-header { flex-direction: column; align-items: flex-start; }
   .filter-group { align-items: flex-start; }
   .filter-group-label { min-width: 0; width: 100%; margin-bottom: 2px; }
@@ -655,11 +661,8 @@ body.nav-open .nav-backdrop { display: block; }
 <nav class="sidebar" id="sidebar" aria-label="Menu principal">
   <div class="brand">
     <div class="brand-lockup">
-      <img class="brand-mark" src="{{ url_for('static', filename='img/logo-symbol.png') }}" alt="" width="40" height="40">
-      <div class="brand-text">
-        <img class="brand-wordmark" src="{{ url_for('static', filename='img/logo-primary-transparent.png') }}" alt="Mister Wiz" width="148" height="39">
-        <div class="brand-sub">{% if current_user and current_user.role == 'teacher' %}Professor{% else %}Admin{% endif %}</div>
-      </div>
+      <img class="brand-wordmark" src="{{ url_for('static', filename='img/logo-primary-transparent.png') }}" alt="Mister Wiz" width="196" height="25">
+      <div class="brand-sub">{% if current_user and current_user.role == 'teacher' %}Professor{% else %}Admin{% endif %}</div>
     </div>
   </div>
   <a href="{{ url_with_month('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
@@ -717,6 +720,9 @@ body.nav-open .nav-backdrop { display: block; }
 <div class="main">
   <header class="page-header">
     <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Abrir menu" aria-expanded="false">{{ icon('menu', 22) }}</button>
+    <a class="header-brand" href="{{ url_with_month('dashboard') }}">
+      <img class="header-wordmark" src="{{ url_for('static', filename='img/logo-primary-white.png') }}" alt="Mister Wiz" width="205" height="26">
+    </a>
     <div class="page-header-body">
       <h1 class="page-title">{{ self.page_title() }}</h1>
       {% if current_user and available_review_semesters %}

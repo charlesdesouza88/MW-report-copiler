@@ -9,48 +9,46 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --mw-purple: #792D83;
-  --mw-purple-light: #5A1A64;
-  --mw-border: #D9C7E0;
-  --mw-line: #F0E6F3;
-  --mw-panel: #F9F5FA;
-  --mw-panel-accent: #F0E6F3;
-  --mw-gap: 12px;
-  --mw-pad: 12px;
+  --mw-purple-dk: #5A1A64;
+  --mw-plum: #2D1040;
+  --mw-border: #C8C8C8;
+  --mw-pie-gray: #BBBBBB;
+  --mw-bar-track: #CCCCCC;
 }
 body {
-  font-family: Carlito, Calibri, Arial, sans-serif;
+  font-family: Carlito, Calibri, Arial, Helvetica, sans-serif;
   background: #fff;
-  color: #2D1040;
+  color: #111;
   font-size: 11px;
   width: 297mm;
   min-height: 210mm;
-  padding: 7mm 10mm 4mm;
+  padding: 7mm 8mm 4mm;
   display: flex;
   flex-direction: column;
-  gap: var(--mw-gap);
+  gap: 6px;
 }
 
-/* ── Header: 3 equal inset columns so logo / name / teacher share the card edge ── */
+/* ── Header: auto side columns leave the name centered without squeezing meta ── */
 .header {
   display: grid;
-  grid-template-columns: minmax(132px, 1fr) minmax(0, 2.2fr) minmax(132px, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  column-gap: var(--mw-gap);
-  padding: 0 0 10px;
-  border-bottom: 2px solid #792D83;
+  column-gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--mw-purple);
+  flex-shrink: 0;
 }
-.logo { display: flex; align-items: center; gap: 8px; line-height: 1; justify-self: start; }
-.logo-mark { width: 32px; height: 32px; border-radius: 7px; flex-shrink: 0; display: block; object-fit: cover; }
-.logo-wordmark { height: 32px; width: auto; display: block; }
+.logo { line-height: 0; justify-self: start; }
+.logo-wordmark { height: 36px; width: auto; max-width: min(260px, 28vw); display: block; }
 .header-center { text-align: center; min-width: 0; }
-.student-name { font-size: 28px; font-weight: 900; line-height: 1; }
-.turma-line { color: #792D83; font-size: 12px; font-weight: 700; margin-top: 2px; }
-.turma-line span { color: #2D1040; }
-.period-line { font-size: 11px; font-weight: 700; margin-top: 4px; color: #444; }
+.student-name { font-size: 26px; font-weight: 900; line-height: 1.05; overflow-wrap: anywhere; }
+.turma-line { color: var(--mw-purple); font-size: 12px; font-weight: 700; margin-top: 3px; line-height: 1.3; overflow-wrap: break-word; }
+.turma-line span { color: var(--mw-plum); }
+.period-line { font-size: 11px; font-weight: 700; margin-top: 3px; color: #444; }
 .trend-pill {
   display: inline-block;
-  margin-left: 8px;
-  padding: 2px 10px;
+  margin-left: 6px;
+  padding: 1px 8px;
   border-radius: 999px;
   font-size: 10px;
   font-weight: 900;
@@ -58,1075 +56,293 @@ body {
 }
 .trend-improved { background: #E6F4EA; color: #2C7A3F; }
 .trend-declined { background: #FCE8E6; color: #E24B4A; }
-.trend-stable { background: #EDE8F4; color: #792D83; }
+.trend-stable { background: #EDE8F4; color: var(--mw-purple); }
 .trend-first { background: #F0F0F0; color: #666; }
-.delta-badge {
-  display: inline-block;
-  margin-top: 3px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  font-size: 8px;
-  font-weight: 900;
-  line-height: 1.2;
-}
-.delta-up { background: #E6F4EA; color: #2C7A3F; }
-.delta-down { background: #FCE8E6; color: #E24B4A; }
-.delta-stable { background: #EDE8F4; color: #792D83; }
-.teacher-block { text-align: right; justify-self: end; max-width: 100%; }
-.teacher-label { font-size: 10px; font-weight: 700; color: #792D83; }
-.teacher-name { font-size: 16px; font-weight: 900; color: #792D83; }
+.teacher-block { text-align: right; justify-self: end; }
+.teacher-label { font-size: 11px; font-weight: 700; color: var(--mw-purple); }
+.teacher-name { font-size: 18px; font-weight: 900; color: var(--mw-purple); }
 
-/* ── 2-column layout: academic performance | classroom conduct ──
-   Two independent flex columns (not a shared-row CSS grid) so each card is
-   sized to its own content instead of being stretched to match whichever
-   card happens to share its row. */
+/* ── Equal 2×2 card grid ── */
 .grid {
-  display: flex;
-  gap: var(--mw-gap);
-  flex: 1;
-  align-items: stretch;
-  width: 100%;
-}
-.grid-col {
-  display: flex;
-  flex-direction: column;
-  gap: var(--mw-gap);
-  flex: 1;
-  min-width: 0;
-}
-.grid-col .card { flex: 1; min-height: 0; }
-
-/* ── Card / panel layout ── */
-.card {
-  border: 1px solid var(--mw-border);
-  border-radius: 10px;
-  padding: 0;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-}
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  min-height: 64px;
-  padding: 10px 14px;
-  border-bottom: 2px solid var(--mw-purple);
-  background: linear-gradient(180deg, var(--mw-panel-accent) 0%, #fff 100%);
-}
-.card-title {
-  flex: 1;
-  justify-content: center;
-  font-size: 22px;
-  font-weight: 900;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-.card-title .mw-icon-tile {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-}
-.mw-icon { display: block; flex-shrink: 0; overflow: visible; }
-.mw-icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
-.mw-icon-tile {
-  width: 32px; height: 32px; border-radius: 8px;
-  background: #fff;
-  color: var(--mw-purple);
-  border: 1px solid var(--mw-border);
-  display: inline-flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.score-box {
-  border: 2px solid var(--mw-purple);
-  border-radius: 8px;
-  padding: 6px 12px;
-  background: var(--mw-panel-accent);
-  min-width: 78px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-.card-body {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  flex: 1;
-  padding: 12px 14px 14px;
-  gap: 12px;
-}
-.split-layout {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 0;
-  align-items: stretch;
-  width: 100%;
-}
-.split-divider {
-  width: 1px;
-  background: var(--mw-border);
-  margin: 0 10px;
-  align-self: stretch;
-}
-.sub-panel {
-  border: 1px solid var(--mw-border);
-  border-radius: 8px;
-  padding: 12px;
-  background: var(--mw-panel);
-  min-width: 0;
-  width: 100%;
-}
-.sub-panel-title {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--mw-purple);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  border-bottom: 1px solid var(--mw-line);
-  padding-bottom: 5px;
-  margin-bottom: 8px;
-}
-.info-box {
-  border: 1px dashed var(--mw-border);
-  border-radius: 6px;
-  padding: 8px;
-  background: #fff;
-  margin-top: 6px;
-}
-.info-box-label {
-  font-size: 8px;
-  font-weight: 700;
-  color: #666;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-.overall-score {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  min-width: 72px;
-}
-.overall-score-label {
-  font-size: 9px;
-  color: #792D83;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
-  line-height: 1;
-  text-align: center;
-}
-
-/* ── Score bubbles ── */
-.bubble {
-  width: 52px; height: 52px;
-  border-radius: 50%;
-  background: #5A1A64;
-  color: #fff;
-  font-size: 28px;
-  font-weight: 900;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-.bubble-md {
-  width: 62px; height: 62px;
-  font-size: 34px;
-  background: #792D83;
-}
-.bubble-lg {
-  width: 72px; height: 72px;
-  font-size: 38px;
-  background: #792D83;
-}
-
-/* ── Symmetric metric grids ── */
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--mw-gap);
-  align-items: stretch;
-  justify-items: stretch;
-  width: 100%;
-  margin-bottom: 0;
-}
-.metrics-grid-5 {
-  grid-template-columns: repeat(5, 1fr);
-}
-.metric-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  min-width: 0;
-  border: 1px solid var(--mw-border);
-  border-radius: 8px;
-  padding: 10px 6px;
-  background: #fff;
-  color: var(--mw-purple);
-  gap: 6px;
-}
-.metric-label {
-  font-size: 8.5px;
-  font-weight: 700;
-  color: var(--mw-purple);
-  margin-top: 0;
-  line-height: 1.2;
-  max-width: 72px;
-}
-.chart-panel {
-  margin-top: 0;
-  padding: 12px;
-  border: 1px solid var(--mw-border);
-  border-radius: 8px;
-  background: #fff;
-  width: 100%;
-}
-.chart-panel-title {
-  font-size: 8px;
-  font-weight: 700;
-  color: var(--mw-purple);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  margin-bottom: 6px;
-  text-align: center;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--mw-line);
-}
-.dimension-rings {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  padding: 0;
-  margin: 0;
-  border: none;
-  background: transparent;
-  width: 100%;
-}
-.dimension-rings-title {
-  font-size: 11px;
-  font-weight: 900;
-  color: var(--mw-purple);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  line-height: 1;
-  padding: 0 2px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.ring-row {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--mw-gap);
-  width: 100%;
-  align-items: stretch;
-}
-.ring-cell {
-  min-width: 0;
-  text-align: center;
-  border: 1px solid var(--mw-border);
-  border-radius: 10px;
-  padding: 10px 8px;
-  background: #fff;
-  color: var(--mw-purple);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-}
-.ring-cell .mw-icon-tile {
-  width: 28px; height: 28px; border-radius: 7px;
-}
-.ring-score {
-  font-size: 22px;
-  font-weight: 900;
-  color: var(--mw-purple);
-  line-height: 1;
-}
-.ring-label { font-size: 9px; font-weight: 700; color: #444; line-height: 1.15; }
-.ring-cell-highlight {
-  background: var(--mw-purple);
-  border-color: var(--mw-purple);
-  color: #fff;
-}
-.ring-cell-highlight .ring-score { color: #fff; font-size: 26px; }
-.ring-cell-highlight .ring-label { color: #EDE4F7; }
-.ring-cell-highlight .mw-icon-tile {
-  background: rgba(255,255,255,0.16);
-  border-color: rgba(255,255,255,0.28);
-  color: #fff;
-}
-.ring-cell-highlight .delta-badge { margin-top: 1px; }
-.stack-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 100%;
-}
-.card-body {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  flex: 1;
-}
-.dev-charts-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--mw-gap);
-  align-items: stretch;
-  width: 100%;
-}
-.dev-charts-row > * {
-  border: 1px solid var(--mw-border);
-  border-radius: 8px;
-  padding: 10px;
-  background: var(--mw-panel);
+  grid-template-rows: minmax(min-content, 1fr) minmax(min-content, 1fr);
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
 }
 
-/* ── PRESENÇA ── */
-.presenca-body { display: contents; }
-.pie-wrap {
-  text-align: center;
+.card {
+  border: 1.5px solid var(--mw-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
 }
-.pie-wrap.has-cal {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-areas:
-    "donut cal"
-    "legend legend"
-    "footer footer";
-  align-items: center;
-  justify-items: stretch;
-  gap: 10px 20px;
-  text-align: initial;
-}
-.pie-visual {
+.card-title {
+  font-size: 22px;
+  font-weight: 900;
+  margin-bottom: 6px;
+  line-height: 1;
+  padding-right: 48px;
+  min-height: 40px;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.bubble {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--mw-purple);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+  display: flex;
   align-items: center;
   justify-content: center;
+  line-height: 1;
 }
-.pie-wrap.has-cal .pie-visual { grid-area: donut; }
+.bubble-abs {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+}
+.bubble-md {
+  width: 56px; height: 56px;
+  font-size: 30px;
+}
+.score-1 { background: #E8D4F0; color: #5A1A64; }
+.score-2 { background: #C9A3D6; color: #3D1550; }
+.score-3 { background: #A060B4; color: #fff; }
+.score-4 { background: #792D83; color: #fff; }
+.score-5 { background: #3D1048; color: #fff; }
+
+/* ── PRESENÇA ── */
+.presenca-body { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 6px; }
+.presenca-main { display: flex; gap: 12px; align-items: flex-start; flex: 1; min-height: 0; }
+.presenca-main.has-cal {
+  display: grid;
+  grid-template-columns: minmax(84px, 0.32fr) minmax(0, 1fr);
+  grid-template-areas:
+    "pie cal"
+    "right right";
+  gap: 8px 12px;
+  align-items: start;
+}
+.presenca-main.has-cal .pie-wrap { grid-area: pie; }
+.presenca-main.has-cal .pie-wrap svg { width: 100%; max-width: 100px; height: auto; }
+.presenca-main.has-cal .pie-cal { grid-area: cal; }
+.presenca-main.has-cal .presenca-right { grid-area: right; }
+.pie-wrap { flex-shrink: 0; text-align: center; }
+.pie-wrap svg { width: min(120px, 100%); height: auto; display: block; margin: 0 auto; }
+.pie-legend {
+  display: flex; gap: 10px; align-items: center; justify-content: center;
+  margin-top: 4px; font-size: 9px; flex-wrap: wrap;
+}
+.legend-sq { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+.pie-footer { font-size: 9px; font-weight: 700; text-align: center; margin-top: 3px; }
+.presenca-right { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 .pie-cal {
-  grid-area: cal;
   min-width: 0;
   width: 100%;
-  padding: 8px 10px 10px;
+  padding: 6px;
   border: 1px solid var(--mw-border);
   border-radius: 8px;
   background: #fff;
 }
 .pie-cal-title {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 900;
   color: var(--mw-purple);
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
   text-align: center;
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
-.pie-wrap.has-cal .pie-legend { grid-area: legend; justify-self: center; }
-.pie-wrap.has-cal .pie-footer { grid-area: footer; }
-.pie-legend {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 10px 16px;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  padding: 6px 10px;
-  border: 1px solid var(--mw-line);
-  border-radius: 8px;
-  background: #fff;
-}
-.legend-item { display: inline-flex; align-items: center; gap: 6px; }
-.legend-sq { width: 11px; height: 11px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
-.pie-footer {
-  font-size: 8.5px; font-weight: 700; text-align: center;
-  padding: 5px 8px; border: 1px solid var(--mw-border); border-radius: 6px; background: #fff;
-  width: 100%;
-}
-.presenca-right { flex: 1; min-width: 0; }
-.missed-heading {
-  font-weight: 700; font-size: 10px; margin-bottom: 6px;
-  color: var(--mw-purple); text-transform: uppercase; letter-spacing: 0.3px;
-}
-.missed-dates-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
-.missed-date-cell { text-align: center; }
-.missed-box {
-  border: 2px solid var(--mw-purple); padding: 2px 8px; font-weight: 900; font-size: 12px;
-  border-radius: 6px; background: var(--mw-panel-accent);
-}
-.missed-date-sub { font-size: 8px; text-align: center; margin-top: 2px; color: #666; }
-.missed-lesson {
-  font-size: 9px; margin-bottom: 4px; padding: 4px 6px;
-  border-left: 3px solid var(--mw-purple); background: #fff;
-}
-.missed-lesson strong { color: var(--mw-purple); }
-.no-makeup {
-  font-weight: 700; font-size: 10px; margin-top: 8px; padding: 6px 8px;
-  border-radius: 6px; text-align: center;
-  border: 1px solid var(--mw-border); background: #fff;
-}
-
-/* ── Attendance calendar ── */
-.att-cal-panel { flex: 1; min-width: 0; }
-.att-cal {
-  border-collapse: collapse; width: 100%;
-  font-size: 10px; margin-top: 4px;
-}
+.att-cal { border-collapse: collapse; width: 100%; }
 .att-cal th {
-  font-size: 8px; font-weight: 700; text-align: center;
-  color: #888; padding: 2px 1px; letter-spacing: 0;
+  font-size: 7px; font-weight: 700; text-align: center;
+  color: #888; padding: 1px; letter-spacing: 0;
 }
-.att-cal td { text-align: center; padding: 2px 1px; }
+.att-cal td { text-align: center; padding: 1px; }
 .att-day {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px; border-radius: 50%;
-  font-size: 10px; font-weight: 700; cursor: default;
+  width: 18px; height: 18px; border-radius: 50%;
+  font-size: 8px; font-weight: 700;
 }
 .att-noclass { background: #F0E6F3; color: #8A6A96; }
-.legend-sq.att-noclass-sq { background: #F0E6F3; border: 1px solid var(--mw-border); }
 .att-present { background: #792D83; color: #fff; }
 .att-absent  { background: #E24B4A; color: #fff; }
 .att-tardy   { background: #EBB22E; color: #2D1040; }
 .att-cal-legend {
-  display: flex; gap: 10px; margin-top: 6px;
-  font-size: 9px; color: #555; align-items: center; flex-wrap: wrap;
+  display: flex; gap: 7px; margin-top: 4px; flex-wrap: wrap;
+  font-size: 8px; color: #555; align-items: center; justify-content: center;
 }
 .att-dot {
-  display: inline-block; width: 10px; height: 10px;
-  border-radius: 50%; flex-shrink: 0;
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; flex-shrink: 0; vertical-align: middle; margin-right: 3px;
 }
-.att-dot.att-present { background: #792D83; }
-.att-dot.att-absent  { background: #E24B4A; }
-.att-dot.att-tardy   { background: #EBB22E; }
-.att-missed-list {
-  margin-top: 6px; font-size: 10px; color: #444;
+.missed-heading { font-weight: 700; font-size: 11px; margin-bottom: 2px; }
+.missed-total { font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+.missed-io { margin-bottom: 8px; }
+.missed-io-line { font-size: 10px; line-height: 1.35; margin-bottom: 4px; }
+.missed-io-line strong { color: var(--mw-purple); font-weight: 700; }
+.no-makeup {
+  font-weight: 700; font-size: 11px; margin-top: auto; padding-top: 6px;
+  text-align: center; flex-shrink: 0;
 }
-.att-missed-item { padding: 2px 0; border-bottom: 1px solid #eee; }
-.att-missed-item:last-child { border-bottom: none; }
 
 /* ── PARTICIPAÇÃO ── */
-.part-body { display: contents; }
-.part-left, .part-right { min-width: 0; }
-.media-label { display: none; }
-.scale-list {
-  margin-top: 8px; padding: 8px;
-  border: 1px dashed var(--mw-border); border-radius: 6px; background: #fff;
+.part-body { display: flex; gap: 12px; flex: 1; min-height: 0; align-items: flex-start; }
+.part-left, .part-right { flex: 1; min-width: 0; }
+.media-label {
+  font-size: 9px; color: var(--mw-purple); font-weight: 700;
+  margin-bottom: 4px;
 }
-.scale-item { display: flex; gap: 5px; align-items: center; font-size: 8.5px; margin-bottom: 3px; }
+.part-scores-row { display: flex; gap: 10px; justify-content: flex-start; margin-bottom: 8px; }
+.part-score-item { text-align: center; }
+.part-score-label { font-size: 8.5px; font-weight: 700; margin-top: 4px; line-height: 1.2; color: var(--mw-purple); }
+.scale-list { margin-top: 2px; }
+.scale-item { display: flex; gap: 6px; align-items: center; font-size: 9px; margin-bottom: 3px; }
 .scale-num-circle {
   width: 16px; height: 16px; border-radius: 50%;
-  background: var(--mw-purple); color: #fff;
   font-size: 9px; font-weight: 900;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.fb-heading {
-  font-size: 9px; color: var(--mw-purple); font-weight: 700; margin-bottom: 6px;
-  text-transform: uppercase; letter-spacing: 0.3px;
-  padding-bottom: 4px; border-bottom: 1px solid var(--mw-line);
-}
-.fb-item {
-  border: 1px solid var(--mw-border); border-radius: 6px;
-  padding: 6px 8px; margin-bottom: 6px; background: #fff;
-}
-.fb-item-title { font-size: 8px; font-weight: 700; color: var(--mw-purple); margin-bottom: 2px; }
-.fb-item-text { font-size: 9px; line-height: 1.35; }
+.fb-heading { font-size: 10px; color: var(--mw-purple); font-weight: 700; margin-bottom: 6px; }
+.fb-item { border: 1px solid #bbb; padding: 4px 6px; margin-bottom: 5px; }
+.fb-item-title { font-size: 9px; font-weight: 700; color: var(--mw-purple); }
+.fb-item-text { font-size: 10px; line-height: 1.3; }
 
 /* ── DESENVOLVIMENTO ── */
-.dev-body { display: flex; gap: 10px; align-items: center; }
-.dev-bars { flex: 1; }
-.bar-row { margin-bottom: 6px; }
+.dev-body { display: flex; gap: 12px; align-items: center; flex: 1; min-height: 0; min-width: 0; }
+.dev-bars { flex: 1 1 48%; min-width: 0; }
+.bar-row { margin-bottom: 8px; }
 .bar-track {
-  height: 14px;
-  background: #CCCCCC;
+  height: 16px;
+  background: var(--mw-bar-track);
   border-radius: 4px;
   overflow: hidden;
   width: 100%;
 }
 .bar-fill {
   height: 100%;
-  background: #792D83;
+  background: var(--mw-purple);
   border-radius: 4px;
 }
-.bar-label { font-size: 11px; font-weight: 900; font-style: italic; margin-top: 2px; }
-.radar-wrap { flex-shrink: 0; }
-.skill-columns-row {
-  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
-  margin-top: 8px; padding-top: 8px; border-top: 1px solid #EEE;
-}
-.skill-col-mini {
-  text-align: center; flex: 1; min-width: 52px; max-width: 72px;
-}
-.skill-col-label { font-size: 7px; font-weight: 700; color: #792D83; margin-top: 2px; line-height: 1.1; }
-.skill-col-score { font-size: 16px; font-weight: 900; color: #792D83; margin-top: 2px; }
-.column-chart-wrap {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-.column-chart-wrap svg { display: block; margin: 0 auto; max-width: 100%; }
-.chart-svg { max-width: 100%; height: auto; display: block; }
-.sparkline-wrap {
-  display: inline-flex; flex-direction: column; align-items: center;
-  margin-left: 10px; vertical-align: middle;
-}
-.sparkline-label { font-size: 7px; font-weight: 700; color: #792D83; text-transform: uppercase; letter-spacing: 0.3px; }
+.bar-fill.score-1 { background: #E8D4F0; }
+.bar-fill.score-2 { background: #C9A3D6; }
+.bar-fill.score-3 { background: #A060B4; }
+.bar-fill.score-4 { background: #792D83; }
+.bar-fill.score-5 { background: #3D1048; }
+.bar-label { font-size: 12px; font-weight: 900; font-style: italic; margin-top: 2px; }
+.radar-wrap { flex: 1 1 140px; min-width: 0; max-width: 210px; }
+.radar-wrap svg { width: 100%; height: auto; display: block; }
 
 /* ── COMPORTAMENTO ── */
-.comp-scores-row { display: flex; gap: 8px; justify-content: space-around; margin-bottom: 6px; }
+.comp-scores-row { display: flex; gap: 8px; justify-content: space-around; margin: 8px 0 14px; flex-wrap: wrap; }
 .comp-score-item { text-align: center; }
-.comp-score-label { font-size: 8px; font-weight: 700; color: #792D83; margin-top: 3px; line-height: 1.2; }
-.comp-criteria-title {
-  font-size: 10px; font-weight: 900; margin-bottom: 6px; color: var(--mw-purple);
-  padding-bottom: 4px; border-bottom: 1px solid var(--mw-line);
-}
-.comp-criteria-item {
-  font-size: 8.5px; margin-bottom: 4px; padding: 4px 6px;
-  border-left: 3px solid var(--mw-purple-light); background: #fff;
-}
+.comp-score-label { font-size: 9px; font-weight: 700; color: var(--mw-purple); margin-top: 4px; line-height: 1.2; }
+.comp-criteria-title { font-size: 11px; font-weight: 900; margin-bottom: 4px; }
+.comp-criteria-item { font-size: 10px; margin-bottom: 3px; line-height: 1.3; overflow-wrap: break-word; }
+.comp-criteria-item strong { color: var(--mw-purple); }
 
 /* ── RECOMENDAÇÕES ── */
 .recomendacoes {
-  border: 1px solid var(--mw-border);
-  border-radius: 10px;
-  padding: 12px 14px;
-  background: var(--mw-panel-accent);
-  border-left: 4px solid var(--mw-purple);
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  flex-shrink: 0;
+  padding: 4px 2px 2px;
 }
 .recomendacoes-heading {
   font-size: 22px;
   font-weight: 900;
   display: inline;
 }
-.recomendacoes-text { font-size: 11px; display: inline; }
-
-/* ── Comparativo mensal ── */
-.comparison-section {
-  border: 1px solid var(--mw-border);
-  border-radius: 10px;
-  padding: 0;
-  margin-top: 4px;
-  overflow: hidden;
-  background: #fff;
-}
-.comparison-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 2px solid var(--mw-purple);
-  background: var(--mw-panel-accent);
-}
-.comparison-title {
-  font-size: 16px;
-  font-weight: 900;
-  color: var(--mw-purple);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.comparison-sub { font-size: 10px; font-weight: 700; color: #666; margin-left: 6px; }
-.comparison-body {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: var(--mw-gap);
-  align-items: stretch;
-  padding: 12px 14px;
-}
-.comparison-body > * {
-  padding: 10px;
-  border: 1px solid var(--mw-border);
-  border-radius: 8px;
-  background: var(--mw-panel);
-}
-.composite-donut-wrap { text-align: center; flex-shrink: 0; }
-.composite-donut-label {
-  font-size: 8px;
-  font-weight: 700;
-  color: #792D83;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  margin-bottom: 2px;
-}
-.composite-donut-sub { font-size: 8px; color: #666; margin-top: 2px; }
-.comparison-bars-wrap { min-width: 0; }
-.comparison-bars-legend {
-  display: flex;
-  gap: 10px;
-  font-size: 8px;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-.legend-bar { display: inline-block; width: 14px; height: 8px; border-radius: 2px; vertical-align: middle; margin-right: 3px; }
-.legend-current { background: #792D83; }
-.legend-prior { background: #C4B5D6; }
-.expanded-radar-wrap { flex-shrink: 0; text-align: center; }
-.expanded-radar-label { font-size: 8px; font-weight: 700; color: #792D83; margin-bottom: 2px; }
+.recomendacoes-text { font-size: 12px; display: inline; margin-left: 4px; }
 
 @media screen {
-  @keyframes barGrowUp {
-    from { transform: scaleY(0); opacity: 0.4; }
-    to { transform: scaleY(1); opacity: 1; }
-  }
-  @keyframes barGrowRight {
-    from { transform: scaleX(0); opacity: 0.4; }
-    to { transform: scaleX(1); opacity: 1; }
-  }
-  @keyframes ringDraw {
-    from { stroke-dashoffset: var(--ring-circ, 160); }
-    to { stroke-dashoffset: 0; }
-  }
-  @keyframes radarReveal {
-    from { opacity: 0; transform: scale(0.88); }
-    to { opacity: 1; transform: scale(1); }
-  }
-  @keyframes sparkDraw {
-    from { stroke-dashoffset: 180; opacity: 0.5; }
-    to { stroke-dashoffset: 0; opacity: 1; }
-  }
-  @keyframes pieReveal {
-    from { transform: scale(0.6); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
-  }
-  @keyframes cellFadeIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes compareBarGrow {
-    from { transform: scaleX(0); }
-    to { transform: scaleX(1); }
-  }
-  /* Column bars stay untransformed on narrow viewports so score labels paint on top (WebKit). */
-  .anim-col-bar {
-    transform: none;
-    opacity: 1;
-  }
-  .anim-h-bar {
-    transform-box: fill-box;
-    transform-origin: left center;
-    transform: scaleX(0);
-    animation: barGrowRight 0.8s ease-out forwards;
-  }
-  .anim-ring-progress {
-    animation: ringDraw 1s ease-out forwards;
-    stroke-dashoffset: var(--ring-circ, 160);
-  }
-  .anim-radar-shape {
-    transform-box: fill-box;
-    transform-origin: center;
-    opacity: 0;
-    animation: radarReveal 0.85s ease-out forwards;
-  }
-  .anim-sparkline-path {
-    stroke-dasharray: 180;
-    stroke-dashoffset: 180;
-    animation: sparkDraw 1.1s ease-out forwards;
-  }
-  .anim-pie-slice {
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: pieReveal 0.7s ease-out forwards;
-  }
-  .anim-compare-bar {
-    transform-box: fill-box;
-    transform-origin: left center;
-    transform: scaleX(0);
-    animation: compareBarGrow 0.7s ease-out forwards;
-  }
-  .metric-cell { animation: cellFadeIn 0.5s ease-out forwards; opacity: 0; }
-  .metrics-grid .metric-cell:nth-child(1) { animation-delay: 0.04s; }
-  .metrics-grid .metric-cell:nth-child(2) { animation-delay: 0.1s; }
-  .metrics-grid .metric-cell:nth-child(3) { animation-delay: 0.16s; }
-  .metrics-grid .metric-cell:nth-child(4) { animation-delay: 0.22s; }
-  .metrics-grid .metric-cell:nth-child(5) { animation-delay: 0.28s; }
-  .ring-cell { animation: cellFadeIn 0.55s ease-out forwards; opacity: 0; }
-  .ring-row .ring-cell:nth-child(1) { animation-delay: 0.05s; }
-  .ring-row .ring-cell:nth-child(2) { animation-delay: 0.12s; }
-  .ring-row .ring-cell:nth-child(3) { animation-delay: 0.19s; }
-  .ring-row .ring-cell:nth-child(4) { animation-delay: 0.26s; }
-  .ring-row .ring-cell:nth-child(5) { animation-delay: 0.33s; }
-  html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    width: 100%;
-    max-width: min(1180px, 100%);
-    min-width: 0;
+    width: min(100%, 1400px);
+    min-height: 0;
+    height: auto;
     margin: 0 auto;
-    padding: 16px 20px 24px;
-    background: #E8E4EE;
-    font-size: 15px;
-    gap: 16px;
+    padding: 18px;
+    background: #fff;
+    overflow: visible;
   }
-  .header { padding-bottom: 12px; }
-  .student-name { font-size: clamp(20px, 4.5vw, 34px); word-break: break-word; }
-  .turma-line { font-size: clamp(10px, 2vw, 12px); line-height: 1.35; }
-  .teacher-name { font-size: clamp(14px, 2.5vw, 18px); }
-  .grid {
-    flex-direction: column;
-    gap: 12px;
-  }
-  .grid-col { gap: 12px; }
-  .grid-col .card { flex: none; }
-  .card { padding: 0; }
-  .card-title { font-size: clamp(18px, 3.2vw, 24px); }
-  .bubble { width: 56px; height: 56px; font-size: 30px; }
-  .bubble-md { width: 64px; height: 64px; font-size: 34px; }
-  .bubble-lg { width: 76px; height: 76px; font-size: 40px; }
-  .metrics-grid-5 { grid-template-columns: repeat(3, 1fr); }
-  .dev-charts-row { grid-template-columns: 1fr; }
-  .bar-track { height: 16px; }
-  .bar-label { font-size: 12px; }
-  .recomendacoes { padding: 12px 14px; }
-  .recomendacoes-heading { font-size: clamp(18px, 3.5vw, 24px); }
-  .recomendacoes-text { font-size: 12px; line-height: 1.45; }
-  .comparison-section { padding: 0; }
-  .comparison-title { font-size: 18px; }
-  .comparison-bars-wrap svg,
-  .composite-donut-wrap svg,
-  .expanded-radar-wrap svg,
-  .radar-wrap svg,
-  .pie-wrap svg { max-width: 100%; height: auto; }
-  .pie-wrap.has-cal {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas:
-      "donut cal"
-      "legend legend"
-      "footer footer";
-    justify-items: stretch;
-  }
-  .radar-wrap,
-  .comparison-bars-wrap,
-  .expanded-radar-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
-  .dimension-rings { padding: 0; }
-  .ring-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .ring-row .ring-cell:first-child { grid-column: 1 / -1; }
-  .ring-score { font-size: 20px; }
-  .ring-label { font-size: 10px; }
-  .sub-panel-title { font-size: 12px; }
-  .metric-label { font-size: 11px; max-width: none; }
-  .fb-item-title { font-size: 11px; }
-  .fb-item-text { font-size: 14px; line-height: 1.5; }
-  .scale-item { font-size: 12px; }
-  .missed-lesson { font-size: 12px; }
-  .missed-heading { font-size: 12px; }
-  .pie-footer { font-size: 11px; }
-  .pie-legend { font-size: 11px; }
-  .chart-panel-title { font-size: 10px; }
-  .comp-criteria-item { font-size: 12px; }
-  .no-makeup { font-size: 12px; }
-  .stack-layout { gap: 12px; }
-  .split-layout { display: none; }
-  .comparison-body { grid-template-columns: 1fr; }
-  .comparison-body > * { margin: 0; }
-  .presenca-body, .part-body, .dev-body { flex-wrap: wrap; }
-  .part-left, .part-right { width: 100%; }
+  .card { overflow: visible; }
+  .student-name { font-size: clamp(18px, 3.2vw, 26px); word-break: break-word; }
+  .turma-line { font-size: clamp(10px, 1.8vw, 12px); }
+  .radar-wrap { max-width: min(210px, 42%); }
+}
+@media screen and (max-width: 980px) {
   .header {
     grid-template-columns: 1fr;
     justify-items: center;
     text-align: center;
-    row-gap: 8px;
+    gap: 6px;
   }
-  .logo, .teacher-block { justify-self: center; text-align: center; }
+  .logo, .header-center, .teacher-block { justify-self: center; text-align: center; }
+  .bubble-md { width: 48px; height: 48px; font-size: 26px; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .anim-col-bar, .anim-h-bar, .anim-ring-progress, .anim-radar-shape,
-  .anim-sparkline-path, .anim-pie-slice, .anim-compare-bar,
-  .metric-cell, .ring-cell {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-    stroke-dashoffset: 0 !important;
-  }
-}
-@media screen and (min-width: 640px) {
-  body { padding: 16px 20px 24px; font-size: 16px; gap: 16px; }
+@media screen and (max-width: 720px) {
+  body { padding: 12px; }
   .header {
-    grid-template-columns: minmax(140px, 1fr) minmax(0, 2.2fr) minmax(140px, 1fr);
-    justify-items: stretch;
-    text-align: initial;
-    row-gap: 0;
-  }
-  .logo { justify-self: start; }
-  .teacher-block { justify-self: end; text-align: right; }
-  .grid { flex-direction: row; align-items: flex-start; gap: 12px; }
-  .grid-col { gap: 12px; }
-  .pie-wrap.has-cal {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas:
-      "donut cal"
-      "legend legend"
-      "footer footer";
-    justify-items: stretch;
-  }
-  .ring-row { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .ring-row .ring-cell:first-child { grid-column: auto; }
-  .fb-item-text { font-size: 15px; }
-  .ring-score { font-size: 24px; }
-  .comparison-body {
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-  }
-  .anim-col-bar {
-    transform-box: fill-box;
-    transform-origin: bottom center;
-    transform: scaleY(0);
-    animation: barGrowUp 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  }
-}
-@media screen and (min-width: 900px) {
-  body { padding: 20px 24px 32px; font-size: 17px; gap: 16px; }
-  .card { padding: 0; }
-  .card-title { font-size: 24px; }
-  .bubble { width: 60px; height: 60px; font-size: 32px; }
-  .bubble-md { width: 68px; height: 68px; font-size: 36px; }
-  .bubble-lg { width: 80px; height: 80px; font-size: 42px; }
-  .metrics-grid-5 { grid-template-columns: repeat(5, 1fr); }
-  .dev-charts-row { grid-template-columns: 1fr 1fr; }
-  .bar-track { height: 18px; }
-  .scale-item { font-size: 13px; }
-  .fb-item-text { font-size: 16px; }
-  .recomendacoes-text { font-size: 15px; }
-  .composite-donut-wrap svg { width: 110px; height: 110px; }
-  .radar-wrap svg { width: 220px; height: auto; }
-}
-@media print {
-  html { height: 210mm; }
-  body {
-    width: 297mm; min-width: 297mm; height: 210mm;
-    background: #fff; padding: 6mm 10mm 3mm;
-    box-sizing: border-box; overflow: hidden;
-    display: flex; flex-direction: column;
-    gap: 8px;
-  }
-  .header { flex-shrink: 0; padding-bottom: 6px; }
-  .dimension-rings { flex-shrink: 0; }
-  .grid {
-    flex: 1; min-height: 0; overflow: hidden;
-    gap: 8px;
-  }
-  .grid-col { min-height: 0; overflow: hidden; gap: 8px; }
-  .card { border: 1.5px solid #999; padding: 0; overflow: hidden; }
-  .card-header { padding: 4px 8px; background: none; min-height: 0; }
-  .card-title { font-size: 14px; justify-content: flex-start; flex: 1; }
-  .card-title .mw-icon-tile { width: 22px; height: 22px; border-radius: 5px; }
-  .card-body { padding: 6px 8px; gap: 4px; overflow: hidden; }
-  .mw-icon-tile { width: 22px; height: 22px; border-radius: 5px; }
-  .score-box { border: none; background: none; padding: 0; }
-  .sub-panel, .chart-panel, .metric-cell { border: 1px solid #CCC; }
-  .sub-panel { padding: 4px 6px; }
-  .sub-panel-title { font-size: 8px; padding-bottom: 2px; margin-bottom: 4px; }
-  .stack-layout { display: flex; flex-direction: column; gap: 3px; }
-  .split-layout { display: none; }
-  /* Shrink bubbles for print */
-  .bubble { width: 36px !important; height: 36px !important; font-size: 20px !important; }
-  .bubble-md { width: 40px !important; height: 40px !important; font-size: 22px !important; }
-  .bubble-lg { width: 46px !important; height: 46px !important; font-size: 24px !important; }
-  .overall-score-label { font-size: 8px; margin-bottom: 2px; }
-  .metric-cell { padding: 4px; }
-  .metric-label { font-size: 8px !important; }
-  /* Hide pie chart visual, keep grade text */
-  .pie-visual { display: none; }
-  .pie-legend { display: none; }
-  .pie-wrap.has-cal { display: block; }
-  .pie-cal { display: block; }
-  .pie-footer { font-size: 9px; text-align: left; }
-  .skill-columns-row,
-  .column-chart-wrap,
-  .chart-panel,
-  .dev-charts-row .horizontal-bars-wrap,
-  .radar-wrap,
-  .sparkline-wrap,
-  .comparison-section,
-  .recomendacoes { display: none; }
-  /* Show score summary strip in print */
-  .dimension-rings {
     display: flex;
     flex-direction: column;
-    background: none;
-    border: none;
-    padding: 0;
-    gap: 4px;
-    margin: 0;
-    border-radius: 0;
+    text-align: center;
+    gap: 6px;
   }
-  .dimension-rings-title {
-    font-size: 8px;
-    margin-bottom: 0;
-    letter-spacing: 0;
+  .logo, .header-center, .teacher-block { justify-self: center; text-align: center; }
+  .grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
   }
-  .ring-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-  .ring-cell {
-    border: 1px solid #CCC;
-    border-radius: 5px;
-    padding: 3px 6px;
-    background: none;
+  .card { overflow: visible; }
+  .presenca-body, .presenca-main, .presenca-main.has-cal, .part-body, .dev-body { flex-direction: column; display: flex; }
+  .presenca-main.has-cal { grid-template-columns: 1fr; grid-template-areas: "pie" "cal" "right"; }
+  .radar-wrap { align-self: center; max-width: 210px; }
+  .recomendacoes-heading { font-size: 18px; }
+}
+@media print {
+  html, body { height: 210mm; }
+  body {
+    width: 297mm; min-width: 297mm; height: 210mm;
+    background: #fff; padding: 6mm 8mm 4mm;
+    box-sizing: border-box; overflow: hidden;
   }
-  .ring-cell-highlight {
-    border: 1.5px solid var(--mw-purple);
-    background: none;
-  }
-  .ring-cell-highlight .ring-score { color: var(--mw-purple); }
-  .ring-cell-highlight .ring-label { color: #444; }
-  .ring-score { font-size: 16px; }
-  .ring-label { font-size: 8px; }
-  .anim-col-bar, .anim-h-bar, .anim-ring-progress, .anim-radar-shape,
-  .anim-sparkline-path, .anim-pie-slice, .anim-compare-bar,
-  .metric-cell, .ring-cell {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
+  .grid { min-height: 0; grid-template-rows: 1fr 1fr; }
+  .card { overflow: hidden; }
+  .radar-wrap { max-width: 180px; }
 }
 </style>
 </head>
 <body>
 
-{# Self-contained Icon Library subset (stroke 2, round, currentColor). Reports cannot use the dashboard sprite. #}
-<svg class="mw-icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-  <symbol id="ri-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
-  <symbol id="ri-calendar-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="m9 15 2 2 4-4"/></symbol>
-  <symbol id="ri-book-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v16"/><path d="M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></symbol>
-  <symbol id="ri-message-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></symbol>
-  <symbol id="ri-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></symbol>
-  <symbol id="ri-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></symbol>
-  <symbol id="ri-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
-  <symbol id="ri-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></symbol>
-  <symbol id="ri-backpack" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 10h8"/><path d="M8 18h8"/><path d="M8 22v-6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></symbol>
-  <symbol id="ri-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
-  <symbol id="ri-scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="m19 8 3 8a5 5 0 0 1-6 0zV7"/><path d="M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1"/><path d="m5 8 3 8a5 5 0 0 1-6 0zV7"/><path d="M7 21h10"/></symbol>
-  <symbol id="ri-trending-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></symbol>
-  <symbol id="ri-lightbulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></symbol>
-  <symbol id="ri-headphones" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></symbol>
-  <symbol id="ri-languages" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></symbol>
-  <symbol id="ri-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></symbol>
-</svg>
-
-{% macro report_icon(name, size=16) -%}
-<svg class="mw-icon" width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ri-{{ name }}"/></svg>
-{%- endmacro %}
-
-{% macro icon_tile(name, size=16) -%}
-<span class="mw-icon-tile">{{ report_icon(name, size) }}</span>
-{%- endmacro %}
-
-{% macro render_column_chart(chart, fill='#792D83', track='#E8E8E8') %}
-<svg class="chart-svg chart-animated" width="{{ chart.width }}" height="{{ chart.height }}" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="{{ chart.title or 'Gráfico de barras' }}">
-  {% if chart.title %}
-  <text x="{{ (chart.width / 2)|int }}" y="12" text-anchor="middle" font-size="8" font-weight="bold" fill="#792D83" font-family="Carlito, Calibri, Arial, sans-serif">{{ chart.title }}</text>
-  {% endif %}
-  {% for tick in chart.y_ticks %}
-  <text x="{{ tick.label_x }}" y="{{ tick.y + 3 }}" text-anchor="end" font-size="8" fill="#888" font-family="Carlito, Calibri, Arial, sans-serif" dominant-baseline="middle">{{ tick.level }}</text>
-  <line x1="{{ chart.axis_x }}" y1="{{ tick.y }}" x2="{{ chart.width - 6 }}" y2="{{ tick.y }}" stroke="#EEE" stroke-width="1"/>
-  {% endfor %}
-  <line x1="{{ chart.axis_x }}" y1="{{ chart.pad_top }}" x2="{{ chart.axis_x }}" y2="{{ chart.plot_bottom }}" stroke="#CCC" stroke-width="1"/>
-  <line x1="{{ chart.axis_x }}" y1="{{ chart.plot_bottom }}" x2="{{ chart.width - 6 }}" y2="{{ chart.plot_bottom }}" stroke="#CCC" stroke-width="1"/>
-  {% for col in chart.cols %}
-  <rect x="{{ col.x }}" y="{{ col.track_y }}" width="{{ col.w }}" height="{{ col.track_h }}" fill="{{ track }}" rx="4"/>
-  <rect class="anim-col-bar" style="animation-delay: {{ loop.index0 * 0.12 }}s" x="{{ col.x }}" y="{{ col.y }}" width="{{ col.w }}" height="{{ col.h }}" fill="{{ fill }}" rx="4"/>
-  {% endfor %}
-  <g class="chart-score-labels">
-  {% for col in chart.cols %}
-  <text x="{{ col.text_x }}" y="{{ col.score_text_y }}" text-anchor="middle" font-size="13" font-weight="bold" fill="{% if col.score_inside %}#fff{% else %}{{ fill }}{% endif %}" font-family="Carlito, Calibri, Arial, sans-serif" dominant-baseline="middle">{{ col.score }}</text>
-  {% endfor %}
-  </g>
-  {% for col in chart.cols %}
-  <text x="{{ col.label_x }}" y="{{ chart.label_y }}" text-anchor="middle" font-size="9" font-weight="bold" fill="#444" font-family="Carlito, Calibri, Arial, sans-serif">{{ col.label }}</text>
-  {% endfor %}
-</svg>
-{% endmacro %}
-
-{% macro render_horizontal_bars(chart, fill='#792D83', track='#E8E8E8') %}
-<svg class="chart-svg chart-animated" width="{{ chart.width }}" height="{{ chart.height }}" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="Barras horizontais">
-  {% for row in chart.rows %}
-  <text x="{{ row.label_x }}" y="{{ row.label_y }}" font-size="9" font-weight="bold" fill="#333" font-family="Carlito, Calibri, Arial, sans-serif">{{ row.label }}</text>
-  <rect x="{{ row.bar_x }}" y="{{ row.bar_y }}" width="{{ row.track_w }}" height="{{ chart.bar_h }}" fill="{{ track }}" rx="4"/>
-  <rect class="anim-h-bar" style="animation-delay: {{ loop.index0 * 0.1 }}s" x="{{ row.bar_x }}" y="{{ row.bar_y }}" width="{{ row.fill_w }}" height="{{ chart.bar_h }}" fill="{{ fill }}" rx="4"/>
-  <text x="{{ row.score_x }}" y="{{ row.score_y }}" font-size="11" font-weight="bold" fill="#792D83" font-family="Carlito, Calibri, Arial, sans-serif">{{ row.score }}</text>
-  {% endfor %}
-</svg>
-{% endmacro %}
-
-{% macro render_score_rings(rings_data) %}
-{% set ring_icons = {
-  'Geral': 'gauge',
-  'Presença': 'calendar-check',
-  'Desenv.': 'book-open',
-  'Particip.': 'message-circle',
-  'Comport.': 'star'
-} %}
-<div class="dimension-rings">
-  <div class="dimension-rings-title">{{ report_icon('gauge', 16) }} Visão geral — índices do período</div>
-  <div class="ring-row">
-    {% for ring in rings_data.rings %}
-    <div class="ring-cell{% if ring.highlight %} ring-cell-highlight{% endif %}">
-      {% if ring_icons.get(ring.label) %}
-      <span class="mw-icon-tile">{{ report_icon(ring_icons[ring.label], 16) }}</span>
-      {% endif %}
-      <div class="ring-score">{{ ring.score }}</div>
-      <div class="ring-label">{{ ring.label }}</div>
-      {% if ring.delta %}
-      <span class="delta-badge {{ ring.delta.css }}">{{ ring.delta.symbol }} {{ ring.delta.text }}</span>
-      {% endif %}
-    </div>
-    {% endfor %}
-  </div>
-</div>
-{% endmacro %}
-
-<!-- ── Header ── -->
 <div class="header">
   <div class="logo">
-    <img class="logo-mark" src="data:image/png;base64,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" alt="" width="30" height="30">
-    <img class="logo-wordmark" src="data:image/png;base64,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" alt="Mister Wiz Escola de Líderes" width="120" height="31">
+    <img class="logo-wordmark" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeAAAAA9CAIAAAD6YS2HAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAB4KADAAQAAAABAAAAPQAAAAA8bik9AAAhqElEQVR4Ae2dCdgX0/fAtbyVaE8oe0iyhVDJrvCzK1l+dh4REkIKkT3Z9zWyLz2Wsu+kxZolQviRkgjtVG//j9/03P/87p2599xZvu/3rfk+7/M+M/eee+6ZMzPnnnu2qbFkyZIVil/BgYIDBQcKDpQfB2qWH0kFRQUHCg4UHCg48A8HahdsKDhQcKDgQLXgwJ8zZk/7esbv02bVrF1zlbWatmrTom79OtWC8sREFgI6MeuKgQUHCg6UiANzZs576e7RE16cNPvXuYsXVTJrRd3aq6zdtGOPzTt3b1+rolaJ6Cj5NDUKG3TJeV5MWHCg4IAHB3757rf7+j3948Sfa9epXbNWjaUjl6yweNHiysWVm3dte9gle9Vbqa4HxuoDWtigq8+9KigtOLD8cWDuH/OG9392yhfT66xY8f/SGT7UWAHFuaJexUcvTHxm6OvLqqJZCOjl75EvrrjgQPXhwJsPvPf9J1Mr6sUaY+usWGfskxO+eGdy9bkmD0oLAe3BrAK04EDBgVJyYO6f898fNbHCamKuUQNbR+W4pz4tJWElm2vpurR48eK//vqrBtcq+6244ooyQBtUZWXlggUL5JPWq1fPBF60aNHff/9ttmsTswOqW7durVrJnQlQ+/PPP3///fdTpkzh4Pfff581a1YwS/369Zs0abLKKqusvvrqrVq1atmyZaNGjTQCnKfwn7vgvBAnnsQATA2LFAG+j0Tiec2B2o3OkBIegNq1a9esWcV6CY89j5NitcmBcAtgMCTc4jyWvxRwo04dv0AIXjfwS4jnpQM5UzgJjgOY8f3MWb/MqVnLcb9qVdSc9tWMBXP+qrdyWku0/OriaE7fHr7jS3n39NNPDxw4UML0YPrLLrtsv/32S0nKGWec8eKLLwrflgYNGjz55JOIP23SJ5544qKLLnIi4Vm57rrrunbtqg13ns6dO3fs2LHQOXr06K+++mrmzJm8WpZRLF0tWrRYb731tt566+22247/a621lgVedfXq1WvcuHHyW6AGZnIAf+AtHG7YsGGA8Nlnnz3vvPNKTw+r3VNPPRW+0a+++urpp5+eCSWsQCuttBKr6dprr8092nTTTTfeeGMW1Ex4KEdy00033X333c6HNkAIQ0aMGLHmmmvK8Z9zzjnPPfecEz83fYMNNnj88cflMho14pBDDpk0aZLkdrCuPPbYY61bt5ZTrkEic5dULnHOBcD82QvmzVqQXkD3799fwjqNzgxPg5sC33hWQbtUQKMPfvHFF/Jpbrzxxn322cf5BFgQfv311zyjc+bMscCEu1ZeeeWFCxeGW4JjJOaXX35ptpstf/75p9loafnhhx/uu+++Rx999PPPP7eAaV3z58//z39/r7/+Ol3NmjVr3779v/7742XQgMOn6OZetyA8NpNj7kV47fl9pt8jkQkNIOGt1m70H3/8kR9n2Pdsttlm3J999903jSjxunxmFD60AdqPPvpILqBRz59//nkhfp46nvP1119fSP+PP/74wgsvMIUEfsstt5STHYnQqTsHo0iGrlGrZq3ayffHanYuUMg6NSTzA2Q0vwDt0r2Dr6h96623UPfSUHb//ffLpTMTVVRURC6kcsrlkPPmzbviiivQfy+44AIv6Wwy5LfffnvllVf69u2LKn3QQQehlqKDmGC0pNkJRiL0bdQIkLPLdyI7vHmjc6VkxowZaOhs5rhBxxxzzCeffGInL5NeHi30dzmqt99+Ww48efLk7777TgiPPvH+++8LgQH74IMPhNIZ4AMOOECum0fS0Lhlgzr1K5S0ioShkWC7pi0bNWhWPw5A3p7GCiqfxQ4ZfhMdxp04ROg4d955Z1yvsx2F/YEHHnCCVQnAZ5991q1bN3Y606ZNy5AADNZsVFHTdtppp0ceeURTEjOcqECVjAPo6cOGDdt+++0HDBiAXSsZEuEo7Eh77rmnEBiwMWPGhDc39oEff/yxXIaC6p133rEjDPdCSfjUcsxOiE22BUDS1bxVk3U2b7Vo4WI7cOWiyo27tBaq23ZU5dabUEBzGRgKv/3222TXw1j2VsnG5jrqpZde6ta1m9cj60sPFu1DDz2UNYBdiFM18EVewKfkwOzZs/Gv7LHHHvgbUqKyD2eptgOEeydOnIhrOtxiOfZSt8HDAylUF/ANAmyZOty1ySabtGvXLtyS4BiZu9ORHSrq1sISHTcc8d1ivWbbHrhZHEC1bk8uoNGChw8fnuDieRruuuuuBAPzHoJcRnROnTY174nAj4X64osvLgR0CVidYAqeBDTcCRMmJBgrHNKhQwcclUJg3jX0YgkwL9f48eMlkAoGj59QW5o6dSrAaqD9AAaGt+p2YEtvm+3W3evUHSsrl6Amm2CL/l5Uv0G9gwd0a9R8ZbN3GWhJLqC5eAQ0G0NfLrDCp7Rf+84ogcc5cNRRR+FylACnh8GeTthGrtbV9EQuzxjYHfbs2VOut/ryikgSr5iid999VzIF1mfc7xJIBYMrSLgUsUgI33ccCV5bBEVM5MEuR2/b4/yuKzWt//f8hUjkxQsX87fwr0X8tWzT4pjrDtiw4zqRA5eBxtpprgF3BF6vI444wgsJ6jORrV5D8gZGk8XymNhik4C8bbbZJsMnOAEBxRAnB9AWTz75ZDwHmWiC5nSYaOWOHGwLPKWRfvIwZkStl+89GIvO1L179zCeyGO5XrX55psTqWIiwSVL7BaaOMGOxM8Q4Eg8Jb9VV12VFhNetXTq3r5Nx3UnvDzp63H/mfvHfBI2mrRstPEOrTfbdUNJFQ4sV6xb3FBWXI75NW3adLXVVsMhZI+tUgRU1UEqAQ3RPGGYBeRPMDxCplfV1cbNi3ry8MMPx/Xm0d6nT5+UDu48qCpwahzgWeXB8FVBNCRxp506dVpjjTWESjq+659++gn4OGxBO44NO0BkL9If+7L9LcZLSSpA5HCzce+99zYfb+KXjj76aKKMw/AsOUTQIqnXWWcdtJZdd92VcJpIYd2sVWNUaf5Qn/8pxCEIqoNjMIQkBl5wzDimqZ2UhZEjR2JuCpNU5cfcC0VDKhMHWPDqym8b8DjKE6zwitycDu64444wU3KaRaFFvyACSZ0WB+XMgSFDhuT0xBIjv9tuuwmvnXhNpxmajen773nEzKmpifwldl+dRh5Mnz4dX2Vkl9aIfQMvq9bIKRjefPNNrZ1tAfosehtidPDgwTvvvPO22247aNCgb775RoNUp9RIsktnBDHYjjzySGT9YYcdRjYD6rMpnUH4yy+/+FqEFBn5HRCWDg8D/GkFNHJNvk3jIXvooYfyu7BkmLlJBG94jSW5CyYiZ4lmTZDVfeqpp5rJu6VcISIvNvIJjoTMtRE9q6x8p59++il5HzldMpqmHLMzPOOfJItJoqQtbVJiQAlw1hq1UyLEf/31V60x8pTgjS222MLswo6xww47mO3hFm49mQfkBqNN9+7d+9vJfnFixBey42EWVgg8ZJRkCCM3j/fff38tFjAuTcEcm1MLqa0333yzCsdOa+KASraBxCRtuOGGToox55G25AQrMcCHH37ovJGKJLaBWCeOPfZYNpsIWVJacJuw2pPrxWbqvffeQ01QwJEHbdq06dGjh9lFO856s11rwa/IOidnI5tHXgxJFC2mQPVYaJM6T0888cQdd9wxE8EKh7FOOmeMA2ATjfPNpATtkjsF39jtYkv18oKQDB15y+JokLcjSqjfIoy4h2yuy2KG/mTCJ0InnkkhbDn44IPNdtXCXtnkquoNH7DqBGnK4UaOabzllluwiEpi9XgXAKaQw1lnnXXSSSdhBtGwmaejRo1CBxcaytGr+vXrd+aZZ2qqEonsBAhamGzOa7bwHrFY3nvvvV6PGXh4B1lg/qc4BEznd88995jTyFuo4xHgsfxncUtj68HrjRXJxH/rrbcK6eRmm8NpYQ8rxADYcccdF4kkaMT7QRIK95jdaxxO6jBEYkCDRod1/gDzullXXnmlEDNThwkbdu+wuEsw2x988MHw2GyPkY/mjHEtt99+u312uPHaa6+RhRyHwWzntWFRtKNN3Mse3JwxsoV1iwfMMtHZZ58dOVDS2LFjRzhjQb777rtL8CCbkPUWPEhexKJXtTW0aXYPFpyYaAi5kUtVQgDRqCwIU3ZRcWmvvfaSsCsMQ7khklq1qVcIzr3e+TDS4Hjdddd1PsHsE+UcNKfIT0Cfdtpp5nRxLc73P+AnFr1rr70WE5iGB0+Ik1HaHTJPsalpaC2nV199tYlB0uIloFEWJDiTwXgJaKrESGZBaZXLaIROEEQhwewLw9pmuX1aF3Uw4vCzSSImQYOXnzZu3DhSAQqmwwyIpi/Bhn2DbWUckaodfhLFJBcICHSSexHuCkNwgEWCO46vT0IbMKy1OJw0XUTDmfIUktglCOlRYDxjvNfm1Glt0MEERF+SHKgmizzAVM30kV1V2ygxLCgKJbszgNmkUICNZR/7D0mDyj9O2BbxPQpbsgMvNnoBJ6OnOo4ixIrqhmakQeS1sFHNL7EQt5hcvlhyXFlyiPSIpF/SiG0EW18cJHZhp+0uGIvmKNGO8QRSQZO3A3tC3KThdmqGXH755ViEcGIFPttgJ4StGY8O60cYOO6YYjjYIU844QT1PsZBpmmnBmSCkLBLLrkEr6Y5bzYCGrxEN7MumRMELTw6LP5xvVXbztolJ4DnQ77bwLyFPY4L57fLLrsgtXMK2JLTX0AqDhDlZm5xVK92gG1Ba8nqFM3U6TpTcyGg49wJvGJszhRkggOLExK9JG7e8ES8Sl7R/RQRfOONNzAbhpFYjnHYHn744Vg8MJd36dIFq0tQM9IyJOhif4BpkcqUXjWqnGhNANT5a665xmy3t5x80slUiI2EyUxAY5u33GCi69j4RFJQ5Y0We7FJG/uX448/npxDbFhmb1wL0Z3I6JdffhnFLQ6maC8xB5AmVJUTTuq1zRLiVGDIKXVsP0AKx2mygeXXPtzeixsQtTQSBuSR7VrjRhtttNVWW2mN9lPePnQ7ftgw7ZCql9qzWL2EawajiLbi7SMmxEsVU9PJDyjijEvTd89KxO3Qa4bGWXsyE9AssBh3Ii+GDUgZRtcpUjGgq2PJATeAWqnoXyzgBMQQHCrx1RLYKAl0kRBQhjDVNGf9f9zlVrbGSS7rIGkn0dBCLQEdOc6OIa8zF0cWrrbIeBIWJ2cIdoCTN0Ji3zAJQIkmBoMIM7MrZQsaPUG0WFRS4nEOJx2EWCbcg07IMAAqAouTFkkSBsggzE6hI0eIgHPCxVRLcMDOIvLGa2BVdco+l6VVImTDFBKUQqFnfsRE82EO/DP88DvJ7YlhbNX9mI8hECQr2QVbrpTHVH3PxQJWJV25rkCEbFLmFJus89JQDrBymAEVpFDHCe4AJ08pu3s7DGboyC8DTPpykuT9hUVpvrJEGAl6LhYMy0bcyR8NgM3u9ddfz7Vr7ZmfIveg3DfGkTuCi9julMpSQJMRhCkDW374+hFkZN+HW8rtGDcFum3ib3ZgusG8w4+ANoKOMZDhuOAVytvaVVZsJM6SKp0pBTSxxhgKS3ld8nDyvFcOrBwSAQ1zAlOGtiPGiWeP5Sd8CP0Of5qdvUh/04g8dtw/ieD2gfSimfHwO8EsAHx+hY+u8RiYCYeWUXFd2CGJwc3VHxhMjYWAsA1nKqZGJ0GT+BKdUsJDQLNCgjTOBBZMTxl+Pk4RTjTA8Gr/SgV7f8xPQj+sdpGZnJL4T3ZDnJHeawpcSUSz8CMMHhsIAdG8eMLdq9dE5QZMKhq/lFT5KiApp0MblX9MJO+NEck1OLIkHOBt4h3UnBlOgyx7O4J/sT8QDmHhG/t0tpKarVZoPMFQk15XDcQWPpvEClNwdWDA/FgC6Yx+Rtqal0cKCrkRxBpI1jMPGzT6EdHgdlWCyi/hqFXeAQzT/Lc8E3gVOnfqbAEoQRcsdi5lXmSw5SfumzWc3JwLL7xQskP0wr9MAudqRjA5Fux7zPbIlmwfD3MKakMLPZZYM0yNxylDURe4BGflNhwqFBgKk0dMmyX8TkFy7/bZO+33UwJshLXccMMNkbmIajr7AVKeLMTIikv2gb69iEQ2JVjPvQbCKwwvwix/DwENEYgbZ0gQBg2Vz07xQ6y0durZHTRs1NAOk3dv8+bNiYpVBUoynI4IcQrz8+7ddtttvmbuDMkoUGkcQO6ce+656kHVerVT9kPyz6pqY+Wne/9LVJcDdYelJYwWbcAU2WEAHmyUNawizjUAFZ5QtvBYAsAlhiC+t9uxU8fwwDTHKONaiQwvbGQblMYhf+mll8qDbtUlYA8kFlud2g/8BDSaOVqhHSMOX1JpAxioxwZtgce4gcnJ1/VpQZi4iweCpLuclDgeceoJUHJXU08SU1sMjOOAZJVFBhHbJDd0El3grPMZR4+8fY8997BvTxUqLaIOAzSVH1SveYB6HrjucUWavVqLVpyS8jKS15NsLEm5DG0uy2nijAEU5wSJfBZK4rqIvqCoU1xvXDsfJuZT1HG9ZruHDZrBaBw4aglOsiyqqP2YNTB4sa8nMNCcMtyCP40djcQFER6V0zE536xAFDSQmAIT0IBtmrJKlAQxA10SYCuGRHIA4cumzbSqoT9ifmVDgx+MWpReFnMMxCWwZmKCwNwnybxAB8LQocziWNLtmzPilALpyQ4YM7E9IwEBzSusNBWn8YS7AG/lodyRd81shBU4bxKk3rRt2xZ13kSYbQsGTMSFne3mjEhFMlk0E78JFm7xE9AQxAJFGg/KZhiLdkzgIZKI18DuUeQhkCcRaVPkdMrWg7B2ZLRcvfKihDinAw88EMcp8R5eAwtgIQdwDfETAkvAWLMlXxuRoLLDIObYxkkENK8V6xB+sAAhS44dMwGgAQAh/+z97UHN6OP4uoMdA0saGrQdOb1o6ATJOcG8AJDOVGFMIKCpdJr3aopRHq+V3d1qXmz79u0pWeNrGfczcQSzEvFniawGhiX6qquuctb0YZEkX9O8kqptwVrH0oJxBkmdByX4YSjTgZKSB/ICZ+YcQGgK60Wknxo9VPICsz9QqX0Y0+0Cl3ojSnrieXNmtyMT1ScK+Qgcew7ndbHDSFAV3Y4WUglrscNE9ubtLaCkFCYUe1CjSRhWB5L1WHLMLntLEgHN18acghVXoXPtpTiIsFqN/Roy7+XhwFTEO4BRggIr9kjyBLNj5aBMTIKBxZAScwDLALVvSjYpwkVYY09ZivkgCCLDQiH7/bDMIpzDAhx0qYpgGE+ceiKKfx6fBwJtMkVYnjLu5IMJgD8WqeVbOQuSSEghD95E6GxJIqAxTThdhU4NkVCYPO6r84LlAFjrMLgjTHlMUahxZhJILx9ugUQDohhpmVjeLXQWXZRWyGkjFclb3iwzTyQSEhNH8H0THk5LkTLGBnZnhYQNon37C6RyQio9XQ03D3gpnMEh5ihJi6+FN8AZ1LqT4PeFwVlKaqJvoiNe6ztuv0Pino2kJ4mABhF7Md8SFtr0PIjUZtUay/OUK0WhxuFJODoVtQmbIwwonIyTgGyUFHvebQKc1X2Ic1Ev8QWyPGeSvuRFdpBO4hyCBx5jMWBKlY4bom12NYU6clSQC4MCMX78+EiAcCPlUpPZIsJIzGM0d+EXtrSxvuqtNtxyysOAumYBiOzCXde9h/uL6ZFjafRzEios3BJchSQ3qxavA/yYkcVPvZCUHhjHBVVD+TE1jhQeX6zVxBQmeCaIhxn9zujIT7eV/rrSz4imSSHgNBKWsWXlOMWuyrbJqWymZ52GgQgfdHZlZNB61SmbsHFjx3XZvgsatGo0DzDWaXWCuCKUaLtygGQEAEokH1TNaR+M7dseO2hebNCChotwx7UbB5CsfejQoaRK+I7lvfD6HoiJP6GABhGuQhJ+nCYqc0pa8FTktC2KnC6PRqQJX5zkRwUS4rrIXHKm5GhkfPSxR8FSbWy5nbLSoEmVG1WJ6SFsg1DRXK2ZcbRheMUt6RTQDB/97uj9vtlv8uTJcahoJ2bDzB4k14y1xzKKLgjg1Z47d64dDN+XM3PNjiGuF73HHg4YN5CafFTlJy47DiBBO+Xe+J6L70AqPWiFiXwxAJ/QxMFIXNvs9BNMyRCi0MvTPYgTQJhdpi6cL4mhRFCIi0LdXheVTEFQ85bVgd0MWlak2okhKp89KVVsqkQ6B7RhP0TztdNJL+FAbODsiWCRFmes0k4FE+uzSjezUMKXgvNgFNZnZwpFHFVsxeLqHscNsbcTxdirVy/fJxx9hc/jJfNzhulJLqBxs1JjKIxLeEysCbHAQuASg1HpibU3QRA0Rpu+fftyI+UEo56ksQnIJyog5RzAFcwnTdO/V/IZTUhSLSSBfWSl8hk5c3i4JVK9lZihCcEihCmMKvI4J/vGBx98IDF/R5JEI1kkkvohccPD7ejjCeqIknpKkLEwLzQ8nXmcXECDi6Ka5gbKnENrwfeCnqI1lsMp4Z98kxvpzHXxrWWt4oGEQhYe1i0JJDCYEYWQBVjJODB8+HAVBVyySbWJ2IdJKulggrCbkglD6rB1Bw05p6Zh2oTBDG2P3mMITn7NA2niSdYSrudjYiDWhSIY1M8xu4IWOEOh0bheeTvBzoQ8W7KmI1Fh/GQHllXEVyoBze4eO0sklXGNBJ2UrXsQJ0Bg9mI7A4vRPjAxP/PMM05LnLpYLCRysUtKAo+aGlscZMIBMiZY/rUfxTmFCydfD6GIUrIAr0zoD5Bg5ZAUFbHPiPLUev3opOdMBCupjBYpaafN0kthZapCWwDw3/Y/tz97HQvMiBEjfAs0a9gQBcRu2ZOAtCGcIhJZ48kUMbuStaQVEKwwktwnRRy+Qc2trLqq9oD6s9pjQdgjNdTR90nEor4Jey6714LyDkQ3y6+iBPV35MSkhCyflQZnDlFi2g+lGM+b8BpxJziTYIWoEoPxjZ7033/iXYtziuClT1+7WaLmJ+AANeUtGd6o/7yMNWrWIDrCYkOYOXNmuO6xLxms0KeccgpPgtdAWIr5O4jy8hpoAU4exREgxV6Gq1D4MQiGoD5XrYEvjheoz8RjRPaSFMAPhyw+cRws/Lhq9ndKBWYg4puvgXgZzkqZARF5XRk2ongSdyjfPVimBgmhYIlVM1SYyLHUV+F9kxRmg7ZBgwbhiqjCOH04gBKd0thiiasJzNAsY5YbYe9iUxJp4LaPcvai5dhXR7TaIHOdxDwq+VhUImKW+/Tpk2wjwgNA3QwntRoAG26o8hICGobgFNcUyZ9LH2PeB37OsJtgJB9LDeDD/9lNRE5jNvLE8+WU8Njg2L5bCfDgLMYoZo6VG5u4YebwoAWHuG+xRFZLOEhFMX5ee4jgcnhuiGCNo8feznfFTN7GtQwZMsSOLa532L0es6DLwAeSd9L/4Crp9WGqvFQhqoWFx6pjHnoiteO4ZLbz8quxVXJA8IBX2TPtEnieiWK2UC4vSaxhDk7ZOluQJ+6yZ4Jg3iX2SSHnGFtWJHk0omuzAilg+QHRF8l2hOxXGIgxLeUP4hHIAcFpNWhwoUET085nE+M4pdrx+fICq9PyOUB99s0Qxdxht3jYr46SC2xj7TDVqBfFh19WBKOPZ4VK4eGdIUSHOovCDHt0EWSQqhin8JTsgOJnvFaoDslmRJXjO4SWsZihnUEgluGY/iy9ibuoKGQZS12UsGGQYzJBiLqJHEK8LAHRvm/ZyJEjE9cyE+7PIqmNa0xrgwYvm0oe5bgJVDvLS+Ii3ApJHgdURiUQPQ/MFpzU74+zD1pGLSddaTRHC4vY8ssj93EUYxXxXbYts/t2sUXzUvk1/Big7bZELHWJzdCoWXnYN9giW4KvWVEohaFdJl/C5UK0RnVKvJ06Fh6wMCdLvhPi9wXLQEAzJbEcThMBliPqi/rSVwJ4vg9G9EUJJlJTwAoS5dVpcaBxgM2d1pLJKdtPZK5dbIUnIpb2umu9s3vDGFIeY4ZOttdmXmd1HsknCuPoJz/FYluIG+VsRzrHfSuDzBoKS5j5O1gXqWwcp+tgDqZoiXPeMEBOykF4Cq/jbAQ0ezG+jWKfmKyWcrt4CCbI0cuka79GSS9lTEiRd6ZySVAtqzCYI3K6NCQLQVpy5FcPvTqoSSQfkiEkumGCPAMIINaQHEI7JQg1J0wcBrxhcV1p2i0KL99mDXyDJn4+R0Cv2U4L351JkM0QiaqqGrMR0FBvzypkvZXHOZWSF7i2+Oo2VprSTIpcJhDHWTS9NMSU7Sw5adBcLwopFka5osDWihpmVRUWjXro1HsibyJRRlTJiOwKNyaLhuaVyTaSLCAJ3Tmu8BN2ZILTw5Rrx+eff37c7lzyhRoNW1mdZuAkDK4HdwoBjJHmGxzo+CsoBVdWVx4QQzwTfgYMav369cOlkCuF6DVIZ0nISq5kLOfIsUTzk1e2GjVqFJ6rqnKfYIZmv+W7YqFsShYhNGjM0L6+bkr+52HfwAAd+UllzBr48O0VP3iz+IQrIojwZ+3xpkQw3MtvT6ZNl/lpZgIaSUfSeub0lQYhTyp1Z0gwpeARn/nJY1KmwNhd3Wv45cEZE2eurxM2aBZjzJ3oDebUkS0DBw4k+5/I38jeXBs7btcRY7G9ZJ1JgFA1lnyi0ESeU/wGMXORBYlwG0gUduop3nLzLf8+4t9alA5lSwkKyvyjSCZbcmrJzMSRE30lQ8sC07t3byxWFH5t165dhvPySU38GFT6L6SzkKu+CqMQrQJD1ZKHczAKRwVfaVDDS3nQoGEDL1KhDSeH8LtZmKHjDLtx18g+OKfQw0g7EsVtBgwYEEeM1t7zkJ4ki2lbB+Jw4hyP2vDyPC0LAS15ISUw6VlMlgTRshTDJe27Z8+eaXLJAicM4n78uPGobM4ol/TEFxiEHOAd5i57BUiwu6oqa6ZvRjUG6HCwsJ0nQl1bIencuXNWZYAUzuCAQAMtSINdCyZBrVEbpZ0SdUeaSdilxG7MC4OGsMpPy0JAS7a0EpisuIkwZemmsh0GLIyVaE+k2FABEvFtudm89igvJAgAjKlkzJgxJIMhCFqs2iIrwpYTPGnutXAhxwztJZvIQcBbmGEyjvxWEjBnTznRUOFQ0bRIDSB8ir/aS3XIz9XPizN48OAgYA7vKL5cUpQTOK5IAcVcSawO5nUeJPYfXrYp4fMT5mGuxzUCgiisRyqgXafAZtd2o7Z5iBsKFU2fPt3yVEEkudFs3Ez5SJwjlFvGBuyDeAwXSNjE3CQxiRqM/DBp4dyn/oaqlU5sRpPGTZqv0pwAfp6GvEPo4BVlau03K7hMto0k9cv1qTBzmIX74mRseEgmx9wpLIbhBDB4Tqyb8HqJSxPuezB6YtsVXiBPIISR3Yc/KpPL9EJCKRjcXxIO/POStm1LoIUQP08IxZd5koWLIqbesH4qnEUORiDHlClTeGglFbHtaEnC5FWl4o3XCuSURfZJM+nlJrKfCNaVpQI6E7wFkoIDBQcKDhQcyJADZWHiyPB6ClQFBwoOFBxYZjjwf0GWOZebbrIZAAAAAElFTkSuQmCC" alt="Mister Wiz" width="240" height="30">
   </div>
   <div class="header-center">
     <div class="student-name">{{ student.student_name }}</div>
-    <div class="turma-line">Turma: <span>{{ student.turma_display or student.turma }}</span> &nbsp;|&nbsp; {{ student.nivel or '' }} &nbsp;|&nbsp; {{ student.horario or '' }}</div>
+    <div class="turma-line">
+      Turma: <span>{{ student.turma_display or student.turma }}</span>
+      {%- if student.nivel %} &nbsp;|&nbsp; {{ student.nivel }}{% endif %}
+      {%- if student.horario %} &nbsp;|&nbsp; {{ student.horario }}{% endif %}
+    </div>
     {% if report_month_label %}
     <div class="period-line">
       Período: {{ report_month_label }}
       {% if trend %}
       <span class="trend-pill trend-{{ trend.direction }}">{{ trend.symbol }} {{ trend.label }}{% if trend.direction != 'first' and trend.delta %} ({% if trend.delta > 0 %}+{% endif %}{{ trend.delta }}){% endif %}</span>
-      {% endif %}
-      {% if composite_sparkline %}
-      <span class="sparkline-wrap">
-        <span class="sparkline-label">Evolução</span>
-        <svg class="chart-svg" width="{{ composite_sparkline.width }}" height="{{ composite_sparkline.height }}" viewBox="0 0 {{ composite_sparkline.width }} {{ composite_sparkline.height }}" role="img" aria-label="Evolução do índice geral">
-          <line x1="4" y1="{{ composite_sparkline.height - 4 }}" x2="{{ composite_sparkline.width - 4 }}" y2="{{ composite_sparkline.height - 4 }}" stroke="#DDD" stroke-width="1"/>
-          <path class="anim-sparkline-path" d="{{ composite_sparkline.path }}" fill="none" stroke="#792D83" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-          {% for pt in composite_sparkline.points %}
-          <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3" fill="#792D83"/>
-          <text x="{{ pt.x }}" y="{{ composite_sparkline.height - 1 }}" text-anchor="middle" font-size="6" fill="#666" font-family="Carlito, Calibri, Arial, sans-serif">{{ pt.label }}</text>
-          {% endfor %}
-        </svg>
-      </span>
+      {% else %}
+      <span class="trend-pill trend-first">— Primeiro período</span>
       {% endif %}
     </div>
     {% endif %}
@@ -1137,398 +353,208 @@ body {
   </div>
 </div>
 
-{{ render_score_rings(dimension_rings) }}
-
-<!-- ── Report grid: academic performance | classroom conduct ── -->
 <div class="grid">
-  <div class="grid-col">
 
-  <!-- PRESENÇA -->
   <div class="card">
-    <div class="card-header">
-      <div class="card-title">
-        {{ icon_tile('calendar-check', 20) }}
-        Presença
+    <div class="card-title">Presença</div>
+    <div class="bubble bubble-abs score-{{ pres_score }}">{{ pres_score }}</div>
+    <div class="presenca-body">
+      <div class="presenca-main{% if attendance_calendar %} has-cal{% endif %}">
+      <div class="pie-wrap">
+        <svg width="120" height="120" viewBox="0 0 116 116" role="img" aria-label="Presença {{ pct }}%">
+          <circle cx="58" cy="58" r="48" fill="#BBBBBB"/>
+          {% if full_circle %}
+          <circle cx="58" cy="58" r="48" fill="#792D83"/>
+          {% else %}
+          <path d="{{ pie_d }}" fill="#792D83"/>
+          {% endif %}
+          {% for lab in pie_labels %}
+          <text x="{{ lab.x }}" y="{{ lab.y - 5 }}" text-anchor="middle" font-size="11" font-weight="bold" fill="{{ lab.fill }}" font-family="Carlito, Calibri, Arial, sans-serif">{{ lab.pct }}%</text>
+          <text x="{{ lab.x }}" y="{{ lab.y + 8 }}" text-anchor="middle" font-size="8" font-weight="bold" fill="{{ lab.fill }}" font-family="Carlito, Calibri, Arial, sans-serif">{{ lab.caption }}</text>
+          {% endfor %}
+        </svg>
+        <div class="pie-legend">
+          <span><span class="legend-sq" style="background:#792D83"></span> Frequência</span>
+          <span><span class="legend-sq" style="background:#BBBBBB"></span> Faltas</span>
+        </div>
+        <div class="pie-footer">Nível de presença do aluno</div>
       </div>
-      <div class="score-box overall-score">
-        <div class="overall-score-label">Nota</div>
-        <div class="bubble">{{ pres_score }}</div>
-        {% if pres_score_delta %}
-        <span class="delta-badge {{ pres_score_delta.css }}">{{ pres_score_delta.symbol }} {{ pres_score_delta.text }}</span>
-        {% endif %}
+      {% if attendance_calendar %}
+      <div class="pie-cal">
+        <div class="pie-cal-title">{{ attendance_calendar.month_label }}</div>
+        <table class="att-cal">
+          <thead>
+            <tr>
+              {% for h in attendance_calendar.day_headers %}
+              <th>{{ h }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for week in attendance_calendar.weeks %}
+            <tr>
+              {% for cell in week %}
+              <td>
+                {% if cell.day %}
+                <span class="att-day att-{{ cell.status or 'noclass' }}" title="Dia {{ cell.day }}{% if cell.status == 'absent' %} — Falta{% elif cell.status == 'tardy' %} — Atraso{% elif cell.status == 'present' %} — Presente{% endif %}">{{ cell.day }}</span>
+                {% endif %}
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="att-cal-legend">
+          <span><span class="att-dot att-present"></span>Presente</span>
+          <span><span class="att-dot att-absent"></span>Falta</span>
+          <span><span class="att-dot att-tardy"></span>Atraso</span>
+          <span><span class="att-dot att-noclass"></span>Sem aula</span>
+        </div>
       </div>
-    </div>
-    <div class="card-body presenca-body">
-      <div class="stack-layout">
-        <div class="sub-panel">
-          <div class="sub-panel-title">Frequência</div>
-          <div class="pie-wrap{% if attendance_calendar %} has-cal{% endif %}">
-            <div class="pie-visual">
-            <svg class="chart-svg chart-animated" width="120" height="120" viewBox="0 0 116 116">
-              <circle cx="58" cy="58" r="48" fill="#BBBBBB"/>
-              {% if full_circle %}
-              <circle class="anim-pie-slice" cx="58" cy="58" r="48" fill="#792D83"/>
-              {% else %}
-              <path class="anim-pie-slice" d="{{ pie_d }}" fill="#792D83"/>
-              {% endif %}
-              <text x="58" y="64" text-anchor="middle" font-size="22" font-weight="bold" fill="white" font-family="Carlito, Calibri, Arial, sans-serif">{{ pct }}%</text>
-            </svg>
-            </div>
-            {% if attendance_calendar %}
-            <div class="pie-cal">
-              <div class="pie-cal-title">{{ attendance_calendar.month_label }}</div>
-              <table class="att-cal">
-                <thead>
-                  <tr>
-                    {% for h in attendance_calendar.day_headers %}
-                    <th>{{ h }}</th>
-                    {% endfor %}
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for week in attendance_calendar.weeks %}
-                  <tr>
-                    {% for cell in week %}
-                    <td>
-                      {% if cell.day %}
-                      <span class="att-day att-{{ cell.status or 'noclass' }}" title="Dia {{ cell.day }}{% if cell.status == 'absent' %} — Falta{% elif cell.status == 'tardy' %} — Atraso{% elif cell.status == 'present' %} — Presente{% endif %}">{{ cell.day }}</span>
-                      {% endif %}
-                    </td>
-                    {% endfor %}
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
+      {% endif %}
+      <div class="presenca-right">
+        <div class="missed-heading">Aulas perdidas</div>
+        <div class="missed-total">{{ total_lessons }} aulas totais</div>
+        {% if missed %}
+          {% for m in missed %}
+          <div class="missed-io">
+            <div class="missed-io-line"><strong>Input:</strong> {{ m.licao_conteudo or ('Aula ' ~ m.aula_num) }}</div>
+            {% if m.atividade_extra or m.habilidades %}
+            <div class="missed-io-line"><strong>Output:</strong> {{ m.atividade_extra or m.habilidades }}</div>
             {% endif %}
-            <div class="pie-legend">
-              <span class="legend-item"><span class="legend-sq" style="background:#792D83"></span>Presente</span>
-              <span class="legend-item"><span class="legend-sq" style="background:#E24B4A"></span>Faltas</span>
-              <span class="legend-item"><span class="legend-sq" style="background:#EBB22E"></span>Atraso</span>
-              <span class="legend-item"><span class="legend-sq att-noclass-sq"></span>Sem aula</span>
-            </div>
-            <div class="pie-footer">Nota de presença: <strong>{{ pres_score }}</strong> / 5</div>
           </div>
-        </div>
-        <div class="sub-panel presenca-right">
-          <div class="sub-panel-title">Registro de faltas</div>
-          <div class="missed-heading">Aulas perdidas</div>
-          {% if missed %}
-          <div class="missed-dates-row">
-            {% for m in missed %}
-            <div class="missed-date-cell">
-              <div class="missed-box">{{ m.aula_num }}</div>
-              <div class="missed-date-sub">{{ m.date }}</div>
-            </div>
-            {% endfor %}
-          </div>
-          <div class="info-box">
-            {% for m in missed %}
-            <div class="missed-lesson">
-              <strong>Aula {{ m.aula_num }}: {{ m.licao_conteudo }}</strong>
-              {% if m.atividade_extra %} — {{ m.atividade_extra }}{% endif %}
-            </div>
-            {% endfor %}
-          </div>
-          {% else %}
-          <div class="info-box"><div>Nenhuma falta registrada.</div></div>
-          {% endif %}
-          {% if needs_makeup %}
-          <div class="no-makeup" style="color:#792D83;border-color:#792D83;">Reposição necessária</div>
-          {% else %}
-          <div class="no-makeup">Sem necessidade de reposição</div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- DESENVOLVIMENTO -->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">
-        {{ icon_tile('book-open', 20) }}
-        Desenvolvimento
-      </div>
-      <div class="score-box overall-score">
-        <div class="overall-score-label">Média</div>
-        <div class="bubble">{{ dev_overall }}</div>
-        {% if dev_overall_delta %}
-        <span class="delta-badge {{ dev_overall_delta.css }}">{{ dev_overall_delta.symbol }} {{ dev_overall_delta.text }}</span>
+          {% endfor %}
+        {% else %}
+          <div class="missed-io-line">Nenhuma falta registrada.</div>
         {% endif %}
       </div>
-    </div>
-    <div class="dev-body card-body">
-      <div class="sub-panel">
-        <div class="sub-panel-title">Notas por habilidade</div>
-        <div class="metrics-grid metrics-grid-5">
-        {% set skill_icons = ['headphones', 'mic', 'languages', 'pencil', 'book-open'] %}
-        {% for i in range(5) %}
-        <div class="metric-cell">
-          {{ report_icon(skill_icons[i], 16) }}
-          <div class="bubble bubble-md">{{ dev_scores[i] }}</div>
-          <div class="metric-label">{{ dev_labels[i] }}</div>
-        </div>
-        {% endfor %}
-        </div>
       </div>
-      <div class="dev-charts-row">
-        <div class="horizontal-bars-wrap">
-          <div class="chart-panel-title">Barras por habilidade</div>
-          {{ render_horizontal_bars(horizontal_dev_bars) }}
-        </div>
-        <div class="radar-wrap">
-          <div class="chart-panel-title">Radar linguístico</div>
-          <svg class="chart-svg" width="200" height="205" viewBox="-5 0 210 215" font-family="Carlito, Calibri, Arial, sans-serif">
-            <text x="100" y="12" text-anchor="middle" font-size="9" fill="#555">Avaliação de Habilidades Linguísticas</text>
-            {% for ring in grid %}
-            <polygon points="{{ ring }}" fill="none" stroke="#DDD" stroke-width="1"/>
-            {% endfor %}
-            {% for ep in axes %}
-            <line x1="100" y1="105" x2="{{ ep[0] }}" y2="{{ ep[1] }}" stroke="#DDD" stroke-width="1"/>
-            {% endfor %}
-            <polygon class="anim-radar-shape" points="{{ pentagon }}" fill="rgba(210,150,225,0.30)" stroke="#792D83" stroke-width="2"/>
-            <text x="100" y="22" text-anchor="middle" font-size="9" font-weight="bold">Audição</text>
-            <text x="198" y="82" text-anchor="end" font-size="9" font-weight="bold">Fala</text>
-            <text x="175" y="200" text-anchor="middle" font-size="9" font-weight="bold">Gramática</text>
-            <text x="25" y="200" text-anchor="middle" font-size="9" font-weight="bold">Escrita</text>
-            <text x="2" y="82" text-anchor="start" font-size="9" font-weight="bold">Leitura</text>
-          </svg>
-        </div>
-      </div>
-      <div class="skill-columns-row">
-        {% for col in skill_columns %}
-        <div class="skill-col-mini">
-          <svg class="chart-svg" width="56" height="58" viewBox="0 0 68 72" font-family="Carlito, Calibri, Arial, sans-serif" role="img" aria-label="{{ col.label }}: {{ col.score }}">
-            {% for ring in col.mini.grid %}
-            <polygon points="{{ ring }}" fill="none" stroke="#C8C8C8" stroke-width="1"/>
-            {% endfor %}
-            <polygon points="{{ col.mini.pentagon }}" fill="rgba(121,45,131,0.15)" stroke="#9B7BB8" stroke-width="1"/>
-            <line x1="{{ col.mini.center[0] }}" y1="{{ col.mini.center[1] }}" x2="{{ col.mini.highlight_tip[0] }}" y2="{{ col.mini.highlight_tip[1] }}" stroke="#792D83" stroke-width="2" stroke-linecap="round"/>
-            <circle cx="{{ col.mini.highlight_tip[0] }}" cy="{{ col.mini.highlight_tip[1] }}" r="2.5" fill="#792D83"/>
-          </svg>
-          <div class="skill-col-score">{{ col.score }}</div>
-          <div class="skill-col-label">{{ col.label }}</div>
-        </div>
-        {% endfor %}
-      </div>
-      <div class="chart-panel">
-        <div class="chart-panel-title">Gráfico de colunas — habilidades</div>
-        <div class="column-chart-wrap">{{ render_column_chart(dev_column_chart, fill='#792D83') }}</div>
-      </div>
-    </div>
-  </div>
-
-  </div>
-  <div class="grid-col">
-
-  <!-- PARTICIPAÇÃO -->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">
-        {{ icon_tile('message-circle', 20) }}
-        Participação
-      </div>
-      <div class="score-box overall-score">
-        <div class="overall-score-label">Média</div>
-        <div class="bubble">{{ part_overall }}</div>
-        {% if part_overall_delta %}
-        <span class="delta-badge {{ part_overall_delta.css }}">{{ part_overall_delta.symbol }} {{ part_overall_delta.text }}</span>
-        {% endif %}
-      </div>
-    </div>
-    <div class="card-body part-body">
-      <div class="stack-layout">
-        <div class="sub-panel">
-          <div class="sub-panel-title">Critérios — escala 1 a 5</div>
-          <div class="metrics-grid">
-            <div class="metric-cell">
-              {{ report_icon('mic', 16) }}
-              <div class="bubble bubble-md">{{ part_scores[0] }}</div>
-              <div class="metric-label">Contribuição<br>oral</div>
-            </div>
-            <div class="metric-cell">
-              {{ report_icon('target', 16) }}
-              <div class="bubble bubble-md">{{ part_scores[1] }}</div>
-              <div class="metric-label">Foco e<br>atenção</div>
-            </div>
-            <div class="metric-cell">
-              {{ report_icon('users', 16) }}
-              <div class="bubble bubble-md">{{ part_scores[2] }}</div>
-              <div class="metric-label">Trabalho em<br>equipe</div>
-            </div>
-          </div>
-          <div class="scale-list">
-            <div class="info-box-label">Referência da escala</div>
-            <div class="scale-item"><span class="scale-num-circle">1</span>Raramente</div>
-            <div class="scale-item"><span class="scale-num-circle">2</span>Quando solicitado</div>
-            <div class="scale-item"><span class="scale-num-circle">3</span>Regularmente</div>
-            <div class="scale-item"><span class="scale-num-circle">4</span>Sempre</div>
-            <div class="scale-item"><span class="scale-num-circle">5</span>Com excelência</div>
-          </div>
-          <div class="chart-panel">
-            <div class="chart-panel-title">Gráfico de colunas</div>
-            <div class="column-chart-wrap">{{ render_column_chart(part_column_chart) }}</div>
-          </div>
-        </div>
-        <div class="sub-panel">
-          <div class="sub-panel-title">Feedback do professor</div>
-          <div class="fb-item">
-            <div class="fb-item-title">Contribuição oral</div>
-            <div class="fb-item-text">{{ student.feedback_participacao or '—' }}</div>
-          </div>
-          <div class="fb-item">
-            <div class="fb-item-title">Foco e atenção</div>
-            <div class="fb-item-text">{{ student.feedback_foco or '—' }}</div>
-          </div>
-          <div class="fb-item">
-            <div class="fb-item-title">Trabalho em equipe</div>
-            <div class="fb-item-text">{{ student.feedback_trabalho_equipe or '—' }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- COMPORTAMENTO -->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">
-        {{ icon_tile('star', 20) }}
-        Comportamento
-      </div>
-      <div class="score-box overall-score">
-        <div class="overall-score-label">Média</div>
-        <div class="bubble">{{ comp_overall }}</div>
-        {% if comp_overall_delta %}
-        <span class="delta-badge {{ comp_overall_delta.css }}">{{ comp_overall_delta.symbol }} {{ comp_overall_delta.text }}</span>
-        {% endif %}
-      </div>
-    </div>
-    <div class="card-body">
-      <div class="sub-panel">
-        <div class="sub-panel-title">Critérios — escala 1 a 5</div>
-        <div class="metrics-grid">
-        <div class="metric-cell">
-          {{ report_icon('backpack', 16) }}
-          <div class="bubble bubble-md">{{ comp_scores[0] }}</div>
-          <div class="metric-label">Organização</div>
-        </div>
-        <div class="metric-cell">
-          {{ report_icon('clock', 16) }}
-          <div class="bubble bubble-md">{{ comp_scores[1] }}</div>
-          <div class="metric-label">Pontualidade</div>
-        </div>
-        <div class="metric-cell">
-          {{ report_icon('scale', 16) }}
-          <div class="bubble bubble-md">{{ comp_scores[2] }}</div>
-          <div class="metric-label">Respeito às regras<br>da sala de aula</div>
-        </div>
-      </div>
-      </div>
-      <div class="chart-panel">
-        <div class="chart-panel-title">Gráfico de colunas</div>
-        <div class="column-chart-wrap">{{ render_column_chart(comp_column_chart) }}</div>
-      </div>
-      <div class="sub-panel">
-        <div class="comp-criteria-title">Descrição dos critérios</div>
-        <div class="comp-criteria-item"><strong>Organização:</strong> Trazer o material completo e mesa organizada.</div>
-        <div class="comp-criteria-item"><strong>Pontualidade:</strong> Horário de chegada e saída dentro do programado.</div>
-        <div class="comp-criteria-item"><strong>Respeito às regras da sala de aula:</strong> Respeito e colaboração com ambiente de aula.</div>
-      </div>
-    </div>
-  </div>
-
-  </div>
-</div><!-- /.grid -->
-
-{% if comparison %}
-<div class="comparison-section">
-  <div class="comparison-header">
-    <div>
-      <span class="comparison-title">{{ icon_tile('trending-up') }} Comparativo Mensal</span>
-      {% if comparison.has_prior %}
-      <span class="comparison-sub">vs {{ comparison.prior_month_label }}</span>
+      {% if needs_makeup %}
+        <div class="no-makeup" style="color:#792D83;">Reposição necessária</div>
       {% else %}
-      <span class="comparison-sub">Primeiro período registrado</span>
+        <div class="no-makeup">Sem necessidade de reposição</div>
       {% endif %}
     </div>
-    {% if trend %}
-    <span class="trend-pill trend-{{ trend.direction }}">{{ trend.symbol }} {{ trend.label }}{% if trend.direction != 'first' and trend.delta %} ({% if trend.delta > 0 %}+{% endif %}{{ trend.delta }}){% endif %}</span>
-    {% endif %}
   </div>
-  <div class="comparison-body">
-    <div class="composite-donut-wrap">
-      <div class="composite-donut-label">Índice Geral</div>
-      <svg width="{{ comparison.donut.size }}" height="{{ comparison.donut.size }}" viewBox="0 0 {{ comparison.donut.size }} {{ comparison.donut.size }}">
-        <circle cx="{{ comparison.donut.cx }}" cy="{{ comparison.donut.cy }}" r="{{ comparison.donut.r }}" fill="none" stroke="#E8E4EE" stroke-width="{{ comparison.donut.stroke }}"/>
-        {% if comparison.donut.prior_dash %}
-        <circle cx="{{ comparison.donut.cx }}" cy="{{ comparison.donut.cy }}" r="{{ comparison.donut.r }}" fill="none" stroke="#C4B5D6" stroke-width="{{ comparison.donut.stroke - 2 }}" stroke-dasharray="{{ comparison.donut.prior_dash }}" stroke-linecap="round" transform="rotate(-90 {{ comparison.donut.cx }} {{ comparison.donut.cy }})"/>
-        {% endif %}
-        <circle class="anim-ring-progress" style="--ring-circ: {{ comparison.donut.circ }}" cx="{{ comparison.donut.cx }}" cy="{{ comparison.donut.cy }}" r="{{ comparison.donut.r }}" fill="none" stroke="#792D83" stroke-width="{{ comparison.donut.stroke }}" stroke-dasharray="{{ comparison.donut.cur_dash }}" stroke-linecap="round" transform="rotate(-90 {{ comparison.donut.cx }} {{ comparison.donut.cy }})"/>
-        <text x="{{ comparison.donut.cx }}" y="{{ comparison.donut.cy + 5 }}" text-anchor="middle" font-size="22" font-weight="bold" fill="#792D83" font-family="Carlito, Calibri, Arial, sans-serif">{{ comparison.composite_current }}</text>
-      </svg>
-      <div class="composite-donut-sub">
-        {% if comparison.composite_prior is not none %}
-        Anterior: {{ comparison.composite_prior }}
-        {% if comparison.composite_delta %}
-        <span class="delta-badge {{ comparison.composite_delta.css }}">{{ comparison.composite_delta.text }}</span>
-        {% endif %}
-        {% else %}—{% endif %}
-      </div>
-    </div>
-    <div class="comparison-bars-wrap">
-      <div class="comparison-bars-legend">
-        <span><span class="legend-bar legend-current"></span>Atual</span>
-        {% if comparison.has_prior %}
-        <span><span class="legend-bar legend-prior"></span>{{ comparison.prior_month_label }}</span>
-        {% endif %}
-      </div>
-      <svg width="{{ comparison.bars.width }}" height="{{ comparison.bars.height }}" viewBox="0 0 {{ comparison.bars.width }} {{ comparison.bars.height }}" font-family="Carlito, Calibri, Arial, sans-serif">
-        {% for row in comparison.bars.rows %}
-        <text x="{{ row.label_x }}" y="{{ row.y + 9 }}" font-size="9" font-weight="bold" fill="#333">{{ row.label }}</text>
-        <rect class="anim-compare-bar" style="animation-delay: {{ loop.index0 * 0.1 }}s" x="{{ row.bar_x }}" y="{{ row.current_y }}" width="{{ row.current_w }}" height="{{ comparison.bars.bar_h }}" rx="3" fill="#792D83"/>
-        <text x="{{ row.bar_x + comparison.bars.bar_max_w + 4 }}" y="{{ row.current_y + 9 }}" font-size="9" font-weight="bold" fill="#792D83">{{ row.current }}</text>
-        {% if row.prior is not none %}
-        <rect x="{{ row.bar_x }}" y="{{ row.prior_y }}" width="{{ row.prior_w }}" height="{{ comparison.bars.bar_h }}" rx="3" fill="#C4B5D6"/>
-        <text x="{{ row.bar_x + comparison.bars.bar_max_w + 4 }}" y="{{ row.prior_y + 9 }}" font-size="9" fill="#666">{{ row.prior }}</text>
-        {% endif %}
-        {% if row.delta %}
-        <text x="{{ row.bar_x + comparison.bars.bar_max_w + 18 }}" y="{{ row.current_y + 9 }}" font-size="8" font-weight="bold" fill="{% if row.delta.css == 'delta-up' %}#2C7A3F{% elif row.delta.css == 'delta-down' %}#E24B4A{% else %}#792D83{% endif %}">{{ row.delta.text }}</text>
-        {% endif %}
-        {% endfor %}
-      </svg>
-    </div>
-    <div class="expanded-radar-wrap">
-      <div class="expanded-radar-label">Visão Geral (7 eixos)</div>
-      <svg width="170" height="175" viewBox="-5 0 210 215" font-family="Carlito, Calibri, Arial, sans-serif">
-        {% for ring in expanded_grid %}
-        <polygon points="{{ ring }}" fill="none" stroke="#DDD" stroke-width="1"/>
-        {% endfor %}
-        {% for ep in expanded_axes %}
-        <line x1="100" y1="105" x2="{{ ep[0] }}" y2="{{ ep[1] }}" stroke="#DDD" stroke-width="1"/>
-        {% endfor %}
-        <polygon class="anim-radar-shape" points="{{ expanded_radar }}" fill="rgba(210,150,225,0.25)" stroke="#792D83" stroke-width="2"/>
-        <text x="100" y="18" text-anchor="middle" font-size="7" font-weight="bold">Audição</text>
-        <text x="188" y="72" text-anchor="end" font-size="7" font-weight="bold">Fala</text>
-        <text x="168" y="198" text-anchor="middle" font-size="7" font-weight="bold">Gram.</text>
-        <text x="32" y="198" text-anchor="middle" font-size="7" font-weight="bold">Escrita</text>
-        <text x="12" y="72" text-anchor="start" font-size="7" font-weight="bold">Leitura</text>
-        <text x="148" y="28" text-anchor="middle" font-size="7" font-weight="bold">Part.</text>
-        <text x="52" y="28" text-anchor="middle" font-size="7" font-weight="bold">Pres.</text>
-      </svg>
-    </div>
-  </div>
-</div>
-{% endif %}
 
-<!-- RECOMENDAÇÕES -->
-<div class="recomendacoes">
-  {{ icon_tile('lightbulb') }}
-  <div>
-  <span class="recomendacoes-heading">Recomendações: </span>
-  <span class="recomendacoes-text">{{ student.recomendacoes or '' }}</span>
+  <div class="card">
+    <div class="card-title">Participação</div>
+    <div class="bubble bubble-abs score-{{ part_overall }}">{{ part_overall }}</div>
+    <div class="part-body">
+      <div class="part-left">
+        <div class="media-label">Média</div>
+        <div class="part-scores-row">
+          <div class="part-score-item">
+            <div class="bubble bubble-md score-{{ part_scores[0] }}">{{ part_scores[0] }}</div>
+            <div class="part-score-label">Contribuição<br>oral</div>
+          </div>
+          <div class="part-score-item">
+            <div class="bubble bubble-md score-{{ part_scores[1] }}">{{ part_scores[1] }}</div>
+            <div class="part-score-label">Foco e<br>atenção</div>
+          </div>
+          <div class="part-score-item">
+            <div class="bubble bubble-md score-{{ part_scores[2] }}">{{ part_scores[2] }}</div>
+            <div class="part-score-label">Trabalho em<br>equipe</div>
+          </div>
+        </div>
+        <div class="scale-list">
+          <div class="scale-item"><span class="scale-num-circle score-1">1</span>Raramente</div>
+          <div class="scale-item"><span class="scale-num-circle score-2">2</span>Quando solicitado</div>
+          <div class="scale-item"><span class="scale-num-circle score-3">3</span>Regularmente</div>
+          <div class="scale-item"><span class="scale-num-circle score-4">4</span>Sempre</div>
+          <div class="scale-item"><span class="scale-num-circle score-5">5</span>Com excelência</div>
+        </div>
+      </div>
+      <div class="part-right">
+        <div class="fb-heading">Feedback do professor</div>
+        <div class="fb-item">
+          <div class="fb-item-title">Contribuição oral</div>
+          <div class="fb-item-text">{{ student.feedback_participacao or '—' }}</div>
+        </div>
+        <div class="fb-item">
+          <div class="fb-item-title">Foco e atenção</div>
+          <div class="fb-item-text">{{ student.feedback_foco or '—' }}</div>
+        </div>
+        <div class="fb-item">
+          <div class="fb-item-title">Trabalho em equipe</div>
+          <div class="fb-item-text">{{ student.feedback_trabalho_equipe or '—' }}</div>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <div class="card">
+    <div class="card-title">Desenvolvimento</div>
+    <div class="bubble bubble-abs score-{{ dev_overall }}">{{ dev_overall }}</div>
+    <div class="dev-body">
+      <div class="dev-bars">
+        <div class="bar-row">
+          <div class="bar-track"><div class="bar-fill score-{{ dev_scores[1] }}" style="width:{{ ((dev_scores[1] / 5) * 100)|int }}%"></div></div>
+          <div class="bar-label">Fala</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-track"><div class="bar-fill score-{{ dev_scores[0] }}" style="width:{{ ((dev_scores[0] / 5) * 100)|int }}%"></div></div>
+          <div class="bar-label">Audição</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-track"><div class="bar-fill score-{{ dev_scores[4] }}" style="width:{{ ((dev_scores[4] / 5) * 100)|int }}%"></div></div>
+          <div class="bar-label">Leitura</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-track"><div class="bar-fill score-{{ dev_scores[3] }}" style="width:{{ ((dev_scores[3] / 5) * 100)|int }}%"></div></div>
+          <div class="bar-label">Escrita</div>
+        </div>
+      </div>
+      <div class="radar-wrap">
+        <svg width="200" height="205" viewBox="-5 0 210 215" font-family="Carlito, Calibri, Arial, sans-serif" role="img" aria-label="Avaliação de Habilidades Linguísticas">
+          <text x="100" y="12" text-anchor="middle" font-size="9" fill="#555">Avaliação de Habilidades Linguísticas</text>
+          {% for ring in grid %}
+          <polygon points="{{ ring }}" fill="none" stroke="#DDD" stroke-width="1"/>
+          {% endfor %}
+          {% for ep in axes %}
+          <line x1="100" y1="105" x2="{{ ep[0] }}" y2="{{ ep[1] }}" stroke="#DDD" stroke-width="1"/>
+          {% endfor %}
+          <polygon points="{{ pentagon }}" fill="rgba(210,150,225,0.30)" stroke="#7B4FA0" stroke-width="2"/>
+          <text x="100" y="22" text-anchor="middle" font-size="9" font-weight="bold">Audição</text>
+          <text x="198" y="82" text-anchor="end" font-size="9" font-weight="bold">Fala</text>
+          <text x="175" y="200" text-anchor="middle" font-size="9" font-weight="bold">Gramática</text>
+          <text x="25" y="200" text-anchor="middle" font-size="9" font-weight="bold">Escrita</text>
+          <text x="2" y="82" text-anchor="start" font-size="9" font-weight="bold">Leitura</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Comportamento</div>
+    <div class="bubble bubble-abs score-{{ comp_overall }}">{{ comp_overall }}</div>
+    <div class="comp-scores-row">
+      <div class="comp-score-item">
+        <div class="bubble bubble-md score-{{ comp_scores[0] }}">{{ comp_scores[0] }}</div>
+        <div class="comp-score-label">Organização</div>
+      </div>
+      <div class="comp-score-item">
+        <div class="bubble bubble-md score-{{ comp_scores[1] }}">{{ comp_scores[1] }}</div>
+        <div class="comp-score-label">Pontualidade</div>
+      </div>
+      <div class="comp-score-item">
+        <div class="bubble bubble-md score-{{ comp_scores[2] }}">{{ comp_scores[2] }}</div>
+        <div class="comp-score-label">Respeito às regras<br>da sala de aula</div>
+      </div>
+    </div>
+    <div>
+      <div class="comp-criteria-title">Critérios:</div>
+      <div class="comp-criteria-item"><strong>Organização:</strong> Trazer o material completo e mesa organizada.</div>
+      <div class="comp-criteria-item"><strong>Pontualidade:</strong> Horário de chegada e saída dentro do programado.</div>
+      <div class="comp-criteria-item"><strong>Respeito às regras da sala de aula:</strong> Respeito e colaboração com ambiente de aula.</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="recomendacoes">
+  <span class="recomendacoes-heading">Recomendações:</span>
+  <span class="recomendacoes-text">{{ student.recomendacoes or '' }}</span>
 </div>
 
 </body>

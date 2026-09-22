@@ -9,7 +9,7 @@ Use Chrome DevTools device toolbar at **375px** (phone), **768px** (tablet), and
 | Route | Pass criteria |
 |-------|----------------|
 | `/login` | No horizontal scroll; submit button full width; inputs do not trigger iOS zoom; **primary colour lockup** on the white card (not inverted) |
-| `/` | Stats readable; hamburger opens/closes drawer; generate button reachable; sidebar is **lavender** with the **colour** lockup |
+| `/` | Stats readable; hamburger opens/closes drawer; generate button reachable; sidebar is **lavender** with the **official colour wordmark** (no Wiz tile); phone/tablet plum top bar uses the **white knockout** of the same wordmark |
 | `/students` | Cards on phone (&lt;768px); table on tablet+; turma filter works on both views |
 | `/admin/teachers` | **Perfil** tappable; Contato / Editar stacked and aligned; table headers **white on purple** (login history included) |
 | `/upload` | Hero and CSV panels stack on phone; file picker tappable |
@@ -22,9 +22,9 @@ Use Chrome DevTools device toolbar at **375px** (phone), **768px** (tablet), and
 - Topbar actions overflowing behind drawer button
 - iOS Safari: file inputs inside dropzones
 - Long student names in cards
-- Report preview: radar chart clipping (horizontal scroll inside card is OK). Overview tiles should share the same left/right edge as the two columns below.
+- Report preview: A4 landscape 2×2 (Presença, Participação, Desenvolvimento, Comportamento) plus Recomendações. Radar/pie must stay visible in print.
 - Dark text on purple headers (must be white — see `docs/brand.md`)
-- Navy/purple wordmark on a dark panel (use knockout, never CSS invert). The sidebar is lavender, so it uses the **colour** lockup.
+- Black/purple wordmark on a dark panel (use knockout, never CSS invert). The sidebar is lavender, so it uses the **colour** lockup.
 
 ## Automated checks
 
