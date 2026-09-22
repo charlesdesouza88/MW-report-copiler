@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import app as web_app  # noqa: E402
+import app as web_app
 
 
 def _load_dotenv():
@@ -35,9 +35,9 @@ def main():
         sys.exit(1)
 
     if base:
+        import http.cookiejar
         import urllib.error
         import urllib.parse
-        import http.cookiejar
 
         jar = http.cookiejar.CookieJar()
         from urllib.request import HTTPCookieProcessor, Request, build_opener
