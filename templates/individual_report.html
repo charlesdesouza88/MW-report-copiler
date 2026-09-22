@@ -94,12 +94,32 @@ body {
 .bubble-md {
   width: 56px; height: 56px;
   font-size: 30px;
-  background: var(--mw-purple);
 }
+.score-1 { background: #E8D4F0; color: #5A1A64; }
+.score-2 { background: #C9A3D6; color: #3D1550; }
+.score-3 { background: #A060B4; color: #fff; }
+.score-4 { background: #792D83; color: #fff; }
+.score-5 { background: #3D1048; color: #fff; }
 
 /* ── PRESENÇA ── */
 .presenca-body { display: flex; flex-direction: column; height: calc(100% - 30px); }
-.presenca-main { display: flex; gap: 14px; align-items: flex-start; flex: 1; min-height: 0; }
+.presenca-main { display: flex; gap: 12px; align-items: flex-start; flex: 1; min-height: 0; }
+.presenca-main.has-cal {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "pie cal"
+    "right right";
+  gap: 8px 12px;
+  align-items: start;
+}
+.presenca-main.has-cal .pie-wrap { grid-area: pie; }
+.presenca-main.has-cal .pie-wrap svg { width: 100px; height: 100px; }
+.presenca-main.has-cal .pie-cal {
+  grid-area: cal;
+  margin-top: 18px;
+}
+.presenca-main.has-cal .presenca-right { grid-area: right; }
 .pie-wrap { flex-shrink: 0; text-align: center; }
 .pie-legend {
   display: flex; gap: 10px; align-items: center; justify-content: center;
@@ -108,6 +128,46 @@ body {
 .legend-sq { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
 .pie-footer { font-size: 9px; font-weight: 700; text-align: center; margin-top: 3px; }
 .presenca-right { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.pie-cal {
+  min-width: 0;
+  width: 100%;
+  padding: 4px 6px 6px;
+  border: 1px solid var(--mw-border);
+  border-radius: 8px;
+  background: #fff;
+}
+.pie-cal-title {
+  font-size: 9px;
+  font-weight: 900;
+  color: var(--mw-purple);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  text-align: center;
+  margin-bottom: 3px;
+}
+.att-cal { border-collapse: collapse; width: 100%; }
+.att-cal th {
+  font-size: 7px; font-weight: 700; text-align: center;
+  color: #888; padding: 1px; letter-spacing: 0;
+}
+.att-cal td { text-align: center; padding: 1px; }
+.att-day {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  font-size: 8px; font-weight: 700;
+}
+.att-noclass { background: #F0E6F3; color: #8A6A96; }
+.att-present { background: #792D83; color: #fff; }
+.att-absent  { background: #E24B4A; color: #fff; }
+.att-tardy   { background: #EBB22E; color: #2D1040; }
+.att-cal-legend {
+  display: flex; gap: 7px; margin-top: 4px; flex-wrap: wrap;
+  font-size: 8px; color: #555; align-items: center; justify-content: center;
+}
+.att-dot {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; flex-shrink: 0; vertical-align: middle; margin-right: 3px;
+}
 .missed-heading { font-weight: 700; font-size: 11px; margin-bottom: 2px; }
 .missed-total { font-size: 11px; font-weight: 700; margin-bottom: 8px; }
 .missed-io { margin-bottom: 8px; }
@@ -132,7 +192,6 @@ body {
 .scale-item { display: flex; gap: 6px; align-items: center; font-size: 9px; margin-bottom: 3px; }
 .scale-num-circle {
   width: 16px; height: 16px; border-radius: 50%;
-  background: var(--mw-purple); color: #fff;
   font-size: 9px; font-weight: 900;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
@@ -158,6 +217,11 @@ body {
   background: var(--mw-purple);
   border-radius: 4px;
 }
+.bar-fill.score-1 { background: #E8D4F0; }
+.bar-fill.score-2 { background: #C9A3D6; }
+.bar-fill.score-3 { background: #A060B4; }
+.bar-fill.score-4 { background: #792D83; }
+.bar-fill.score-5 { background: #3D1048; }
 .bar-label { font-size: 12px; font-weight: 900; font-style: italic; margin-top: 2px; }
 .radar-wrap { flex-shrink: 0; }
 
@@ -206,7 +270,8 @@ body {
     grid-template-rows: none;
   }
   .card { overflow: visible; }
-  .presenca-body, .presenca-main, .part-body, .dev-body { flex-direction: column; }
+  .presenca-body, .presenca-main, .presenca-main.has-cal, .part-body, .dev-body { flex-direction: column; display: flex; }
+  .presenca-main.has-cal { grid-template-columns: 1fr; grid-template-areas: "pie" "cal" "right"; }
   .radar-wrap { align-self: center; }
   .recomendacoes-heading { font-size: 18px; }
 }
@@ -241,9 +306,9 @@ body {
 
   <div class="card">
     <div class="card-title">Presença</div>
-    <div class="bubble bubble-abs">{{ pres_score }}</div>
+    <div class="bubble bubble-abs score-{{ pres_score }}">{{ pres_score }}</div>
     <div class="presenca-body">
-      <div class="presenca-main">
+      <div class="presenca-main{% if attendance_calendar %} has-cal{% endif %}">
       <div class="pie-wrap">
         <svg width="120" height="120" viewBox="0 0 116 116" role="img" aria-label="Presença {{ pct }}%">
           <circle cx="58" cy="58" r="48" fill="#BBBBBB"/>
@@ -263,6 +328,39 @@ body {
         </div>
         <div class="pie-footer">Nível de presença do aluno</div>
       </div>
+      {% if attendance_calendar %}
+      <div class="pie-cal">
+        <div class="pie-cal-title">{{ attendance_calendar.month_label }}</div>
+        <table class="att-cal">
+          <thead>
+            <tr>
+              {% for h in attendance_calendar.day_headers %}
+              <th>{{ h }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for week in attendance_calendar.weeks %}
+            <tr>
+              {% for cell in week %}
+              <td>
+                {% if cell.day %}
+                <span class="att-day att-{{ cell.status or 'noclass' }}" title="Dia {{ cell.day }}{% if cell.status == 'absent' %} — Falta{% elif cell.status == 'tardy' %} — Atraso{% elif cell.status == 'present' %} — Presente{% endif %}">{{ cell.day }}</span>
+                {% endif %}
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="att-cal-legend">
+          <span><span class="att-dot att-present"></span>Presente</span>
+          <span><span class="att-dot att-absent"></span>Falta</span>
+          <span><span class="att-dot att-tardy"></span>Atraso</span>
+          <span><span class="att-dot att-noclass"></span>Sem aula</span>
+        </div>
+      </div>
+      {% endif %}
       <div class="presenca-right">
         <div class="missed-heading">Aulas perdidas</div>
         <div class="missed-total">{{ total_lessons }} aulas totais</div>
@@ -290,30 +388,30 @@ body {
 
   <div class="card">
     <div class="card-title">Participação</div>
-    <div class="bubble bubble-abs">{{ part_overall }}</div>
+    <div class="bubble bubble-abs score-{{ part_overall }}">{{ part_overall }}</div>
     <div class="part-body">
       <div class="part-left">
         <div class="media-label">Média</div>
         <div class="part-scores-row">
           <div class="part-score-item">
-            <div class="bubble bubble-md">{{ part_scores[0] }}</div>
+            <div class="bubble bubble-md score-{{ part_scores[0] }}">{{ part_scores[0] }}</div>
             <div class="part-score-label">Contribuição<br>oral</div>
           </div>
           <div class="part-score-item">
-            <div class="bubble bubble-md">{{ part_scores[1] }}</div>
+            <div class="bubble bubble-md score-{{ part_scores[1] }}">{{ part_scores[1] }}</div>
             <div class="part-score-label">Foco e<br>atenção</div>
           </div>
           <div class="part-score-item">
-            <div class="bubble bubble-md">{{ part_scores[2] }}</div>
+            <div class="bubble bubble-md score-{{ part_scores[2] }}">{{ part_scores[2] }}</div>
             <div class="part-score-label">Trabalho em<br>equipe</div>
           </div>
         </div>
         <div class="scale-list">
-          <div class="scale-item"><span class="scale-num-circle">1</span>Raramente</div>
-          <div class="scale-item"><span class="scale-num-circle">2</span>Quando solicitado</div>
-          <div class="scale-item"><span class="scale-num-circle">3</span>Regularmente</div>
-          <div class="scale-item"><span class="scale-num-circle">4</span>Sempre</div>
-          <div class="scale-item"><span class="scale-num-circle">5</span>Com excelência</div>
+          <div class="scale-item"><span class="scale-num-circle score-1">1</span>Raramente</div>
+          <div class="scale-item"><span class="scale-num-circle score-2">2</span>Quando solicitado</div>
+          <div class="scale-item"><span class="scale-num-circle score-3">3</span>Regularmente</div>
+          <div class="scale-item"><span class="scale-num-circle score-4">4</span>Sempre</div>
+          <div class="scale-item"><span class="scale-num-circle score-5">5</span>Com excelência</div>
         </div>
       </div>
       <div class="part-right">
@@ -336,23 +434,23 @@ body {
 
   <div class="card">
     <div class="card-title">Desenvolvimento</div>
-    <div class="bubble bubble-abs">{{ dev_overall }}</div>
+    <div class="bubble bubble-abs score-{{ dev_overall }}">{{ dev_overall }}</div>
     <div class="dev-body">
       <div class="dev-bars">
         <div class="bar-row">
-          <div class="bar-track"><div class="bar-fill" style="width:{{ ((dev_scores[1] / 5) * 100)|int }}%"></div></div>
+          <div class="bar-track"><div class="bar-fill score-{{ dev_scores[1] }}" style="width:{{ ((dev_scores[1] / 5) * 100)|int }}%"></div></div>
           <div class="bar-label">Fala</div>
         </div>
         <div class="bar-row">
-          <div class="bar-track"><div class="bar-fill" style="width:{{ ((dev_scores[0] / 5) * 100)|int }}%"></div></div>
+          <div class="bar-track"><div class="bar-fill score-{{ dev_scores[0] }}" style="width:{{ ((dev_scores[0] / 5) * 100)|int }}%"></div></div>
           <div class="bar-label">Audição</div>
         </div>
         <div class="bar-row">
-          <div class="bar-track"><div class="bar-fill" style="width:{{ ((dev_scores[4] / 5) * 100)|int }}%"></div></div>
+          <div class="bar-track"><div class="bar-fill score-{{ dev_scores[4] }}" style="width:{{ ((dev_scores[4] / 5) * 100)|int }}%"></div></div>
           <div class="bar-label">Leitura</div>
         </div>
         <div class="bar-row">
-          <div class="bar-track"><div class="bar-fill" style="width:{{ ((dev_scores[3] / 5) * 100)|int }}%"></div></div>
+          <div class="bar-track"><div class="bar-fill score-{{ dev_scores[3] }}" style="width:{{ ((dev_scores[3] / 5) * 100)|int }}%"></div></div>
           <div class="bar-label">Escrita</div>
         </div>
       </div>
@@ -378,18 +476,18 @@ body {
 
   <div class="card">
     <div class="card-title">Comportamento</div>
-    <div class="bubble bubble-abs">{{ comp_overall }}</div>
+    <div class="bubble bubble-abs score-{{ comp_overall }}">{{ comp_overall }}</div>
     <div class="comp-scores-row">
       <div class="comp-score-item">
-        <div class="bubble bubble-md">{{ comp_scores[0] }}</div>
+        <div class="bubble bubble-md score-{{ comp_scores[0] }}">{{ comp_scores[0] }}</div>
         <div class="comp-score-label">Organização</div>
       </div>
       <div class="comp-score-item">
-        <div class="bubble bubble-md">{{ comp_scores[1] }}</div>
+        <div class="bubble bubble-md score-{{ comp_scores[1] }}">{{ comp_scores[1] }}</div>
         <div class="comp-score-label">Pontualidade</div>
       </div>
       <div class="comp-score-item">
-        <div class="bubble bubble-md">{{ comp_scores[2] }}</div>
+        <div class="bubble bubble-md score-{{ comp_scores[2] }}">{{ comp_scores[2] }}</div>
         <div class="comp-score-label">Respeito às regras<br>da sala de aula</div>
       </div>
     </div>

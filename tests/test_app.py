@@ -434,6 +434,7 @@ def test_reports_preview_live_renders_individual_report(monkeypatch, tmp_path):
     html = response.get_data(as_text=True)
     assert "Presença" in html
     assert "bubble-abs" in html
+    assert "pie-cal" in html
     assert "stale report without layout" not in html
 
 

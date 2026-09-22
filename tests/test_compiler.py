@@ -260,7 +260,8 @@ def test_individual_report_matches_stakeholder_layout():
         **build_student_ctx(_student(), _lessons())
     )
 
-    assert html.count('class="bubble bubble-abs"') == 4
+    assert html.count('class="bubble bubble-abs') == 4
+    assert "score-1" in html or "score-2" in html or "score-3" in html or "score-4" in html or "score-5" in html
     assert html.count('class="card-title"') == 4
     assert "Presença" in html
     assert "Participação" in html
@@ -280,7 +281,7 @@ def test_individual_report_matches_stakeholder_layout():
     assert "dimension-rings" not in html
     assert "Gráfico de colunas" not in html
     assert "Comparativo Mensal" not in html
-    assert "pie-cal" not in html
+    assert 'class="pie-cal"' not in html
     assert "grid-template-columns: 1fr 1fr" in html
     assert 'class="logo-wordmark"' in html
     assert "data:image/png;base64," in html
@@ -311,7 +312,7 @@ def test_class_diagnostic_combines_medias_into_one_row():
     assert "logo-mark" not in html
 
 
-def test_individual_report_omits_attendance_calendar():
+def test_individual_report_embeds_attendance_calendar_in_presenca():
     from pathlib import Path
 
     from compiler import build_student_ctx
@@ -321,12 +322,17 @@ def test_individual_report_omits_attendance_calendar():
     html = env.get_template("individual_report.html").render(
         **build_student_ctx(_student(), _lessons(), report_month="2026-01")
     )
-    assert "pie-cal" not in html
-    assert "att-cal" not in html
-    assert "aulas totais" in html
+    assert "pie-cal" in html
+    assert "has-cal" in html
+    assert "margin-top: 18px" in html
+    assert "Janeiro 2026" in html
+    assert html.count('class="att-cal"') == 1
+    assert "att-present" in html or "att-absent" in html or "att-noclass" in html
+    assert "Comparativo Mensal" not in html
+    assert "dimension-rings" not in html
 
 
-def test_individual_report_shows_total_lessons_without_class_days():
+def test_individual_report_shows_month_calendar_without_class_days():
     from pathlib import Path
 
     from compiler import build_student_ctx
@@ -337,7 +343,8 @@ def test_individual_report_shows_total_lessons_without_class_days():
         **build_student_ctx(_student(), [], report_month="2026-07")
     )
     assert "0 aulas totais" in html
-    assert "pie-cal" not in html
+    assert "pie-cal" in html
+    assert "Julho 2026" in html
 
 
 def test_score_delta_badge_directions():
