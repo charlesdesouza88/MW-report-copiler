@@ -198,16 +198,39 @@ body {
 }
 
 /* ── PARTICIPAÇÃO ── */
-.part-body { display: flex; gap: 12px; flex: 1; min-height: 0; align-items: flex-start; }
-.part-left, .part-right { flex: 1; min-width: 0; }
-.media-label {
-  font-size: 9px; color: var(--mw-purple); font-weight: 700;
-  margin-bottom: 4px;
+.part-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "label ."
+    "scores scores"
+    "scale feedback";
+  gap: 8px 14px;
+  align-items: start;
+  flex: 1;
+  min-height: 0;
 }
-.part-scores-row { display: flex; gap: 10px; justify-content: flex-start; margin-bottom: 8px; }
+.media-label {
+  grid-area: label;
+  font-size: 9px; color: var(--mw-purple); font-weight: 700;
+}
+.part-scores-row {
+  grid-area: scores;
+  display: flex;
+  gap: 16px;
+  justify-content: space-around;
+  align-items: center;
+  padding: 12px 10px 10px;
+  border: 1px solid var(--mw-border);
+  border-radius: 8px;
+  background: #fff;
+}
 .part-score-item { text-align: center; }
-.part-score-label { font-size: 8.5px; font-weight: 700; margin-top: 4px; line-height: 1.2; color: var(--mw-purple); }
-.scale-list { margin-top: 2px; }
+.part-scores-row .bubble {
+  width: 76px; height: 76px; font-size: 38px;
+}
+.part-score-label { font-size: 11px; font-weight: 700; margin-top: 6px; line-height: 1.2; color: var(--mw-purple); }
+.scale-list { grid-area: scale; margin-top: 0; }
 .scale-item { display: flex; gap: 6px; align-items: center; font-size: 9px; margin-bottom: 3px; }
 .scale-num-circle {
   width: 16px; height: 16px; border-radius: 50%;
@@ -215,6 +238,8 @@ body {
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
+.part-left { display: contents; }
+.part-right { grid-area: feedback; min-width: 0; }
 .fb-heading { font-size: 10px; color: var(--mw-purple); font-weight: 700; margin-bottom: 6px; }
 .fb-item { border: 1px solid #bbb; padding: 4px 6px; margin-bottom: 5px; }
 .fb-item-title { font-size: 9px; font-weight: 700; color: var(--mw-purple); }
@@ -290,6 +315,7 @@ body {
   }
   .logo, .header-center, .teacher-block { justify-self: center; text-align: center; }
   .bubble-md { width: 48px; height: 48px; font-size: 26px; }
+  .part-scores-row .bubble { width: 64px; height: 64px; font-size: 32px; }
 }
 @media screen and (max-width: 720px) {
   body { padding: 12px; }
