@@ -28,22 +28,37 @@ body {
   gap: 6px;
 }
 
-/* ── Header: stacked mark | name | teacher ── */
+/* ── Header: auto side columns leave the name centered without squeezing meta ── */
 .header {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
+  column-gap: 12px;
   padding-bottom: 6px;
   border-bottom: 2px solid var(--mw-purple);
   flex-shrink: 0;
 }
-.logo { line-height: 0; }
-.logo-wordmark { height: 28px; width: auto; display: block; }
-.header-center { text-align: center; min-width: 0; flex: 1; padding: 0 12px; }
-.student-name { font-size: 28px; font-weight: 900; line-height: 1.05; }
-.turma-line { color: var(--mw-purple); font-size: 13px; font-weight: 700; margin-top: 3px; }
-.turma-line span { color: var(--mw-purple); }
-.teacher-block { text-align: right; }
+.logo { line-height: 0; justify-self: start; }
+.logo-wordmark { height: 28px; width: auto; max-width: min(188px, 22vw); display: block; }
+.header-center { text-align: center; min-width: 0; }
+.student-name { font-size: 26px; font-weight: 900; line-height: 1.05; overflow-wrap: anywhere; }
+.turma-line { color: var(--mw-purple); font-size: 12px; font-weight: 700; margin-top: 3px; line-height: 1.3; overflow-wrap: break-word; }
+.turma-line span { color: var(--mw-plum); }
+.period-line { font-size: 11px; font-weight: 700; margin-top: 3px; color: #444; }
+.trend-pill {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  vertical-align: middle;
+}
+.trend-improved { background: #E6F4EA; color: #2C7A3F; }
+.trend-declined { background: #FCE8E6; color: #E24B4A; }
+.trend-stable { background: #EDE8F4; color: var(--mw-purple); }
+.trend-first { background: #F0F0F0; color: #666; }
+.teacher-block { text-align: right; justify-self: end; }
 .teacher-label { font-size: 11px; font-weight: 700; color: var(--mw-purple); }
 .teacher-name { font-size: 18px; font-weight: 900; color: var(--mw-purple); }
 
@@ -51,7 +66,7 @@ body {
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: minmax(min-content, 1fr) minmax(min-content, 1fr);
   gap: 8px;
   flex: 1;
   min-height: 0;
@@ -60,11 +75,13 @@ body {
 .card {
   border: 1.5px solid var(--mw-border);
   border-radius: 12px;
-  padding: 10px 12px 8px;
+  padding: 10px 12px;
   position: relative;
   overflow: hidden;
   background: #fff;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .card-title {
   font-size: 22px;
@@ -72,6 +89,10 @@ body {
   margin-bottom: 6px;
   line-height: 1;
   padding-right: 48px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .bubble {
@@ -88,7 +109,7 @@ body {
 }
 .bubble-abs {
   position: absolute;
-  top: 8px;
+  top: 10px;
   right: 12px;
 }
 .bubble-md {
@@ -102,11 +123,11 @@ body {
 .score-5 { background: #3D1048; color: #fff; }
 
 /* ── PRESENÇA ── */
-.presenca-body { display: flex; flex-direction: column; height: calc(100% - 30px); }
+.presenca-body { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 6px; }
 .presenca-main { display: flex; gap: 12px; align-items: flex-start; flex: 1; min-height: 0; }
 .presenca-main.has-cal {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(84px, 0.32fr) minmax(0, 1fr);
   grid-template-areas:
     "pie cal"
     "right right";
@@ -114,16 +135,14 @@ body {
   align-items: start;
 }
 .presenca-main.has-cal .pie-wrap { grid-area: pie; }
-.presenca-main.has-cal .pie-wrap svg { width: 100px; height: 100px; }
-.presenca-main.has-cal .pie-cal {
-  grid-area: cal;
-  margin-top: 18px;
-}
+.presenca-main.has-cal .pie-wrap svg { width: 100%; max-width: 100px; height: auto; }
+.presenca-main.has-cal .pie-cal { grid-area: cal; }
 .presenca-main.has-cal .presenca-right { grid-area: right; }
 .pie-wrap { flex-shrink: 0; text-align: center; }
+.pie-wrap svg { width: min(120px, 100%); height: auto; display: block; margin: 0 auto; }
 .pie-legend {
   display: flex; gap: 10px; align-items: center; justify-content: center;
-  margin-top: 4px; font-size: 9px;
+  margin-top: 4px; font-size: 9px; flex-wrap: wrap;
 }
 .legend-sq { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
 .pie-footer { font-size: 9px; font-weight: 700; text-align: center; margin-top: 3px; }
@@ -131,7 +150,7 @@ body {
 .pie-cal {
   min-width: 0;
   width: 100%;
-  padding: 4px 6px 6px;
+  padding: 6px;
   border: 1px solid var(--mw-border);
   border-radius: 8px;
   background: #fff;
@@ -174,12 +193,12 @@ body {
 .missed-io-line { font-size: 10px; line-height: 1.35; margin-bottom: 4px; }
 .missed-io-line strong { color: var(--mw-purple); font-weight: 700; }
 .no-makeup {
-  font-weight: 700; font-size: 11px; margin-top: auto; padding-top: 8px;
-  text-align: center;
+  font-weight: 700; font-size: 11px; margin-top: auto; padding-top: 6px;
+  text-align: center; flex-shrink: 0;
 }
 
 /* ── PARTICIPAÇÃO ── */
-.part-body { display: flex; gap: 12px; }
+.part-body { display: flex; gap: 12px; flex: 1; min-height: 0; align-items: flex-start; }
 .part-left, .part-right { flex: 1; min-width: 0; }
 .media-label {
   font-size: 9px; color: var(--mw-purple); font-weight: 700;
@@ -202,9 +221,9 @@ body {
 .fb-item-text { font-size: 10px; line-height: 1.3; }
 
 /* ── DESENVOLVIMENTO ── */
-.dev-body { display: flex; gap: 12px; align-items: center; height: calc(100% - 28px); }
-.dev-bars { flex: 1; min-width: 0; }
-.bar-row { margin-bottom: 10px; }
+.dev-body { display: flex; gap: 12px; align-items: center; flex: 1; min-height: 0; min-width: 0; }
+.dev-bars { flex: 1 1 48%; min-width: 0; }
+.bar-row { margin-bottom: 8px; }
 .bar-track {
   height: 16px;
   background: var(--mw-bar-track);
@@ -223,14 +242,15 @@ body {
 .bar-fill.score-4 { background: #792D83; }
 .bar-fill.score-5 { background: #3D1048; }
 .bar-label { font-size: 12px; font-weight: 900; font-style: italic; margin-top: 2px; }
-.radar-wrap { flex-shrink: 0; }
+.radar-wrap { flex: 1 1 140px; min-width: 0; max-width: 210px; }
+.radar-wrap svg { width: 100%; height: auto; display: block; }
 
 /* ── COMPORTAMENTO ── */
-.comp-scores-row { display: flex; gap: 8px; justify-content: space-around; margin: 8px 0 14px; }
+.comp-scores-row { display: flex; gap: 8px; justify-content: space-around; margin: 8px 0 14px; flex-wrap: wrap; }
 .comp-score-item { text-align: center; }
 .comp-score-label { font-size: 9px; font-weight: 700; color: var(--mw-purple); margin-top: 4px; line-height: 1.2; }
 .comp-criteria-title { font-size: 11px; font-weight: 900; margin-bottom: 4px; }
-.comp-criteria-item { font-size: 10px; margin-bottom: 3px; line-height: 1.3; }
+.comp-criteria-item { font-size: 10px; margin-bottom: 3px; line-height: 1.3; overflow-wrap: break-word; }
 .comp-criteria-item strong { color: var(--mw-purple); }
 
 /* ── RECOMENDAÇÕES ── */
@@ -248,23 +268,38 @@ body {
 @media screen {
   html { -webkit-text-size-adjust: 100%; }
   body {
-    width: 100%;
-    max-width: min(1123px, 100%);
+    width: min(100%, 1400px);
     min-height: 0;
+    height: auto;
     margin: 0 auto;
-    padding: 16px 18px 20px;
+    padding: 18px;
     background: #fff;
+    overflow: visible;
   }
-  .student-name { font-size: clamp(20px, 4vw, 28px); word-break: break-word; }
+  .card { overflow: visible; }
+  .student-name { font-size: clamp(18px, 3.2vw, 26px); word-break: break-word; }
+  .turma-line { font-size: clamp(10px, 1.8vw, 12px); }
+  .radar-wrap { max-width: min(210px, 42%); }
+}
+@media screen and (max-width: 980px) {
+  .header {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    gap: 6px;
+  }
+  .logo, .header-center, .teacher-block { justify-self: center; text-align: center; }
+  .bubble-md { width: 48px; height: 48px; font-size: 26px; }
 }
 @media screen and (max-width: 720px) {
-  body { padding: 12px 12px 20px; }
+  body { padding: 12px; }
   .header {
+    display: flex;
     flex-direction: column;
     text-align: center;
     gap: 6px;
   }
-  .header-center, .teacher-block { text-align: center; }
+  .logo, .header-center, .teacher-block { justify-self: center; text-align: center; }
   .grid {
     grid-template-columns: 1fr;
     grid-template-rows: none;
@@ -272,7 +307,7 @@ body {
   .card { overflow: visible; }
   .presenca-body, .presenca-main, .presenca-main.has-cal, .part-body, .dev-body { flex-direction: column; display: flex; }
   .presenca-main.has-cal { grid-template-columns: 1fr; grid-template-areas: "pie" "cal" "right"; }
-  .radar-wrap { align-self: center; }
+  .radar-wrap { align-self: center; max-width: 210px; }
   .recomendacoes-heading { font-size: 18px; }
 }
 @media print {
@@ -282,7 +317,9 @@ body {
     background: #fff; padding: 6mm 8mm 4mm;
     box-sizing: border-box; overflow: hidden;
   }
-  .grid { min-height: 0; }
+  .grid { min-height: 0; grid-template-rows: 1fr 1fr; }
+  .card { overflow: hidden; }
+  .radar-wrap { max-width: 180px; }
 }
 </style>
 </head>
@@ -294,7 +331,21 @@ body {
   </div>
   <div class="header-center">
     <div class="student-name">{{ student.student_name }}</div>
-    <div class="turma-line">Turma: <span>{{ student.turma_display or student.turma }}</span></div>
+    <div class="turma-line">
+      Turma: <span>{{ student.turma_display or student.turma }}</span>
+      {%- if student.nivel %} &nbsp;|&nbsp; {{ student.nivel }}{% endif %}
+      {%- if student.horario %} &nbsp;|&nbsp; {{ student.horario }}{% endif %}
+    </div>
+    {% if report_month_label %}
+    <div class="period-line">
+      Período: {{ report_month_label }}
+      {% if trend %}
+      <span class="trend-pill trend-{{ trend.direction }}">{{ trend.symbol }} {{ trend.label }}{% if trend.direction != 'first' and trend.delta %} ({% if trend.delta > 0 %}+{% endif %}{{ trend.delta }}){% endif %}</span>
+      {% else %}
+      <span class="trend-pill trend-first">— Primeiro período</span>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
   <div class="teacher-block">
     <div class="teacher-label">Teacher</div>

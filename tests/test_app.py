@@ -435,6 +435,7 @@ def test_reports_preview_live_renders_individual_report(monkeypatch, tmp_path):
     assert "Presença" in html
     assert "bubble-abs" in html
     assert "pie-cal" in html
+    assert "Período:" in html
     assert "stale report without layout" not in html
 
 
@@ -495,7 +496,9 @@ def test_login_page_has_viewport(monkeypatch, tmp_path):
     assert "logo-primary-transparent.png" in html
     assert "img/favicon.png" in html
     assert "css/brand.css" in html
-    assert "ESCOLA DE LÍDERES" in html or "Escola de Líderes" in html
+    assert 'alt="Mister Wiz"' in html
+    assert "W✦Z" not in html
+    assert "logo-mister" not in html
 
 
 def test_authenticated_shell_uses_official_lockups(monkeypatch, tmp_path):
@@ -510,7 +513,7 @@ def test_authenticated_shell_uses_official_lockups(monkeypatch, tmp_path):
     html = client.get("/").get_data(as_text=True)
     assert "logo-symbol.png" in html
     assert "logo-primary-transparent.png" in html
-    assert "logo-primary-white.png" not in html
+    assert "logo-primary-white.png" in html
     assert 'id="icon-house"' in html
     assert 'href="#icon-house"' in html
     assert "stroke-width=\"2\"" in html
@@ -528,6 +531,35 @@ def test_authenticated_shell_uses_official_lockups(monkeypatch, tmp_path):
     assert client.get("/static/img/logo-symbol.png").status_code == 200
     assert client.get("/static/img/logo-primary-transparent.png").status_code == 200
     assert client.get("/static/img/logo-primary-white.png").status_code == 200
+    assert 'class="header-brand"' in html
+    assert "filter: invert(" not in html
+
+
+def test_platform_templates_use_official_lockups_only():
+    from pathlib import Path
+
+    root = Path(web_app.__file__).parent
+    html_files = list((root / "web_templates").rglob("*.html")) + list((root / "templates").glob("*.html"))
+    assert html_files
+    joined = "\n".join(path.read_text(encoding="utf-8") for path in html_files)
+    assert "W✦Z" not in joined
+    assert "logo-mister" not in joined
+    assert "_official_source" not in joined
+    assert "filter: brightness(0) invert(1)" not in joined
+    assert "logo-primary-transparent.png" in joined
+    assert "logo-primary-white.png" in joined
+    assert "logo-symbol.png" in joined
+    assert "favicon.png" in joined
+    for name in (
+        "logo-primary.png",
+        "logo-primary-transparent.png",
+        "logo-primary-white.png",
+        "logo-primary-print.png",
+        "logo-symbol.png",
+        "favicon.png",
+    ):
+        assert (root / "static" / "img" / name).is_file()
+    assert not (root / "static" / "img" / "_official_source").exists()
 
 
 def test_authenticated_shell_has_drawer_markup(monkeypatch, tmp_path):

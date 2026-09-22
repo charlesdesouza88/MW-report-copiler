@@ -64,7 +64,7 @@ Place from these masters. Never redraw, recolour, or CSS-filter the lockup.
 ## Where it is applied
 
 - **Login** — purple→plum gradient; primary colour lockup on the white card.
-- **Dashboard shell** — lavender sidebar, gold rule under the mark, colour wordmark + symbol tile; active nav is purple with a gold inset. Nav uses the **Mister Wiz Icon Library** (24 grid, 2 px round stroke, `currentColor`).
+- **Dashboard shell** — lavender sidebar, gold rule under the mark, colour wordmark + symbol tile; phone/tablet plum top bar uses the **white knockout** wordmark (never CSS invert). Active nav is purple with a gold inset. Nav uses the **Mister Wiz Icon Library** (24 grid, 2 px round stroke, `currentColor`).
 - **Print reports** (`templates/`) — same purple/plum tokens; individual reports are a self-contained A4 landscape page: header, 2×2 cards (Presença, Participação, Desenvolvimento, Comportamento), and Recomendações.
 - **Usuários** — table headers white on purple; row actions: larger **Perfil** button, **Contato** / **Editar** stacked and left-aligned with each other.
 
