@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/brand.css') }}">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
+img { max-width: 100%; height: auto; }
 body {
   font-family: var(--font);
   background: linear-gradient(180deg, var(--purple) 0%, var(--plum) 100%);
@@ -24,14 +25,14 @@ body {
 .login-card {
   background: var(--white);
   border-radius: 16px;
-  padding: 28px 28px 28px;
+  padding: 28px 24px 28px;
   width: 100%;
   max-width: min(400px, calc(100vw - 32px));
   box-shadow: 0 24px 64px rgba(45, 16, 64, 0.35);
 }
 .logo { text-align: center; margin-bottom: 14px; }
 .logo-lockup {
-  display: block; width: 100%; height: auto; margin: 0 auto;
+  display: block; width: min(280px, 85%); height: auto; margin: 0 auto;
 }
 .logo-rule {
   width: 48px; height: 3px; border-radius: 999px;
@@ -66,7 +67,7 @@ input:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px 
 <body>
 <div class="login-card">
   <div class="logo">
-    <img class="logo-lockup" src="{{ url_for('static', filename='img/logo-primary-transparent.png') }}" alt="Mister Wiz" width="344" height="44">
+    <img class="logo-lockup" src="{{ url_for('static', filename='img/logo-primary-transparent.png') }}" alt="Mister Wiz" width="280" height="35">
     <div class="logo-rule" aria-hidden="true"></div>
     <div class="logo-sub">Plataforma de relatórios</div>
   </div>
