@@ -409,7 +409,7 @@ def test_reports_preview_live_renders_class_medias_row(monkeypatch, tmp_path):
     assert "stale class diagnostic" not in html
 
 
-def test_reports_preview_live_renders_attendance_calendar(monkeypatch, tmp_path):
+def test_reports_preview_live_renders_individual_report(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     out_dir = tmp_path / "output"
     data_dir.mkdir()
@@ -417,7 +417,7 @@ def test_reports_preview_live_renders_attendance_calendar(monkeypatch, tmp_path)
     (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
     (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
     stale = out_dir / "MASTER_Jane_Doe_2026-01_report.html"
-    stale.write_text("<html>stale report without calendar</html>", encoding="utf-8")
+    stale.write_text("<html>stale report without layout</html>", encoding="utf-8")
 
     monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
     monkeypatch.setattr(web_app, "OUT_DIR", out_dir)
@@ -432,9 +432,11 @@ def test_reports_preview_live_renders_attendance_calendar(monkeypatch, tmp_path)
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
+    assert "Presença" in html
+    assert "bubble-abs" in html
     assert "pie-cal" in html
-    assert "Janeiro 2026" in html
-    assert "stale report without calendar" not in html
+    assert "Período:" in html
+    assert "stale report without layout" not in html
 
 
 def test_upload_invalid_students_csv_shows_error_and_does_not_crash(monkeypatch, tmp_path):
@@ -494,7 +496,9 @@ def test_login_page_has_viewport(monkeypatch, tmp_path):
     assert "logo-primary-transparent.png" in html
     assert "img/favicon.png" in html
     assert "css/brand.css" in html
-    assert "ESCOLA DE LÍDERES" in html or "Escola de Líderes" in html
+    assert 'alt="Mister Wiz"' in html
+    assert "W✦Z" not in html
+    assert "logo-mister" not in html
 
 
 def test_authenticated_shell_uses_official_lockups(monkeypatch, tmp_path):
@@ -507,9 +511,11 @@ def test_authenticated_shell_uses_official_lockups(monkeypatch, tmp_path):
     client = web_app.app.test_client()
     _login(client)
     html = client.get("/").get_data(as_text=True)
-    assert "logo-symbol.png" in html
+    assert 'class="brand-wordmark"' in html
+    assert 'class="brand-mark"' not in html
     assert "logo-primary-transparent.png" in html
-    assert "logo-primary-white.png" not in html
+    assert "logo-primary-white.png" in html
+    assert "logo-symbol.png" in html
     assert 'id="icon-house"' in html
     assert 'href="#icon-house"' in html
     assert "stroke-width=\"2\"" in html
@@ -527,6 +533,36 @@ def test_authenticated_shell_uses_official_lockups(monkeypatch, tmp_path):
     assert client.get("/static/img/logo-symbol.png").status_code == 200
     assert client.get("/static/img/logo-primary-transparent.png").status_code == 200
     assert client.get("/static/img/logo-primary-white.png").status_code == 200
+    assert 'class="header-brand"' in html
+    assert "filter: invert(" not in html
+
+
+def test_platform_templates_use_official_lockups_only():
+    from pathlib import Path
+
+    root = Path(web_app.__file__).parent
+    html_files = list((root / "web_templates").rglob("*.html")) + list((root / "templates").glob("*.html"))
+    assert html_files
+    joined = "\n".join(path.read_text(encoding="utf-8") for path in html_files)
+    assert "W✦Z" not in joined
+    assert "logo-mister" not in joined
+    assert "_official_source" not in joined
+    assert "filter: brightness(0) invert(1)" not in joined
+    assert "logo-primary-transparent.png" in joined
+    assert "logo-primary-white.png" in joined
+    assert "logo-symbol.png" in joined
+    assert 'class="brand-mark"' not in joined
+    assert "favicon.png" in joined
+    for name in (
+        "logo-primary.png",
+        "logo-primary-transparent.png",
+        "logo-primary-white.png",
+        "logo-primary-print.png",
+        "logo-symbol.png",
+        "favicon.png",
+    ):
+        assert (root / "static" / "img" / name).is_file()
+    assert not (root / "static" / "img" / "_official_source").exists()
 
 
 def test_authenticated_shell_has_drawer_markup(monkeypatch, tmp_path):
@@ -676,6 +712,79 @@ def test_new_extra_session_flags_student_on_alunos_page(monkeypatch, tmp_path):
     assert created.status_code == 200
     html = client.get("/students?month=2026-08").get_data(as_text=True)
     assert 'data-aula-extra="Reposição"' in html
+
+
+def test_teacher_power_extra_session_shows_in_alunos_filter(monkeypatch, tmp_path):
+    """Teacher Alunos filter must show Power kids with imported reforço rows."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    csv = (
+        "teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,"
+        "speaking,listening,foco,writing,reading,gramatica,trabalho_equipe,organizacao,"
+        "pontualidade,respeito_regras,faltas,missed_aulas,aula_extra,feedback_participacao,"
+        "feedback_foco,feedback_trabalho_equipe,recomendacoes,observacao\n"
+        "Chuck,POWER,Power,Kids Book 3,Thu 15:30,Vitoria Oliveira,3,3,3,3,3,3,3,3,3,3,3,3,"
+        "0,,,Good,Focus,Team,,\n"
+        "Chuck,POWER,Power,Kids Book 3,Thu 15:30,Kaio Vieira,3,3,3,3,3,3,3,3,3,3,3,3,"
+        "0,,,,,,,\n"
+    )
+    (data_dir / "students.csv").write_text(csv, encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "POWER,1,12/08/2026,Lesson Aug,,\n",
+        encoding="utf-8",
+    )
+    (data_dir / "student_monthly_reviews.json").write_text("[]", encoding="utf-8")
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "db_store", None)
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    web_app.OUT_DIR.mkdir()
+    _init_teacher_store(monkeypatch, data_dir)
+    _seed_teacher_classes(data_dir, "Chuck", ("POWER", "Power"))
+
+    web_app._save_extra_sessions([
+        {
+            "teacher": "",
+            "student_name": "Vitoria Oliveira (Power - C)",
+            "turma": "Power - C",
+            "date": "25/05/2026",
+            "horario": "15:30",
+            "turno": "Tarde",
+            "session_type": "Reforço",
+            "assuntos": "Reforço -",
+            "observacao": "",
+            "contatado": "",
+            "marcado": "",
+            "realizado": "",
+        },
+        {
+            "teacher": "Chuck",
+            "student_name": "Kaio Vieira - Power",
+            "turma": "",
+            "date": "",
+            "horario": "",
+            "turno": "Tarde",
+            "session_type": "Reposição",
+            "assuntos": "Reposição",
+            "observacao": "",
+            "contatado": "",
+            "marcado": "",
+            "realizado": "",
+        },
+    ])
+
+    client = web_app.app.test_client()
+    _login(client, email="teacher@test.local", password="teachpass")
+    html = client.get("/students?month=2026-08").get_data(as_text=True)
+    assert 'data-turma="POWER"' in html
+    assert 'data-aula-extra="Reforço"' in html
+    assert 'data-aula-extra="Reposição"' in html
+    extra_html = client.get("/extra-sessions").get_data(as_text=True)
+    assert "Vitoria Oliveira" in extra_html
+    assert "Kaio Vieira" in extra_html
 
 
 def test_upload_page_shows_csv_template_preview(monkeypatch, tmp_path):
@@ -1465,6 +1574,36 @@ def test_teacher_new_student_form_lists_dashboard_turmas(monkeypatch, tmp_path):
     assert "MASTER" in html
     assert "criar classe" not in html.lower()
     assert "KIDS 1" in html
+
+
+def test_student_new_form_does_not_copy_existing_student(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+    html = client.get("/students/new").get_data(as_text=True)
+
+    assert 'name="student_name" value=""' in html
+    assert 'id="val-speaking" value="3"' in html
+    assert 'id="val-listening" value="3"' in html
+    assert 'id="val-gramatica" value="3"' in html
+    assert 'name="faltas" value="0"' in html
+    assert 'name="missed_aulas" value=""' in html
+    assert "Practice speaking" not in html
+    assert ">Good</textarea>" not in html
+    assert ">Focus</textarea>" not in html
+    assert 'value="Reposição" selected' not in html
+    assert 'autocomplete="off"' in html
 
 
 def test_student_new_requires_turma(monkeypatch, tmp_path):
@@ -2370,6 +2509,148 @@ def test_superadmin_dashboard_includes_registry_only_class(monkeypatch, tmp_path
 
     assert "Masters" in html
     assert 'href="/students?turma=MASTER' in html
+
+
+def test_admin_dashboard_lists_spark_from_other_semester(monkeypatch, tmp_path):
+    """Admin must see Spark even when the review semester is not the class semester."""
+    from teacher_classes import add_class, save_registry
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(
+        "teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,"
+        "speaking,listening,foco,writing,reading,gramatica,trabalho_equipe,organizacao,"
+        "pontualidade,respeito_regras,faltas,missed_aulas,aula_extra,feedback_participacao,"
+        "feedback_foco,feedback_trabalho_equipe,recomendacoes,observacao\n"
+        "Chuck,MASTER,Masters,Adults Book 4,Tue 19:00,Jane Doe,3,3,3,3,3,3,3,3,3,3,3,3,"
+        "0,,,,,,,\n",
+        encoding="utf-8",
+    )
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,12/08/2026,Lesson Aug,,\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+
+    registry = {}
+    spark, err = add_class(
+        registry,
+        "Amanda",
+        turma_display="Spark",
+        class_weekdays=["Segunda-feira", "Quarta-feira"],
+        class_time_start="08:00",
+        class_time_end="09:00",
+        semester_id="2026-S1",
+    )
+    assert err is None
+    assert spark["turma"] == "SPARK"
+    master, err = add_class(
+        registry,
+        "Chuck",
+        turma_display="Masters",
+        class_weekdays=["Terça-feira", "Quinta-feira"],
+        class_time_start="19:00",
+        class_time_end="20:00",
+        semester_id="2026-S2",
+    )
+    assert err is None
+    save_registry(data_dir / "teacher_classes.json", registry)
+
+    client = web_app.app.test_client()
+    _login(client)
+    with client.session_transaction() as sess:
+        sess["review_semester"] = "2026-S2"
+        sess["review_month"] = "2026-08"
+
+    html = client.get("/?semester=2026-S2&month=2026-08").get_data(as_text=True)
+    assert "Spark" in html
+    assert "Amanda" in html
+    assert 'href="/students?turma=SPARK' in html
+
+    students_html = client.get("/students?month=2026-08").get_data(as_text=True)
+    assert 'data-filter-value="SPARK"' in students_html
+
+
+def test_admin_dashboard_lists_spark_and_renamed_scout(monkeypatch, tmp_path):
+    """A Spark→Scout rename in S2 must not hide S1 Spark or swallow the SPARK code."""
+    from teacher_classes import add_class, save_registry, update_class
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+
+    registry = {}
+    spark, err = add_class(
+        registry,
+        "Amanda",
+        turma_display="Spark",
+        class_weekdays=["Segunda-feira", "Quarta-feira"],
+        class_time_start="08:00",
+        class_time_end="09:30",
+        semester_id="2026-S1",
+    )
+    assert err is None
+    scout, err = add_class(
+        registry,
+        "Amanda",
+        turma_display="Spark",
+        class_weekdays=["Segunda-feira", "Quarta-feira"],
+        class_time_start="08:00",
+        class_time_end="09:30",
+        semester_id="2026-S2",
+    )
+    assert err is None
+    updated, err = update_class(
+        registry,
+        "Amanda",
+        scout["turma"],
+        turma_display="Scout",
+        class_weekdays=["Segunda-feira", "Quarta-feira"],
+        class_time_start="08:00",
+        class_time_end="09:30",
+        semester_id="2026-S2",
+    )
+    assert err is None
+    assert updated["turma"] == spark["turma"] == "SPARK"
+    save_registry(data_dir / "teacher_classes.json", registry)
+
+    client = web_app.app.test_client()
+    _login(client)
+    with client.session_transaction() as sess:
+        sess["review_semester"] = "2026-S2"
+        sess["review_month"] = "2026-09"
+
+    html = client.get("/?semester=2026-S2&month=2026-09").get_data(as_text=True)
+    assert "Spark" in html
+    assert "Scout" in html
+    assert "código SPARK" in html
+
+    create = client.post(
+        "/turmas/create",
+        data={
+            "teacher": "Amanda",
+            "turma_display": "Spark",
+            "class_weekday_1": "Segunda-feira",
+            "class_weekday_2": "Quarta-feira",
+            "turma_time_start": "08:00",
+            "turma_time_end": "09:30",
+        },
+        follow_redirects=True,
+    )
+    create_html = create.get_data(as_text=True)
+    assert "já está cadastrada" in create_html
+    assert "Scout" in create_html
 
 
 def test_admin_can_edit_turma(monkeypatch, tmp_path):

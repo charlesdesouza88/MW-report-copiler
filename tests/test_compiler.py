@@ -103,6 +103,20 @@ def test_pie_path_full_circle_flag_when_100_percent():
     assert "A 48,48" in path_d
 
 
+def test_pie_slice_labels_split_presence_and_absences():
+    from compiler import pie_slice_labels
+
+    labels = pie_slice_labels(83)
+    kinds = {lab['kind']: lab for lab in labels}
+    assert kinds['presenca']['pct'] == 83
+    assert kinds['presenca']['caption'] == 'Presença'
+    assert kinds['faltas']['pct'] == 17
+    assert kinds['faltas']['caption'] == 'Faltas'
+    assert pie_slice_labels(100) == [
+        dict(kind='presenca', pct=100, caption='Presença', x=58, y=58, fill='#fff')
+    ]
+
+
 def test_build_student_ctx_computes_expected_derived_values():
     ctx = build_student_ctx(_student(), _lessons())
     assert ctx["pct"] == 50
@@ -111,6 +125,8 @@ def test_build_student_ctx_computes_expected_derived_values():
     assert ctx["part_scores"] == [4, 4, 3]
     assert ctx["comp_scores"] == [3, 3, 3]
     assert len(ctx["missed"]) == 1
+    assert ctx["total_lessons"] == 2
+    assert ctx["pie_labels"]
 
 
 def test_build_student_ctx_month_scopes_presence():
@@ -233,7 +249,7 @@ def test_group_by_turma_groups_students():
     assert len(groups["MASTER"]) == 2
 
 
-def test_individual_report_renders_labeled_overall_scores():
+def test_individual_report_matches_stakeholder_layout():
     from pathlib import Path
 
     from compiler import build_student_ctx
@@ -244,19 +260,40 @@ def test_individual_report_renders_labeled_overall_scores():
         **build_student_ctx(_student(), _lessons())
     )
 
-    assert "card-header" in html
-    assert html.count('class="overall-score-label"') == 4
-    assert "bubble-abs" not in html
-    assert "Nota" in html
-    assert "Critérios" in html
-    assert 'id="ri-calendar-check"' in html
-    assert 'href="#ri-calendar-check"' in html
-    assert 'href="#ri-book-open"' in html
-    assert 'href="#ri-message-circle"' in html
-    assert 'href="#ri-star"' in html
-    assert 'class="mw-icon-tile"' in html
-    assert 'class="legend-item"' in html
-    assert 'grid-template-columns: minmax(132px, 1fr)' in html
+    assert html.count('class="bubble bubble-abs') == 4
+    assert "score-1" in html or "score-2" in html or "score-3" in html or "score-4" in html or "score-5" in html
+    assert html.count('class="card-title"') == 4
+    assert "Presença" in html
+    assert "Participação" in html
+    assert "Desenvolvimento" in html
+    assert "Comportamento" in html
+    assert "Recomendações:" in html
+    assert "Frequência" in html
+    assert "Nível de presença do aluno" in html
+    assert "aulas totais" in html
+    assert "Critérios:" in html
+    assert ">Fala<" in html
+    assert ">Audição<" in html
+    assert ">Leitura<" in html
+    assert ">Escrita<" in html
+    assert "card-header" not in html
+    assert "overall-score-label" not in html
+    assert "dimension-rings" not in html
+    assert "Gráfico de colunas" not in html
+    assert "Comparativo Mensal" not in html
+    assert 'class="pie-cal"' not in html
+    assert "grid-template-columns: 1fr 1fr" in html
+    assert "grid-template-columns: auto minmax(0, 1fr) auto" in html
+    assert "aspect-ratio: 297 / 210" not in html
+    assert "overflow: visible" in html
+    assert "padding-top: 18px" not in html
+    assert 'class="logo-wordmark"' in html
+    assert "data:image/png;base64," in html
+    assert "W✦Z" not in html
+    assert "logo-mister" not in html
+    assert "Adults Book 4" in html
+    assert "Tue/Thu 19:00" in html
+    assert "Período:" not in html
 
 
 def test_class_diagnostic_combines_medias_into_one_row():
@@ -277,9 +314,12 @@ def test_class_diagnostic_combines_medias_into_one_row():
     assert 'href="#ri-book-open"' in html
     assert 'href="#ri-users"' in html
     assert "Médias da turma — índices do período" in html
+    assert 'class="logo-wordmark"' in html
+    assert "data:image/png;base64," in html
+    assert "logo-mark" not in html
 
 
-def test_individual_report_embeds_attendance_calendar_in_frequencia():
+def test_individual_report_embeds_attendance_calendar_in_presenca():
     from pathlib import Path
 
     from compiler import build_student_ctx
@@ -291,9 +331,15 @@ def test_individual_report_embeds_attendance_calendar_in_frequencia():
     )
     assert "pie-cal" in html
     assert "has-cal" in html
+    assert "padding-top: 18px" not in html
     assert "Janeiro 2026" in html
-    assert 'class="att-day att-present"' in html or "att-present" in html
+    assert "Período: Janeiro 2026" in html
+    assert "Primeiro período" in html
+    assert "Tue/Thu 19:00" in html
     assert html.count('class="att-cal"') == 1
+    assert "att-present" in html or "att-absent" in html or "att-noclass" in html
+    assert "Comparativo Mensal" not in html
+    assert "dimension-rings" not in html
 
 
 def test_individual_report_shows_month_calendar_without_class_days():
@@ -306,9 +352,9 @@ def test_individual_report_shows_month_calendar_without_class_days():
     html = env.get_template("individual_report.html").render(
         **build_student_ctx(_student(), [], report_month="2026-07")
     )
+    assert "0 aulas totais" in html
     assert "pie-cal" in html
     assert "Julho 2026" in html
-    assert "att-cal" in html
 
 
 def test_score_delta_badge_directions():
@@ -364,7 +410,7 @@ def test_build_student_ctx_month_comparison_with_snapshots():
     assert len(ctx['expanded_grid']) == 5
 
 
-def test_individual_report_renders_comparison_section():
+def test_individual_report_omits_comparison_section():
     from pathlib import Path
 
     base = Path(__file__).resolve().parent.parent
@@ -404,10 +450,10 @@ def test_individual_report_renders_comparison_section():
             snapshots=snapshots,
         ),
     )
-    assert 'Comparativo Mensal' in html
-    assert 'Visão Geral (7 eixos)' in html
-    assert 'delta-badge' in html
-    assert 'Índice Geral' in html
+    assert 'Comparativo Mensal' not in html
+    assert 'Visão Geral (7 eixos)' not in html
+    assert 'Presença' in html
+    assert 'Recomendações:' in html
 
 
 def test_prior_month_snapshot_lookup():
