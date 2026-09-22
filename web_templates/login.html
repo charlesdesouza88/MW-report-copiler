@@ -24,21 +24,21 @@ body {
 .login-card {
   background: var(--white);
   border-radius: 16px;
-  padding: 40px 36px 32px;
+  padding: 28px 28px 28px;
   width: 100%;
   max-width: min(400px, calc(100vw - 32px));
   box-shadow: 0 24px 64px rgba(45, 16, 64, 0.35);
 }
-.logo { text-align: center; margin-bottom: 22px; }
+.logo { text-align: center; margin-bottom: 14px; }
 .logo-lockup {
-  display: block; width: min(260px, 82%); height: auto; margin: 0 auto;
+  display: block; width: 100%; height: auto; margin: 0 auto;
 }
 .logo-rule {
   width: 48px; height: 3px; border-radius: 999px;
-  background: var(--gold-accent); margin: 16px auto 0;
+  background: var(--gold-accent); margin: 10px auto 0;
 }
 .logo-sub {
-  font-size: 11px; color: var(--purple-dk); letter-spacing: 1.6px; margin-top: 12px;
+  font-size: 12px; color: var(--purple-dk); letter-spacing: 1.6px; margin-top: 8px;
   text-transform: uppercase; font-weight: 700;
 }
 h2 { font-size: 16px; font-weight: 700; color: var(--plum); margin-bottom: 20px; text-align: center; }
@@ -66,7 +66,7 @@ input:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px 
 <body>
 <div class="login-card">
   <div class="logo">
-    <img class="logo-lockup" src="{{ url_for('static', filename='img/logo-primary-transparent.png') }}" alt="Mister Wiz" width="260" height="39">
+    <img class="logo-lockup" src="{{ url_for('static', filename='img/logo-primary-transparent.png') }}" alt="Mister Wiz" width="344" height="44">
     <div class="logo-rule" aria-hidden="true"></div>
     <div class="logo-sub">Plataforma de relatórios</div>
   </div>
