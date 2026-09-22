@@ -479,6 +479,35 @@ def pie_path(percentage, cx=58, cy=58, r=48):
     return d, False
 
 
+def _pie_midpoint(start_pct, end_pct, cx, cy, radius):
+    mid = (float(start_pct) + float(end_pct)) / 2.0
+    angle = (mid / 100.0) * 2 * math.pi - math.pi / 2
+    return round(cx + radius * math.cos(angle), 1), round(cy + radius * math.sin(angle), 1)
+
+
+def pie_slice_labels(percentage, cx=58, cy=58, pie_r=48):
+    """On-slice labels for presence (purple) and absences (gray), clockwise from 12 o'clock."""
+    pct = max(0, min(100, int(round(float(percentage)))))
+    faltas_pct = 100 - pct
+    labels = []
+    if pct >= 100:
+        labels.append(dict(kind='presenca', pct=100, caption='Presença', x=cx, y=cy, fill='#fff'))
+        return labels
+    if pct <= 0:
+        labels.append(dict(kind='faltas', pct=100, caption='Faltas', x=cx, y=cy, fill='#333'))
+        return labels
+    pres_r = 16 if pct >= 50 else 30
+    px, py = _pie_midpoint(0, pct, cx, cy, pres_r)
+    labels.append(dict(kind='presenca', pct=pct, caption='Presença', x=px, y=py, fill='#fff'))
+    if faltas_pct > 0:
+        faltas_r = 30 if faltas_pct < 25 else 22
+        fx, fy = _pie_midpoint(pct, 100, cx, cy, faltas_r)
+        labels.append(dict(
+            kind='faltas', pct=faltas_pct, caption='Faltas', x=fx, y=fy, fill='#333',
+        ))
+    return labels
+
+
 # ── Data helpers ──────────────────────────────────────────────────────────────
 
 def round_half_up(value):
@@ -767,8 +796,11 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
         report_month_label=month_label(report_month) if report_month else '',
         trend=trend,
         pct=pct,
+        faltas_pct=max(0, min(100, 100 - int(pct))),
         pie_d=pie_d,
+        pie_labels=pie_slice_labels(pct),
         full_circle=full_circle,
+        total_lessons=total,
         missed=missed,
         pres_score=pres_score,
         needs_makeup=needs_makeup,

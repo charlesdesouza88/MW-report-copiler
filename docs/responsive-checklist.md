@@ -22,9 +22,9 @@ Use Chrome DevTools device toolbar at **375px** (phone), **768px** (tablet), and
 - Topbar actions overflowing behind drawer button
 - iOS Safari: file inputs inside dropzones
 - Long student names in cards
-- Report preview: radar chart clipping (horizontal scroll inside card is OK). Overview tiles should share the same left/right edge as the two columns below.
+- Report preview: A4 landscape 2×2 (Presença, Participação, Desenvolvimento, Comportamento) plus Recomendações. Radar/pie must stay visible in print.
 - Dark text on purple headers (must be white — see `docs/brand.md`)
-- Navy/purple wordmark on a dark panel (use knockout, never CSS invert). The sidebar is lavender, so it uses the **colour** lockup.
+- Black/purple wordmark on a dark panel (use knockout, never CSS invert). The sidebar is lavender, so it uses the **colour** lockup.
 
 ## Automated checks
 

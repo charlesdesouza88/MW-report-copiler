@@ -64,7 +64,7 @@ The dashboard and print reports follow the **Mister Wiz Brand & Identity Guide**
 | Gold / gold accent | `#EFD27E` / `#EBB22E` | Emphasis, dividers, active-nav mark |
 | Green / red | `#2C7A3F` / `#E24B4A` | Success / error only |
 
-**Logos:** colour primary lockup on white or lavender; **white knockout** on plum/purple (never invert the navy wordmark). Aspect ratio **3.81 : 1** — do not stretch. Favicon is the Wiz symbol tile.
+**Logos:** official **MISTER WIZ** wordmark (black + purple figure) on white or lavender; **white knockout** on plum/purple (never invert). Aspect ratio **~6.7 : 1** — do not stretch. Favicon is the Wiz figure.
 
 **Icons:** Mister Wiz Icon Library in `static/img/icons.svg` — 24 grid, 2 px round stroke, purple on light / white on dark. Do not fill, rotate, or mix with emoji.
 
