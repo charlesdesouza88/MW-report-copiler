@@ -294,6 +294,10 @@ def test_individual_report_matches_stakeholder_layout():
     assert "Adults Book 4" in html
     assert "Tue/Thu 19:00" in html
     assert "Período:" not in html
+    assert 'class="part-scores-row"' in html
+    assert '"scale feedback"' in html
+    assert ".part-scores-row .bubble" in html
+    assert "Feedback do professor" in html
 
 
 def test_class_diagnostic_combines_medias_into_one_row():
