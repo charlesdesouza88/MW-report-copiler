@@ -409,7 +409,7 @@ def test_reports_preview_live_renders_class_medias_row(monkeypatch, tmp_path):
     assert "stale class diagnostic" not in html
 
 
-def test_reports_preview_live_renders_attendance_calendar(monkeypatch, tmp_path):
+def test_reports_preview_live_renders_individual_report(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     out_dir = tmp_path / "output"
     data_dir.mkdir()
@@ -417,7 +417,7 @@ def test_reports_preview_live_renders_attendance_calendar(monkeypatch, tmp_path)
     (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
     (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
     stale = out_dir / "MASTER_Jane_Doe_2026-01_report.html"
-    stale.write_text("<html>stale report without calendar</html>", encoding="utf-8")
+    stale.write_text("<html>stale report without layout</html>", encoding="utf-8")
 
     monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
     monkeypatch.setattr(web_app, "OUT_DIR", out_dir)
@@ -432,9 +432,9 @@ def test_reports_preview_live_renders_attendance_calendar(monkeypatch, tmp_path)
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert "pie-cal" in html
-    assert "Janeiro 2026" in html
-    assert "stale report without calendar" not in html
+    assert "Presença" in html
+    assert "bubble-abs" in html
+    assert "stale report without layout" not in html
 
 
 def test_upload_invalid_students_csv_shows_error_and_does_not_crash(monkeypatch, tmp_path):

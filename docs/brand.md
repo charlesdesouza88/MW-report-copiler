@@ -3,7 +3,7 @@
 Source of truth: *Mister Wiz — Brand & Identity Guide* (Brand / ID folder).  
 Code source of truth: `static/css/brand.css` and `static/img/`.
 
-Purple leads, gold accents, plum grounds the text. Navy is **logo wordmark only**. Green and red are **functional feedback only**.
+Purple leads, gold accents, plum grounds the text. The official wordmark is **black + purple**. Green and red are **functional feedback only**.
 
 ## Palette
 
@@ -20,7 +20,7 @@ Purple leads, gold accents, plum grounds the text. Navy is **logo wordmark only*
 | Soft box | `#F9F5FA` | `--soft` / `--bg` | Page background, panels |
 | Hairline | `#D9C7E0` | `--hairline` / `--border` | 1 px rules |
 
-Navy `#1B1464` must not appear in UI chrome. Do not add other blues or greens.
+Navy `#1B1464` must not appear in UI chrome (it is not in the current official lockup). Do not add other blues or greens.
 
 On purple or plum, text must be **white** (or gold for small captions). Gray-on-purple table headers fail contrast.
 
@@ -32,16 +32,18 @@ On purple or plum, text must be **white** (or gold for small captions). Gray-on-
 
 ## Logo files
 
+Current official lockup: horizontal **MISTER WIZ** wordmark (person as the I, purple head). Live source: [misterwiz.com.br](https://misterwiz.com.br/) header (`/wp-content/uploads/2024/09/logo.png`) and the high-res master from [online.misterwiz.com.br](https://online.misterwiz.com.br/). *Escola de Líderes* is the school name, not part of the mark.
+
 Place from these masters. Never redraw, recolour, or CSS-filter the lockup.
 
 | File | Use |
 |---|---|
 | `static/img/logo-primary.png` | Full colour on white |
-| `static/img/logo-primary-transparent.png` | Login and light cards (includes *ESCOLA DE LÍDERES*) |
-| `static/img/logo-primary-white.png` | Knockout on plum/purple (login, print) |
-| `static/img/logo-stacked.png` | Compact / square colour mark |
+| `static/img/logo-primary-transparent.png` | Login and light cards |
+| `static/img/logo-primary-white.png` | Knockout on plum/purple |
+| `static/img/logo-stacked.png` | Compact / square colour mark (Wiz figure) |
 | `static/img/logo-stacked-white.png` | Compact knockout |
-| `static/img/logo-symbol.png` | App icon, favicon source |
+| `static/img/logo-symbol.png` | App icon, favicon source (Wiz figure) |
 | `static/img/favicon.png` | Browser tab |
 | `static/img/logo-*-print.png` | Embedded in self-contained report HTML |
 
@@ -49,21 +51,21 @@ Place from these masters. Never redraw, recolour, or CSS-filter the lockup.
 
 - Colour lockup on white or lavender.
 - White knockout on plum, purple, or photography.
-- Keep **3.81 : 1** when resizing the primary lockup (minimum ~120 px wide so the descriptor stays legible).
+- Keep **~6.7 : 1** when resizing the primary wordmark (minimum ~140 px wide so the figure stays clear).
 - Pair purple with gold for emphasis; plum for body text.
 
 ### Don't
 
 - Stretch, squash, or rotate the logo.
 - Recolour it, or use `filter: invert()` / drop shadows / outlines.
-- Put the navy-and-purple logo on a dark background (the wordmark disappears).
-- Use navy anywhere except inside the official lockup.
+- Put the black-and-purple logo on a dark background (the wordmark disappears).
+- Retype MISTER WIZ in another font.
 
 ## Where it is applied
 
 - **Login** — purple→plum gradient; primary colour lockup on the white card.
 - **Dashboard shell** — lavender sidebar, gold rule under the mark, colour wordmark + symbol tile; active nav is purple with a gold inset. Nav uses the **Mister Wiz Icon Library** (24 grid, 2 px round stroke, `currentColor`).
-- **Print reports** (`templates/`) — same purple/plum/gold tokens; logos inlined as data URIs so files stay self-contained. Individual reports embed a **subset of the Icon Library** (24 grid, 2 px round stroke, `currentColor`) because they cannot load the dashboard sprite. Header, overview strip, and the two-column body share a 12 px gutter so their outer edges line up.
+- **Print reports** (`templates/`) — same purple/plum tokens; individual reports are a self-contained A4 landscape page: header, 2×2 cards (Presença, Participação, Desenvolvimento, Comportamento), and Recomendações.
 - **Usuários** — table headers white on purple; row actions: larger **Perfil** button, **Contato** / **Editar** stacked and left-aligned with each other.
 
 ## Iconography

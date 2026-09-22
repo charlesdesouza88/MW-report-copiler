@@ -44,6 +44,7 @@ svg.mw-icon-svg {
 .brand-text { min-width: 0; flex: 1; }
 .brand-wordmark {
   display: block; width: 100%; max-width: 148px; height: auto;
+  aspect-ratio: 1410 / 210;
 }
 .brand-sub {
   font-size: 8.5px; color: var(--purple-dk); letter-spacing: 1.5px;
@@ -657,7 +658,7 @@ body.nav-open .nav-backdrop { display: block; }
     <div class="brand-lockup">
       <img class="brand-mark" src="{{ url_for('static', filename='img/logo-symbol.png') }}" alt="" width="40" height="40">
       <div class="brand-text">
-        <img class="brand-wordmark" src="{{ url_for('static', filename='img/logo-primary-transparent.png') }}" alt="Mister Wiz" width="148" height="39">
+        <img class="brand-wordmark" src="{{ url_for('static', filename='img/logo-primary-transparent.png') }}" alt="Mister Wiz" width="148" height="22">
         <div class="brand-sub">{% if current_user and current_user.role == 'teacher' %}Professor{% else %}Admin{% endif %}</div>
       </div>
     </div>
