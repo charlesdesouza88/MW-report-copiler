@@ -511,9 +511,11 @@ def test_authenticated_shell_uses_official_lockups(monkeypatch, tmp_path):
     client = web_app.app.test_client()
     _login(client)
     html = client.get("/").get_data(as_text=True)
-    assert "logo-symbol.png" in html
+    assert 'class="brand-wordmark"' in html
+    assert 'class="brand-mark"' not in html
     assert "logo-primary-transparent.png" in html
     assert "logo-primary-white.png" in html
+    assert "logo-symbol.png" in html
     assert 'id="icon-house"' in html
     assert 'href="#icon-house"' in html
     assert "stroke-width=\"2\"" in html
@@ -549,6 +551,7 @@ def test_platform_templates_use_official_lockups_only():
     assert "logo-primary-transparent.png" in joined
     assert "logo-primary-white.png" in joined
     assert "logo-symbol.png" in joined
+    assert 'class="brand-mark"' not in joined
     assert "favicon.png" in joined
     for name in (
         "logo-primary.png",
