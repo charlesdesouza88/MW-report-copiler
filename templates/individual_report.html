@@ -14,12 +14,13 @@
   --mw-border: #C8C8C8;
   --mw-pie-gray: #BBBBBB;
   --mw-bar-track: #CCCCCC;
+  --type-scale: 1.2;
 }
 body {
   font-family: Carlito, Calibri, Arial, Helvetica, sans-serif;
   background: #fff;
   color: #111;
-  font-size: 11px;
+  font-size: calc(11px * var(--type-scale));
   width: 297mm;
   min-height: 210mm;
   padding: 7mm 8mm 4mm;
@@ -41,16 +42,16 @@ body {
 .logo { line-height: 0; justify-self: start; }
 .logo-wordmark { height: 36px; width: auto; max-width: min(260px, 28vw); display: block; }
 .header-center { text-align: center; min-width: 0; }
-.student-name { font-size: 26px; font-weight: 900; line-height: 1.05; overflow-wrap: anywhere; }
-.turma-line { color: var(--mw-purple); font-size: 12px; font-weight: 700; margin-top: 3px; line-height: 1.3; overflow-wrap: break-word; }
+.student-name { font-size: calc(26px * var(--type-scale)); font-weight: 900; line-height: 1.05; overflow-wrap: anywhere; }
+.turma-line { color: var(--mw-purple); font-size: calc(12px * var(--type-scale)); font-weight: 700; margin-top: 3px; line-height: 1.3; overflow-wrap: break-word; }
 .turma-line span { color: var(--mw-plum); }
-.period-line { font-size: 11px; font-weight: 700; margin-top: 3px; color: #444; }
+.period-line { font-size: calc(11px * var(--type-scale)); font-weight: 700; margin-top: 3px; color: #444; }
 .trend-pill {
   display: inline-block;
   margin-left: 6px;
   padding: 1px 8px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: calc(10px * var(--type-scale));
   font-weight: 900;
   vertical-align: middle;
 }
@@ -59,8 +60,8 @@ body {
 .trend-stable { background: #EDE8F4; color: var(--mw-purple); }
 .trend-first { background: #F0F0F0; color: #666; }
 .teacher-block { text-align: right; justify-self: end; }
-.teacher-label { font-size: 11px; font-weight: 700; color: var(--mw-purple); }
-.teacher-name { font-size: 18px; font-weight: 900; color: var(--mw-purple); }
+.teacher-label { font-size: calc(11px * var(--type-scale)); font-weight: 700; color: var(--mw-purple); }
+.teacher-name { font-size: calc(18px * var(--type-scale)); font-weight: 900; color: var(--mw-purple); }
 
 /* ── Equal 2×2 card grid ── */
 .grid {
@@ -84,12 +85,12 @@ body {
   flex-direction: column;
 }
 .card-title {
-  font-size: 22px;
+  font-size: calc(22px * var(--type-scale));
   font-weight: 900;
   margin-bottom: 6px;
   line-height: 1;
   padding-right: 48px;
-  min-height: 40px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -100,7 +101,7 @@ body {
   border-radius: 50%;
   background: var(--mw-purple);
   color: #fff;
-  font-size: 22px;
+  font-size: calc(22px * var(--type-scale));
   font-weight: 900;
   display: flex;
   align-items: center;
@@ -114,7 +115,7 @@ body {
 }
 .bubble-md {
   width: 56px; height: 56px;
-  font-size: 30px;
+  font-size: calc(30px * var(--type-scale));
 }
 .score-1 { background: #E8D4F0; color: #5A1A64; }
 .score-2 { background: #C9A3D6; color: #3D1550; }
@@ -141,11 +142,23 @@ body {
 .pie-wrap { flex-shrink: 0; text-align: center; }
 .pie-wrap svg { width: min(120px, 100%); height: auto; display: block; margin: 0 auto; }
 .pie-legend {
-  display: flex; gap: 10px; align-items: center; justify-content: center;
-  margin-top: 4px; font-size: 9px; flex-wrap: wrap;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  width: max-content;
+  margin: 4px auto 0;
+  font-size: calc(9px * var(--type-scale));
 }
-.legend-sq { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
-.pie-footer { font-size: 9px; font-weight: 700; text-align: center; margin-top: 3px; }
+.pie-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.legend-sq { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+.pie-footer { font-size: calc(9px * var(--type-scale)); font-weight: 700; text-align: center; margin-top: 3px; }
 .presenca-right { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 .pie-cal {
   min-width: 0;
@@ -156,7 +169,7 @@ body {
   background: #fff;
 }
 .pie-cal-title {
-  font-size: 9px;
+  font-size: calc(9px * var(--type-scale));
   font-weight: 900;
   color: var(--mw-purple);
   text-transform: uppercase;
@@ -166,14 +179,14 @@ body {
 }
 .att-cal { border-collapse: collapse; width: 100%; }
 .att-cal th {
-  font-size: 7px; font-weight: 700; text-align: center;
+  font-size: calc(7px * var(--type-scale)); font-weight: 700; text-align: center;
   color: #888; padding: 1px; letter-spacing: 0;
 }
 .att-cal td { text-align: center; padding: 1px; }
 .att-day {
   display: inline-flex; align-items: center; justify-content: center;
   width: 18px; height: 18px; border-radius: 50%;
-  font-size: 8px; font-weight: 700;
+  font-size: calc(8px * var(--type-scale)); font-weight: 700;
 }
 .att-noclass { background: #F0E6F3; color: #8A6A96; }
 .att-present { background: #792D83; color: #fff; }
@@ -181,19 +194,19 @@ body {
 .att-tardy   { background: #EBB22E; color: #2D1040; }
 .att-cal-legend {
   display: flex; gap: 7px; margin-top: 4px; flex-wrap: wrap;
-  font-size: 8px; color: #555; align-items: center; justify-content: center;
+  font-size: calc(8px * var(--type-scale)); color: #555; align-items: center; justify-content: center;
 }
 .att-dot {
   display: inline-block; width: 8px; height: 8px;
   border-radius: 50%; flex-shrink: 0; vertical-align: middle; margin-right: 3px;
 }
-.missed-heading { font-weight: 700; font-size: 11px; margin-bottom: 2px; }
-.missed-total { font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+.missed-heading { font-weight: 700; font-size: calc(11px * var(--type-scale)); margin-bottom: 2px; }
+.missed-total { font-size: calc(11px * var(--type-scale)); font-weight: 700; margin-bottom: 8px; }
 .missed-io { margin-bottom: 8px; }
-.missed-io-line { font-size: 10px; line-height: 1.35; margin-bottom: 4px; }
+.missed-io-line { font-size: calc(10px * var(--type-scale)); line-height: 1.35; margin-bottom: 4px; }
 .missed-io-line strong { color: var(--mw-purple); font-weight: 700; }
 .no-makeup {
-  font-weight: 700; font-size: 11px; margin-top: auto; padding-top: 6px;
+  font-weight: 700; font-size: calc(11px * var(--type-scale)); margin-top: auto; padding-top: 6px;
   text-align: center; flex-shrink: 0;
 }
 
@@ -212,7 +225,7 @@ body {
 }
 .media-label {
   grid-area: label;
-  font-size: 9px; color: var(--mw-purple); font-weight: 700;
+  font-size: calc(9px * var(--type-scale)); color: var(--mw-purple); font-weight: 700;
 }
 .part-scores-row {
   grid-area: scores;
@@ -227,23 +240,23 @@ body {
 }
 .part-score-item { text-align: center; }
 .part-scores-row .bubble {
-  width: 76px; height: 76px; font-size: 38px;
+  width: 76px; height: 76px; font-size: calc(38px * var(--type-scale));
 }
-.part-score-label { font-size: 11px; font-weight: 700; margin-top: 6px; line-height: 1.2; color: var(--mw-purple); }
+.part-score-label { font-size: calc(11px * var(--type-scale)); font-weight: 700; margin-top: 6px; line-height: 1.2; color: var(--mw-purple); }
 .scale-list { grid-area: scale; margin-top: 0; }
-.scale-item { display: flex; gap: 6px; align-items: center; font-size: 9px; margin-bottom: 3px; }
+.scale-item { display: flex; gap: 6px; align-items: center; font-size: calc(9px * var(--type-scale)); margin-bottom: 3px; }
 .scale-num-circle {
   width: 16px; height: 16px; border-radius: 50%;
-  font-size: 9px; font-weight: 900;
+  font-size: calc(9px * var(--type-scale)); font-weight: 900;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
 .part-left { display: contents; }
 .part-right { grid-area: feedback; min-width: 0; }
-.fb-heading { font-size: 10px; color: var(--mw-purple); font-weight: 700; margin-bottom: 6px; }
+.fb-heading { font-size: calc(10px * var(--type-scale)); color: var(--mw-purple); font-weight: 700; margin-bottom: 6px; }
 .fb-item { border: 1px solid #bbb; padding: 4px 6px; margin-bottom: 5px; }
-.fb-item-title { font-size: 9px; font-weight: 700; color: var(--mw-purple); }
-.fb-item-text { font-size: 10px; line-height: 1.3; }
+.fb-item-title { font-size: calc(9px * var(--type-scale)); font-weight: 700; color: var(--mw-purple); }
+.fb-item-text { font-size: calc(10px * var(--type-scale)); line-height: 1.3; }
 
 /* ── DESENVOLVIMENTO ── */
 .dev-body { display: flex; gap: 12px; align-items: center; flex: 1; min-height: 0; min-width: 0; }
@@ -266,16 +279,16 @@ body {
 .bar-fill.score-3 { background: #A060B4; }
 .bar-fill.score-4 { background: #792D83; }
 .bar-fill.score-5 { background: #3D1048; }
-.bar-label { font-size: 12px; font-weight: 900; font-style: italic; margin-top: 2px; }
+.bar-label { font-size: calc(12px * var(--type-scale)); font-weight: 900; font-style: italic; margin-top: 2px; }
 .radar-wrap { flex: 1 1 140px; min-width: 0; max-width: 210px; }
 .radar-wrap svg { width: 100%; height: auto; display: block; }
 
 /* ── COMPORTAMENTO ── */
 .comp-scores-row { display: flex; gap: 8px; justify-content: space-around; margin: 8px 0 14px; flex-wrap: wrap; }
 .comp-score-item { text-align: center; }
-.comp-score-label { font-size: 9px; font-weight: 700; color: var(--mw-purple); margin-top: 4px; line-height: 1.2; }
-.comp-criteria-title { font-size: 11px; font-weight: 900; margin-bottom: 4px; }
-.comp-criteria-item { font-size: 10px; margin-bottom: 3px; line-height: 1.3; overflow-wrap: break-word; }
+.comp-score-label { font-size: calc(9px * var(--type-scale)); font-weight: 700; color: var(--mw-purple); margin-top: 4px; line-height: 1.2; }
+.comp-criteria-title { font-size: calc(11px * var(--type-scale)); font-weight: 900; margin-bottom: 4px; }
+.comp-criteria-item { font-size: calc(10px * var(--type-scale)); margin-bottom: 3px; line-height: 1.3; overflow-wrap: break-word; }
 .comp-criteria-item strong { color: var(--mw-purple); }
 
 /* ── RECOMENDAÇÕES ── */
@@ -284,11 +297,11 @@ body {
   padding: 4px 2px 2px;
 }
 .recomendacoes-heading {
-  font-size: 22px;
+  font-size: calc(22px * var(--type-scale));
   font-weight: 900;
   display: inline;
 }
-.recomendacoes-text { font-size: 12px; display: inline; margin-left: 4px; }
+.recomendacoes-text { font-size: calc(12px * var(--type-scale)); display: inline; margin-left: 4px; }
 
 @media screen {
   html { -webkit-text-size-adjust: 100%; }
@@ -302,8 +315,8 @@ body {
     overflow: visible;
   }
   .card { overflow: visible; }
-  .student-name { font-size: clamp(18px, 3.2vw, 26px); word-break: break-word; }
-  .turma-line { font-size: clamp(10px, 1.8vw, 12px); }
+  .student-name { font-size: clamp(calc(18px * var(--type-scale)), calc(3.2vw * var(--type-scale)), calc(26px * var(--type-scale))); word-break: break-word; }
+  .turma-line { font-size: clamp(calc(10px * var(--type-scale)), calc(1.8vw * var(--type-scale)), calc(12px * var(--type-scale))); }
   .radar-wrap { max-width: min(210px, 42%); }
 }
 @media screen and (max-width: 980px) {
@@ -314,8 +327,8 @@ body {
     gap: 6px;
   }
   .logo, .header-center, .teacher-block { justify-self: center; text-align: center; }
-  .bubble-md { width: 48px; height: 48px; font-size: 26px; }
-  .part-scores-row .bubble { width: 64px; height: 64px; font-size: 32px; }
+  .bubble-md { width: 48px; height: 48px; font-size: calc(26px * var(--type-scale)); }
+  .part-scores-row .bubble { width: 64px; height: 64px; font-size: calc(32px * var(--type-scale)); }
 }
 @media screen and (max-width: 720px) {
   body { padding: 12px; }
@@ -334,7 +347,7 @@ body {
   .presenca-body, .presenca-main, .presenca-main.has-cal, .part-body, .dev-body { flex-direction: column; display: flex; }
   .presenca-main.has-cal { grid-template-columns: 1fr; grid-template-areas: "pie" "cal" "right"; }
   .radar-wrap { align-self: center; max-width: 210px; }
-  .recomendacoes-heading { font-size: 18px; }
+  .recomendacoes-heading { font-size: calc(18px * var(--type-scale)); }
 }
 @media print {
   html, body { height: 210mm; }
@@ -395,13 +408,13 @@ body {
           <path d="{{ pie_d }}" fill="#792D83"/>
           {% endif %}
           {% for lab in pie_labels %}
-          <text x="{{ lab.x }}" y="{{ lab.y - 5 }}" text-anchor="middle" font-size="11" font-weight="bold" fill="{{ lab.fill }}" font-family="Carlito, Calibri, Arial, sans-serif">{{ lab.pct }}%</text>
-          <text x="{{ lab.x }}" y="{{ lab.y + 8 }}" text-anchor="middle" font-size="8" font-weight="bold" fill="{{ lab.fill }}" font-family="Carlito, Calibri, Arial, sans-serif">{{ lab.caption }}</text>
+          <text x="{{ lab.x }}" y="{{ lab.y - 5 }}" text-anchor="middle" font-size="13.2" font-weight="bold" fill="{{ lab.fill }}" font-family="Carlito, Calibri, Arial, sans-serif">{{ lab.pct }}%</text>
+          <text x="{{ lab.x }}" y="{{ lab.y + 8 }}" text-anchor="middle" font-size="9.6" font-weight="bold" fill="{{ lab.fill }}" font-family="Carlito, Calibri, Arial, sans-serif">{{ lab.caption }}</text>
           {% endfor %}
         </svg>
         <div class="pie-legend">
-          <span><span class="legend-sq" style="background:#792D83"></span> Frequência</span>
-          <span><span class="legend-sq" style="background:#BBBBBB"></span> Faltas</span>
+          <span class="pie-legend-item"><span class="legend-sq" style="background:#792D83"></span>Frequência</span>
+          <span class="pie-legend-item"><span class="legend-sq" style="background:#BBBBBB"></span>Faltas</span>
         </div>
         <div class="pie-footer">Nível de presença do aluno</div>
       </div>
@@ -533,7 +546,7 @@ body {
       </div>
       <div class="radar-wrap">
         <svg width="200" height="205" viewBox="-5 0 210 215" font-family="Carlito, Calibri, Arial, sans-serif" role="img" aria-label="Avaliação de Habilidades Linguísticas">
-          <text x="100" y="12" text-anchor="middle" font-size="9" fill="#555">Avaliação de Habilidades Linguísticas</text>
+          <text x="100" y="12" text-anchor="middle" font-size="10.8" fill="#555">Avaliação de Habilidades Linguísticas</text>
           {% for ring in grid %}
           <polygon points="{{ ring }}" fill="none" stroke="#DDD" stroke-width="1"/>
           {% endfor %}
@@ -541,11 +554,11 @@ body {
           <line x1="100" y1="105" x2="{{ ep[0] }}" y2="{{ ep[1] }}" stroke="#DDD" stroke-width="1"/>
           {% endfor %}
           <polygon points="{{ pentagon }}" fill="rgba(210,150,225,0.30)" stroke="#7B4FA0" stroke-width="2"/>
-          <text x="100" y="22" text-anchor="middle" font-size="9" font-weight="bold">Audição</text>
-          <text x="198" y="82" text-anchor="end" font-size="9" font-weight="bold">Fala</text>
-          <text x="175" y="200" text-anchor="middle" font-size="9" font-weight="bold">Gramática</text>
-          <text x="25" y="200" text-anchor="middle" font-size="9" font-weight="bold">Escrita</text>
-          <text x="2" y="82" text-anchor="start" font-size="9" font-weight="bold">Leitura</text>
+          <text x="100" y="22" text-anchor="middle" font-size="10.8" font-weight="bold">Audição</text>
+          <text x="198" y="82" text-anchor="end" font-size="10.8" font-weight="bold">Fala</text>
+          <text x="175" y="200" text-anchor="middle" font-size="10.8" font-weight="bold">Gramática</text>
+          <text x="25" y="200" text-anchor="middle" font-size="10.8" font-weight="bold">Escrita</text>
+          <text x="2" y="82" text-anchor="start" font-size="10.8" font-weight="bold">Leitura</text>
         </svg>
       </div>
     </div>

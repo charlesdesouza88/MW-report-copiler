@@ -298,6 +298,9 @@ def test_individual_report_matches_stakeholder_layout():
     assert '"scale feedback"' in html
     assert ".part-scores-row .bubble" in html
     assert "Feedback do professor" in html
+    assert "--type-scale: 1.2" in html
+    assert "pie-legend-item" in html
+    assert "flex-direction: column" in html
 
 
 def test_class_diagnostic_combines_medias_into_one_row():
