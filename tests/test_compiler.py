@@ -80,8 +80,9 @@ def test_presence_score_mapping_boundaries():
     assert pres_to_score(64) == 1
 
 
-def test_presence_pct_zero_lessons_defaults_to_100():
-    assert presence_pct(0, 0) == 100
+def test_presence_pct_zero_lessons_is_unscored():
+    assert presence_pct(0, 0) is None
+    assert pres_to_score(None) is None
 
 
 def test_missed_lessons_and_lessons_for_ignore_turma_case():
@@ -520,6 +521,36 @@ def test_avg_score_rounds_half_up():
     assert avg_score([3, 4]) == 4
     assert avg_score([1, 2]) == 2
     assert avg_score([4, 5]) == 5
+    assert avg_score([None, None]) is None
+
+
+def test_blank_listening_stays_out_of_average():
+    from pathlib import Path
+
+    ctx = build_student_ctx(_student(listening=""), _lessons())
+    assert ctx["dev_scores"][0] is None
+    # speaking 4, gramatica 2, writing 3, reading 4 → 13/4 = 3.25 → 3
+    assert ctx["dev_overall"] == 3
+    html = create_report_environment(
+        Path(__file__).resolve().parent.parent / "templates"
+    ).get_template("individual_report.html").render(**ctx)
+    assert "score-empty" in html
+    assert "—" in html
+
+
+def test_zero_lessons_do_not_score_presence():
+    ctx = build_student_ctx(_student(faltas="0"), [], report_month="2026-01")
+    assert ctx["total_lessons"] == 0
+    assert ctx["pct"] is None
+    assert ctx["pres_score"] is None
+    assert ctx["pie_d"] == ""
+
+
+def test_pentagon_skips_missing_axes():
+    from compiler import pentagon_polygon
+
+    assert pentagon_polygon([5, None, None, None, None]) == ""
+    assert pentagon_polygon([5, 4, 3, None, None]) != ""
 
 
 def test_composite_score_rounds_half_up():

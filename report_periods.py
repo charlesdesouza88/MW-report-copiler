@@ -212,9 +212,14 @@ def default_semester(lessons, now=None):
 def student_composite_score(ctx):
     from compiler import round_half_up
 
-    return round_half_up(
-        (ctx['dev_overall'] + ctx['part_overall'] + ctx['comp_overall'] + ctx['pres_score']) / 4
-    )
+    vals = [
+        ctx[key]
+        for key in ('dev_overall', 'part_overall', 'comp_overall', 'pres_score')
+        if ctx.get(key) is not None
+    ]
+    if not vals:
+        return None
+    return round_half_up(sum(vals) / len(vals))
 
 
 def _as_int_score(value, default=0):
@@ -245,7 +250,7 @@ def compute_month_trend(current_score, report_month, snapshots, turma, student_n
         return _trend('first', None, current_score)
 
     raw_prior = prior.get('composite_score')
-    if raw_prior is None:
+    if raw_prior is None or current_score is None:
         return _trend('first', None, current_score)
     prior_score = _as_int_score(raw_prior, 0)
     delta = _as_int_score(current_score) - prior_score

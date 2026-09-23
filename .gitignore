@@ -2,6 +2,12 @@ output/*.html
 data/users.json
 data/student_snapshots.json
 data/student_monthly_reviews.json
+data/students.csv
+data/lessons.csv
+data/lesson_attendance.csv
+data/extra_sessions.csv
+data/teacher_classes.json
+data/imported/
 __pycache__/
 *.pyc
 .env

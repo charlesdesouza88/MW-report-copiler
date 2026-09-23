@@ -79,7 +79,7 @@ input:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px 
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-group">
       <label>E-mail</label>
-      <input type="email" name="email" value="{{ request.form.get('email', '') }}" placeholder="{{ bootstrap_email }}" autocomplete="username" required autofocus>
+      <input type="email" name="email" value="{{ request.form.get('email', '') }}" placeholder="email@escola.com" autocomplete="username" required autofocus>
     </div>
     <div class="form-group">
       <label>Senha</label>
@@ -87,14 +87,11 @@ input:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px 
     </div>
     <button type="submit" class="btn-submit">Entrar</button>
   </form>
+  {% if not accounts_configured %}
   <div class="hint">
-    {% if accounts_configured %}
-    Administrador: <strong>{{ bootstrap_email }}</strong><br>
-    Professores: e-mail definido em Usuários.
-    {% else %}
     Primeiro acesso: configure <code>SUPERADMIN_EMAIL</code> e <code>SUPERADMIN_PASSWORD</code> no Railway e reinicie o serviço.
-    {% endif %}
   </div>
+  {% endif %}
 </div>
 </body>
 </html>

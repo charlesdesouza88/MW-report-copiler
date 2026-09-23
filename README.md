@@ -198,7 +198,7 @@ One row per lesson. Used to calculate attendance % and list what was missed.
 
 ### Presença (Attendance)
 
-Attendance % is calculated as `(total_lessons - faltas) / total_lessons × 100`.
+Attendance % is calculated as `(total_lessons - faltas) / total_lessons × 100`. A month with no lessons is unscored: the report prints — and does not award a presença score.
 
 | % | Score |
 |---|---|
@@ -207,6 +207,9 @@ Attendance % is calculated as `(total_lessons - faltas) / total_lessons × 100`.
 | ≥ 75% | 3 |
 | ≥ 65% | 2 |
 | < 65% | 1 |
+| no lessons | unscored |
+
+A blank skill stays blank. It prints — and is left out of that section's average, the composite, and the radar. Teamwork, organization, punctuality, and respect still fall back to `comportamento` when their own cell is empty and `comportamento` is filled. If both are blank, that criterion stays unscored.
 
 ### Participação
 
@@ -218,7 +221,7 @@ Average of `listening`, `speaking`, `gramatica`, `writing`, `reading`. Rendered 
 
 ### Comportamento
 
-Average of `organizacao`, `pontualidade`, `respeito_regras`.
+Average of the scored criteria among `organizacao`, `pontualidade`, and `respeito_regras` (three bubbles on the printed card). Blank criteria are omitted.
 
 ---
 

@@ -17,18 +17,31 @@ from report_names import (class_diagnostic_filename, safe_child_path,
 
 # ── SVG helpers ──────────────────────────────────────────────────────────────
 
-def _pentagon_points(scores, cx, cy, max_r):
-    """Return SVG polygon points string for a 5-axis radar chart.
-    Axes in order: Audição, Fala, Gramática, Escrita, Leitura (clockwise from top).
+def _polygon_points(scores, cx, cy, max_r):
+    """SVG polygon for scored axes only.
+
+    Missing scores are left out. Fewer than three scored axes returns an empty
+    string so the chart does not collapse those axes to the center (a fake 0).
     """
+    scored = [(i, s) for i, s in enumerate(scores) if s is not None]
+    if len(scored) < 3:
+        return ""
+    n = len(scores)
     pts = []
-    for i, s in enumerate(scores):
-        angle = -math.pi / 2 + i * 2 * math.pi / 5
+    for i, s in scored:
+        angle = -math.pi / 2 + i * 2 * math.pi / n
         r = (float(s) / 5.0) * max_r
         x = round(cx + r * math.cos(angle), 2)
         y = round(cy + r * math.sin(angle), 2)
         pts.append(f"{x},{y}")
     return " ".join(pts)
+
+
+def _pentagon_points(scores, cx, cy, max_r):
+    """Return SVG polygon points string for a 5-axis radar chart.
+    Axes in order: Audição, Fala, Gramática, Escrita, Leitura (clockwise from top).
+    """
+    return _polygon_points(scores, cx, cy, max_r)
 
 
 def pentagon_polygon(scores, cx=100, cy=105, max_r=78):
@@ -74,11 +87,15 @@ SKILL_COLUMN_DEFS = [
 
 def mini_radar_spoke_chart(dev_scores, highlight_axis, cx=34, cy=36, max_r=24):
     """Small pentagon web chart with one axis highlighted (for per-skill columns)."""
-    score = int_score(dev_scores[highlight_axis])
-    angle = -math.pi / 2 + highlight_axis * 2 * math.pi / 5
-    r = (float(score) / 5.0) * max_r
-    hx = round(cx + r * math.cos(angle), 2)
-    hy = round(cy + r * math.sin(angle), 2)
+    score = dev_scores[highlight_axis]
+    has_highlight = score is not None
+    if has_highlight:
+        angle = -math.pi / 2 + highlight_axis * 2 * math.pi / 5
+        r = (float(score) / 5.0) * max_r
+        hx = round(cx + r * math.cos(angle), 2)
+        hy = round(cy + r * math.sin(angle), 2)
+    else:
+        hx, hy = cx, cy
     return dict(
         grid=pentagon_grid(cx, cy, max_r),
         axes=axis_endpoints(cx, cy, max_r),
@@ -86,6 +103,7 @@ def mini_radar_spoke_chart(dev_scores, highlight_axis, cx=34, cy=36, max_r=24):
         center=(cx, cy),
         highlight_tip=(hx, hy),
         highlight_axis=highlight_axis,
+        has_highlight=has_highlight,
     )
 
 
@@ -94,7 +112,7 @@ def skill_column_charts(dev_scores):
         dict(
             label=label,
             axis_index=axis_index,
-            score=int_score(dev_scores[axis_index]),
+            score=dev_scores[axis_index],
             mini=mini_radar_spoke_chart(dev_scores, axis_index),
         )
         for label, axis_index in SKILL_COLUMN_DEFS
@@ -111,7 +129,7 @@ COMPARISON_DIMS = [
 
 def score_delta_badge(current, prior):
     """Return delta badge metadata for month-over-month score changes."""
-    if prior is None:
+    if prior is None or current is None:
         return None
     delta = int(current) - int(prior)
     if delta > 0:
@@ -126,6 +144,8 @@ def comparison_bar_chart(rows, bar_max_w=140, bar_h=10, row_gap=6, label_w=88):
     chart_rows = []
     y = 0
     for row in rows:
+        if row.get('current') is None:
+            continue
         current = int(row['current'])
         prior = row.get('prior')
         chart_rows.append(dict(
@@ -157,7 +177,10 @@ def composite_donut_chart(current, prior=None, size=96, stroke=10):
     cx = cy = size / 2
     r = (size - stroke) / 2
     circ = 2 * math.pi * r
-    cur_pct = max(0, min(1, float(current) / 5.0))
+    if current is None:
+        cur_pct = 0
+    else:
+        cur_pct = max(0, min(1, float(current) / 5.0))
     cur_len = round(cur_pct * circ, 2)
     cur_gap = round(circ - cur_len, 2)
     prior_pct = None
@@ -193,19 +216,22 @@ def column_bar_chart(items, bar_w=28, gap=12, max_h=84, label_h=24, axis_w=18, t
         y = round(pad_top + max_h - (level / 5.0) * max_h, 1)
         y_ticks.append(dict(level=level, y=y, label_x=axis_w - 2))
     for i, item in enumerate(items):
-        score = int(item['score'])
-        h = max(1, round((score / 5.0) * max_h, 1))
+        raw = item['score']
+        missing = raw is None
+        score = None if missing else int(raw)
+        h = 0 if missing else max(1, round((score / 5.0) * max_h, 1))
         x = chart_x + gap + i * (bar_w + gap)
         bar_y = pad_top + max_h - h
-        if h >= 28:
-            score_text_y = round(bar_y + h / 2 + 4, 1)
-            score_inside = True
-        else:
+        if missing or h < 28:
             score_text_y = round(max(pad_top + 8, bar_y - 11), 1)
             score_inside = False
+        else:
+            score_text_y = round(bar_y + h / 2 + 4, 1)
+            score_inside = True
         cols.append(dict(
             label=item['label'],
             score=score,
+            missing=missing,
             x=x,
             y=bar_y,
             w=bar_w,
@@ -237,11 +263,14 @@ def horizontal_score_bars(items, bar_max_w=168, bar_h=16, label_w=78, row_gap=10
     rows = []
     y = 0
     for item in items:
-        score = int(item['score'])
-        fill_w = round((score / 5.0) * bar_max_w, 1)
+        raw = item['score']
+        missing = raw is None
+        score = None if missing else int(raw)
+        fill_w = 0 if missing else round((score / 5.0) * bar_max_w, 1)
         rows.append(dict(
             label=item['label'],
             score=score,
+            missing=missing,
             y=y,
             label_x=0,
             label_y=y + bar_h - 3,
@@ -268,7 +297,8 @@ def score_ring_row(items, ring_size=58, stroke=7, gap=12):
     rings = []
     x = 0
     for item in items:
-        score = int(item['score'])
+        raw = item['score']
+        score = None if raw is None else int(raw)
         donut = composite_donut_chart(score, size=ring_size, stroke=stroke)
         rings.append(dict(
             label=item['label'],
@@ -288,7 +318,7 @@ def composite_sparkline(snapshots, turma, student_name, report_month, current_co
     """SVG sparkline of composite scores across recent months (needs ≥2 points)."""
     from report_periods import _snapshot_key, month_label, previous_calendar_month, student_snapshot_id
 
-    if not report_month:
+    if not report_month or current_composite is None:
         return None
     sid = student_snapshot_id(turma, student_name)
     points = [dict(
@@ -323,6 +353,13 @@ def composite_sparkline(snapshots, turma, student_name, report_month, current_co
     return dict(width=w, height=h, path=path, points=plotted)
 
 
+def _mean_scored(values):
+    nums = [float(v) for v in values if v is not None]
+    if not nums:
+        return None
+    return round(sum(nums) / len(nums), 1)
+
+
 def class_summary_charts(student_data):
     """Class-level averages bar chart and attendance tier distribution."""
     from report_periods import student_composite_score
@@ -332,19 +369,23 @@ def class_summary_charts(student_data):
     labels = ['Presença', 'Desenv.', 'Particip.', 'Comport.']
     keys = ['pres_score', 'dev_overall', 'part_overall', 'comp_overall']
     avgs = [
-        round(sum(sd[k] for sd in student_data) / len(student_data), 1)
+        _mean_scored(sd[k] for sd in student_data)
         for k in keys
     ]
+    scored_avgs = [
+        (label, avg) for label, avg in zip(labels, avgs) if avg is not None
+    ]
     bars = comparison_bar_chart(
-        [dict(label=l, current=max(1, min(5, round_half_up(a))), prior=None) for l, a in zip(labels, avgs)],
+        [dict(label=label, current=max(1, min(5, round_half_up(avg))), prior=None)
+         for label, avg in scored_avgs],
         bar_max_w=200,
         bar_h=12,
         row_gap=4,
     )
     total = len(student_data)
-    present = sum(1 for sd in student_data if sd['pct'] >= 80)
-    partial = sum(1 for sd in student_data if 50 <= sd['pct'] < 80)
-    low = total - present - partial
+    present = sum(1 for sd in student_data if sd['pct'] is not None and sd['pct'] >= 80)
+    partial = sum(1 for sd in student_data if sd['pct'] is not None and 50 <= sd['pct'] < 80)
+    low = sum(1 for sd in student_data if sd['pct'] is not None and sd['pct'] < 50)
     slices = [
         dict(label='≥80%', count=present, color='#792D83'),
         dict(label='50–79%', count=partial, color='#EBB22E'),
@@ -357,31 +398,33 @@ def class_summary_charts(student_data):
         sl['x'] = x
         x += sl['w']
     column_chart = column_bar_chart(
-        [dict(label=l, score=max(1, min(5, round_half_up(a)))) for l, a in zip(labels, avgs)],
+        [dict(label=label, score=max(1, min(5, round_half_up(avg))))
+         for label, avg in scored_avgs],
         title='Médias da turma',
         bar_w=32,
         gap=14,
     )
+    composites = [
+        score for score in (student_composite_score(sd) for sd in student_data)
+        if score is not None
+    ]
+    composite_avg = round(sum(composites) / len(composites), 1) if composites else None
+    donut_score = None if composite_avg is None else max(1, min(5, round_half_up(composite_avg)))
     return dict(
         student_count=total,
         averages=avgs,
         bars=bars,
         column_chart=column_chart,
         dimension_rings=score_ring_row([
-            dict(label=l, score=max(1, min(5, round_half_up(a))))
-            for l, a in zip(labels, avgs)
+            dict(
+                label=label,
+                score=None if avg is None else max(1, min(5, round_half_up(avg))),
+            )
+            for label, avg in zip(labels, avgs)
         ], ring_size=52, stroke=6, gap=10),
         attendance_bar=dict(width=bar_w, height=14, slices=slices),
-        composite_avg=round(
-            sum(student_composite_score(sd) for sd in student_data) / total, 1,
-        ),
-        composite_donut=composite_donut_chart(
-            max(1, min(5, round_half_up(
-                sum(student_composite_score(sd) for sd in student_data) / total,
-            ))),
-            size=88,
-            stroke=9,
-        ),
+        composite_avg=composite_avg,
+        composite_donut=composite_donut_chart(donut_score, size=88, stroke=9),
     )
 
 
@@ -392,15 +435,7 @@ def expanded_radar_scores(dev_scores, part_overall, pres_score):
 
 def heptagon_polygon(scores, cx=100, cy=105, max_r=78):
     """Return SVG polygon points for a 7-axis radar chart."""
-    pts = []
-    n = len(scores)
-    for i, s in enumerate(scores):
-        angle = -math.pi / 2 + i * 2 * math.pi / n
-        r = (float(s) / 5.0) * max_r
-        x = round(cx + r * math.cos(angle), 2)
-        y = round(cy + r * math.sin(angle), 2)
-        pts.append(f'{x},{y}')
-    return ' '.join(pts)
+    return _polygon_points(scores, cx, cy, max_r)
 
 
 def heptagon_grid(cx=100, cy=105, max_r=78, n=7):
@@ -528,19 +563,47 @@ def int_score(val, default=3):
         return default
 
 
+def optional_score(val):
+    """Return 1–5 for a filled score. Blank stays unscored (None)."""
+    if val is None:
+        return None
+    if isinstance(val, str) and not val.strip():
+        return None
+    try:
+        return max(1, min(5, int(float(val))))
+    except (TypeError, ValueError):
+        return None
+
+
+def score_with_fallback(primary, fallback):
+    """Use primary when filled; otherwise the fallback field. Both blank stays None."""
+    scored = optional_score(primary)
+    if scored is not None:
+        return scored
+    return optional_score(fallback)
+
+
 def avg_score(scores):
-    vals = [float(s) for s in scores if str(s).strip()]
-    return round_half_up(sum(vals) / len(vals)) if vals else 0
+    vals = []
+    for score in scores:
+        if score is None:
+            continue
+        if isinstance(score, str) and not score.strip():
+            continue
+        vals.append(float(score))
+    return round_half_up(sum(vals) / len(vals)) if vals else None
 
 
 def presence_pct(faltas, total_lessons):
-    if total_lessons == 0:
-        return 100
+    if not total_lessons:
+        return None
     pct = round(((total_lessons - int(faltas or 0)) / total_lessons) * 100)
     return max(0, min(100, pct))
 
 
 def pres_to_score(pct):
+    if pct is None:
+        return None
     if pct >= 95:
         return 5
     if pct >= 85:
@@ -697,7 +760,7 @@ def build_attendance_calendar(turma_lessons, missed, tardy_aula_nums, report_mon
 
 def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=None,
                       attendance_rows=None):
-    from report_periods import month_label
+    from report_periods import month_label, student_composite_score
 
     turma = (s.get("turma") or "").strip()
     if not turma:
@@ -725,34 +788,41 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
             faltas = 0
 
     pct = presence_pct(faltas, total)
-    pie_d, full_circle = pie_path(pct)
+    if pct is None:
+        pie_d, full_circle = "", False
+        pie_labels = []
+        faltas_pct = None
+    else:
+        pie_d, full_circle = pie_path(pct)
+        pie_labels = pie_slice_labels(pct)
+        faltas_pct = max(0, min(100, 100 - int(pct)))
     pres_score = pres_to_score(pct)
     needs_makeup = (s.get("aula_extra", "").strip().lower() in ("reposição", "reposicao"))
 
     # Participação: Contribuição oral, Foco e atenção, Trabalho em equipe
     part_scores = [
-        int_score(s.get("participacao", 3)),
-        int_score(s.get("foco", 3)),
-        int_score(s.get("trabalho_equipe") or s.get("comportamento", 3)),
+        optional_score(s.get("participacao")),
+        optional_score(s.get("foco")),
+        score_with_fallback(s.get("trabalho_equipe"), s.get("comportamento")),
     ]
     part_overall = avg_score(part_scores)
 
     # Desenvolvimento: Audição, Fala, Gramática, Escrita, Leitura
     dev_scores = [
-        int_score(s.get("listening", 3)),
-        int_score(s.get("speaking", 3)),
-        int_score(s.get("gramatica", 3)),
-        int_score(s.get("writing", 3)),
-        int_score(s.get("reading", 3)),
+        optional_score(s.get("listening")),
+        optional_score(s.get("speaking")),
+        optional_score(s.get("gramatica")),
+        optional_score(s.get("writing")),
+        optional_score(s.get("reading")),
     ]
     dev_overall = avg_score(dev_scores)
     dev_labels = ["Audição", "Fala", "Gramática", "Escrita", "Leitura"]
 
     # Comportamento: Organização, Pontualidade, Respeito
     comp_scores = [
-        int_score(s.get("organizacao") or s.get("comportamento", 3)),
-        int_score(s.get("pontualidade") or s.get("comportamento", 3)),
-        int_score(s.get("respeito_regras") or s.get("comportamento", 3)),
+        score_with_fallback(s.get("organizacao"), s.get("comportamento")),
+        score_with_fallback(s.get("pontualidade"), s.get("comportamento")),
+        score_with_fallback(s.get("respeito_regras"), s.get("comportamento")),
     ]
     comp_overall = avg_score(comp_scores)
 
@@ -786,7 +856,12 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
     expanded_scores = expanded_radar_scores(dev_scores, part_overall, pres_score)
     part_labels = ['Oral', 'Foco', 'Equipe']
     comp_labels = ['Organização', 'Pontualidade', 'Respeito']
-    composite_score = round_half_up((dev_overall + part_overall + comp_overall + pres_score) / 4)
+    composite_score = student_composite_score({
+        'dev_overall': dev_overall,
+        'part_overall': part_overall,
+        'comp_overall': comp_overall,
+        'pres_score': pres_score,
+    })
     composite_delta = None
     if trend and trend.get('direction') != 'first' and trend.get('prior_score') is not None:
         composite_delta = score_delta_badge(trend['current_score'], trend['prior_score'])
@@ -796,9 +871,9 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
         report_month_label=month_label(report_month) if report_month else '',
         trend=trend,
         pct=pct,
-        faltas_pct=max(0, min(100, 100 - int(pct))),
+        faltas_pct=faltas_pct,
         pie_d=pie_d,
-        pie_labels=pie_slice_labels(pct),
+        pie_labels=pie_labels,
         full_circle=full_circle,
         total_lessons=total,
         missed=missed,

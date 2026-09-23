@@ -92,6 +92,28 @@ def test_health_returns_ok():
     assert response.get_data(as_text=True) == "ok"
 
 
+def test_database_outage_refuses_data_routes(monkeypatch):
+    monkeypatch.setattr(web_app, "DB_UNAVAILABLE", True)
+    monkeypatch.setattr(web_app, "DATABASE_URL", "postgresql://example")
+    monkeypatch.setattr(web_app, "db_store", None)
+    monkeypatch.setattr(web_app, "_services_ready", True)
+
+    client = web_app.app.test_client()
+    assert client.get("/health").status_code == 200
+
+    db = client.get("/health/db")
+    assert db.status_code == 503
+    payload = db.get_json()
+    assert payload["connected"] is False
+    assert payload["message"] == "Database unavailable."
+    assert "student_rows" not in payload
+    assert "example" not in db.get_data(as_text=True)
+
+    blocked = client.get("/login")
+    assert blocked.status_code == 503
+    assert blocked.get_data(as_text=True) == "Database unavailable."
+
+
 def test_health_db_csv_mode():
     client = web_app.app.test_client()
     response = client.get("/health/db")
@@ -101,7 +123,7 @@ def test_health_db_csv_mode():
     assert payload["mode"] == "csv"
 
 
-def test_health_auth_omits_account_emails(monkeypatch, tmp_path):
+def test_health_auth_requires_manager(monkeypatch, tmp_path):
     monkeypatch.setattr(web_app, "DATA_DIR", tmp_path / "data")
     monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
     web_app.DATA_DIR.mkdir()
@@ -109,6 +131,11 @@ def test_health_auth_omits_account_emails(monkeypatch, tmp_path):
     _init_user_store(monkeypatch, web_app.DATA_DIR)
 
     client = web_app.app.test_client()
+    anonymous = client.get("/health/auth")
+    assert anonymous.status_code == 302
+    assert anonymous.headers["Location"].endswith("/login")
+
+    _login(client)
     response = client.get("/health/auth")
 
     assert response.status_code == 200
@@ -117,6 +144,67 @@ def test_health_auth_omits_account_emails(monkeypatch, tmp_path):
     assert "accounts" not in payload
     assert "configured_email" not in payload
     assert "admin@test.local" not in response.get_data(as_text=True)
+
+
+def test_failed_login_uses_one_message(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+    web_app.user_store.create_teacher("teacher@test.local", "teachpass1", "Chuck")
+    web_app.user_store.update_user(
+        web_app.user_store.get_by_email("teacher@test.local")["id"],
+        active=False,
+    )
+
+    client = web_app.app.test_client()
+    for email, password in (
+        ("missing@test.local", "whatever1"),
+        ("admin@test.local", "wrong-pass"),
+        ("teacher@test.local", "teachpass1"),
+    ):
+        response = client.post("/login", data={"email": email, "password": password})
+        body = response.get_data(as_text=True)
+        assert "E-mail ou senha incorretos." in body
+        assert "Administrador:" not in body
+        assert "desativada" not in body
+        assert "não cadastrado" not in body
+
+
+def test_admin_cannot_edit_or_delete_superadmin(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+    store = web_app.user_store
+    store.create_admin("editor@test.local", "adminpass1")
+    super_id = store.get_by_email("admin@test.local")["id"]
+
+    client = web_app.app.test_client()
+    _login(client, "editor@test.local", "adminpass1")
+    updated = client.post("/admin/teachers", data={
+        "action": "update",
+        "user_id": str(super_id),
+        "email": "taken@test.local",
+        "password": "newpass12",
+        "teacher_name": "",
+        "active": "0",
+    })
+    assert updated.status_code == 200
+    assert "Somente um superadmin" in updated.get_data(as_text=True)
+    assert store.authenticate("admin@test.local", "testpass") is not None
+    assert store.get_by_email("taken@test.local") is None
+
+    deleted = client.post("/admin/teachers", data={
+        "action": "delete",
+        "user_id": str(super_id),
+    })
+    assert deleted.status_code == 200
+    assert store.get_by_email("admin@test.local") is not None
 
 
 def test_login_success_sets_session(monkeypatch, tmp_path):

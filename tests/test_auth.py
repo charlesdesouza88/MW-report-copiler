@@ -1,5 +1,7 @@
 import io
 
+import pytest
+
 import app as web_app
 from auth import (
     ROLE_SUPERADMIN,
@@ -160,7 +162,8 @@ def test_apply_env_superadmin_migrates_sole_superadmin_email(tmp_path):
     store.initialize()
     store.ensure_bootstrap_superadmin('old@test.local', 'old-pass')
     store.apply_env_superadmin('new@test.local', 'new-pass')
-    assert store.authenticate('new@test.local', 'new-pass') is not None
+    assert store.authenticate('new@test.local', 'old-pass') is not None
+    assert store.authenticate('new@test.local', 'new-pass') is None
     assert store.get_by_email('old@test.local') is None
 
 
@@ -169,9 +172,20 @@ def test_apply_env_superadmin_upgrades_existing_email(tmp_path):
     store.initialize()
     store.create_teacher('boss@test.local', 'teacher-pass', 'Chuck')
     store.apply_env_superadmin('boss@test.local', 'admin-pass')
-    user = store.authenticate('boss@test.local', 'admin-pass')
+    user = store.authenticate('boss@test.local', 'teacher-pass')
     assert user is not None
-    assert store.authenticate('boss@test.local', 'admin-pass')['role'] == ROLE_SUPERADMIN
+    assert user['role'] == ROLE_SUPERADMIN
+    assert store.authenticate('boss@test.local', 'admin-pass') is None
+
+
+def test_update_user_rejects_short_password(tmp_path):
+    store = UserStore(json_path=tmp_path / 'users.json')
+    store.initialize()
+    store.ensure_bootstrap_superadmin('boss@test.local', 'old-pass1')
+    teacher_id = store.create_teacher('teacher@test.local', 'teachpass1', 'Chuck')
+    with pytest.raises(ValueError, match='8'):
+        store.update_user(teacher_id, password='short')
+    assert store.authenticate('teacher@test.local', 'teachpass1') is not None
 
 
 def test_sync_superadmin_password(tmp_path):

@@ -22,6 +22,7 @@ from flask import (Flask, Response, abort, g, jsonify, redirect, render_template
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from compiler import (build_class_ctx, build_student_ctx, create_report_environment,
                       generate_class_diagnostics, generate_individual_reports,
@@ -213,6 +214,7 @@ if not DATABASE_URL:
 DB_ENABLED = bool(DATABASE_URL) and DatabaseStore is not None
 db_store = None
 DB_STARTUP_ERROR = None
+DB_UNAVAILABLE = False
 _services_lock = threading.Lock()
 _services_ready = False
 
@@ -223,7 +225,7 @@ if DATABASE_URL and DB_IMPORT_ERROR is not None:
 
 def _init_application_services():
     """Connect DB and bootstrap users after the app process is listening (Railway healthcheck)."""
-    global db_store, DB_ENABLED, DB_STARTUP_ERROR, _services_ready
+    global db_store, DB_ENABLED, DB_STARTUP_ERROR, DB_UNAVAILABLE, _services_ready
 
     if _services_ready:
         return
@@ -247,10 +249,17 @@ def _init_application_services():
                     if attempt < 3:
                         time.sleep(2)
             if last_exc is not None:
-                logger.exception('Database startup failed; falling back to CSV mode')
+                logger.exception('Database startup failed')
                 db_store = None
-                DB_ENABLED = False
-                DB_STARTUP_ERROR = str(last_exc)
+                DB_UNAVAILABLE = True
+                DB_STARTUP_ERROR = 'Database unavailable.'
+
+        if DATABASE_URL and db_store is None:
+            DB_UNAVAILABLE = True
+            user_store.db_store = None
+            logger.error('DATABASE_URL is set but PostgreSQL is unavailable; refusing CSV fallback')
+            _services_ready = True
+            return
 
         user_store.db_store = db_store
         try:
@@ -258,6 +267,10 @@ def _init_application_services():
             _bootstrap_auth_accounts()
         except Exception as exc:
             logger.exception('User store initialization failed: %s', exc)
+            if DATABASE_URL:
+                db_store = None
+                DB_UNAVAILABLE = True
+                DB_STARTUP_ERROR = 'Database unavailable.'
 
         _services_ready = True
 
@@ -275,8 +288,8 @@ def _database_status():
         return {
             'configured': True,
             'connected': False,
-            'mode': 'csv-fallback',
-            'message': DB_STARTUP_ERROR or 'Database unavailable; using CSV fallback.',
+            'mode': 'postgresql',
+            'message': 'Database unavailable.',
         }
     try:
         db_store.check_connection()
@@ -297,7 +310,7 @@ def _database_status():
             'configured': True,
             'connected': False,
             'mode': 'postgresql',
-            'message': f'Database ping failed: {exc}',
+            'message': 'Database unavailable.',
         }
 
 
@@ -339,6 +352,8 @@ app.config.update(
     SESSION_COOKIE_SECURE=bool(PRODUCTION_ENV),
     WTF_CSRF_TIME_LIMIT=3600,
 )
+if PRODUCTION_ENV:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 csrf = CSRFProtect(app)
 limiter = Limiter(
@@ -2219,6 +2234,10 @@ def _ensure_services_before_request():
     if request.endpoint == 'health':
         return
     _init_application_services()
+    if request.endpoint == 'health_db':
+        return
+    if DB_UNAVAILABLE:
+        return Response('Database unavailable.', status=503, mimetype='text/plain')
 
 
 @app.route('/health')
@@ -2229,16 +2248,26 @@ def health():
 
 @app.route('/health/db')
 def health_db():
-    """Database connectivity check (JSON). No auth — for Railway / ops."""
+    """Database connectivity check (JSON). No secrets or row counts."""
     _init_application_services()
     status = _database_status()
+    public_status = {
+        'configured': status.get('configured'),
+        'connected': status.get('connected'),
+        'mode': status.get('mode'),
+        'message': status.get('message'),
+    }
     code = 200 if status.get('connected') or not status.get('configured') else 503
-    return json.dumps(status, ensure_ascii=False), code, {'Content-Type': 'application/json'}
+    return json.dumps(public_status, ensure_ascii=False), code, {'Content-Type': 'application/json'}
 
 
 @app.route('/health/auth')
+@login_required
 def health_auth():
-    """Auth diagnostics (JSON). Public payload intentionally excludes PII."""
+    """Auth diagnostics for managers. Anonymous requests go to login."""
+    user = _current_user()
+    if not can_manage_teachers(user['role']):
+        abort(403)
     status = user_store.auth_status(SUPERADMIN_EMAIL)
     public_status = {
         'user_count': status['user_count'],
@@ -2256,7 +2285,6 @@ def health_auth():
 def login():
     error = None
     user_count = len(user_store.list_users())
-    bootstrap_email = SUPERADMIN_EMAIL or 'admin@misterwiz.local'
 
     if request.method == 'POST':
         email = (request.form.get('email') or '').strip()
@@ -2271,26 +2299,11 @@ def login():
                 'Nenhuma conta foi criada no servidor. Defina SUPERADMIN_EMAIL e '
                 'SUPERADMIN_PASSWORD nas variáveis de ambiente (Railway) e reinicie o app.'
             )
-        elif not SUPERADMIN_PASSWORD and user_store.get_by_email(email) is None:
-            error = (
-                f'E-mail ou senha incorretos. Primeiro acesso do administrador: use '
-                f'{bootstrap_email} e a senha definida em SUPERADMIN_PASSWORD.'
-            )
         else:
-            known = user_store.get_by_email(email)
-            if known and not known.get('active', True):
-                error = 'Esta conta está desativada. Peça a um administrador para reativá-la.'
-            elif known:
-                error = 'Senha incorreta para este e-mail.'
-            else:
-                error = (
-                    f'E-mail não cadastrado. Administrador: use {bootstrap_email}. '
-                    f'Professores: use o e-mail criado em Usuários.'
-                )
+            error = 'E-mail ou senha incorretos.'
     return render_template(
         'login.html',
         error=error,
-        bootstrap_email=bootstrap_email,
         accounts_configured=user_count > 0,
     )
 
@@ -3833,6 +3846,15 @@ def generate():
     return redirect(url_for('reports', month=report_month))
 
 
+def _reject_admin_editing_superadmin(actor, user_id):
+    """Admins manage teachers. Only a superadmin may change a superadmin account."""
+    if not actor or actor.get('role') == ROLE_SUPERADMIN:
+        return
+    target = user_store.get_by_id(user_id)
+    if target and target.get('role') == ROLE_SUPERADMIN:
+        raise ValueError('Somente um superadmin pode alterar esta conta.')
+
+
 @app.route('/admin/teachers', methods=['GET', 'POST'])
 @role_required(ROLE_SUPERADMIN, ROLE_ADMIN)
 def manage_teachers():
@@ -3859,6 +3881,7 @@ def manage_teachers():
                 messages.append('Conta administrativa criada.')
             elif action == 'update':
                 user_id = int(request.form.get('user_id', '0'))
+                _reject_admin_editing_superadmin(actor, user_id)
                 password = request.form.get('password', '').strip()
                 user_store.update_user(
                     user_id,
@@ -3870,6 +3893,7 @@ def manage_teachers():
                 messages.append('Usuário atualizado.')
             elif action == 'delete':
                 user_id = int(request.form.get('user_id', '0'))
+                _reject_admin_editing_superadmin(actor, user_id)
                 user_store.delete_user(user_id, actor_id=actor['id'])
                 messages.append('Usuário removido.')
         except (ValueError, TypeError) as exc:

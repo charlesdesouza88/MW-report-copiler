@@ -122,6 +122,7 @@ body {
 .score-3 { background: #A060B4; color: #fff; }
 .score-4 { background: #792D83; color: #fff; }
 .score-5 { background: #3D1048; color: #fff; }
+.score-empty { background: #F4F0F6; color: #5A1A64; }
 
 /* ── PRESENÇA ── */
 .presenca-body { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 6px; }
@@ -134,6 +135,15 @@ body {
     "right right";
   gap: 8px 12px;
   align-items: start;
+}
+.pie-empty {
+  width: 120px;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  color: #5A1A64;
+  font-size: 12px;
+  font-weight: 700;
 }
 .presenca-main.has-cal .pie-wrap { grid-area: pie; }
 .presenca-main.has-cal .pie-wrap svg { width: 100%; max-width: 100px; height: auto; }
@@ -417,10 +427,13 @@ body {
 
   <div class="card">
     <div class="card-title">Presença</div>
-    <div class="bubble bubble-abs score-{{ pres_score }}">{{ pres_score }}</div>
+    <div class="bubble bubble-abs {{ 'score-empty' if pres_score is none else 'score-' ~ pres_score }}">{{ pres_score if pres_score is not none else '—' }}</div>
     <div class="presenca-body">
       <div class="presenca-main{% if attendance_calendar %} has-cal{% endif %}">
       <div class="pie-wrap">
+        {% if pct is none %}
+        <div class="pie-empty">Sem aulas neste período</div>
+        {% else %}
         <svg width="120" height="120" viewBox="0 0 116 116" role="img" aria-label="Presença {{ pct }}%">
           <circle cx="58" cy="58" r="48" fill="#BBBBBB"/>
           {% if full_circle %}
@@ -433,6 +446,7 @@ body {
           <text x="{{ lab.x }}" y="{{ lab.y + 8 }}" text-anchor="middle" font-size="9.6" font-weight="bold" fill="{{ lab.fill }}" font-family="Carlito, Calibri, Arial, sans-serif">{{ lab.caption }}</text>
           {% endfor %}
         </svg>
+        {% endif %}
         <div class="pie-legend">
           <span class="pie-legend-item"><span class="legend-sq" style="background:#792D83"></span>Frequência</span>
           <span class="pie-legend-item"><span class="legend-sq" style="background:#BBBBBB"></span>Faltas</span>
@@ -499,21 +513,21 @@ body {
 
   <div class="card">
     <div class="card-title">Participação</div>
-    <div class="bubble bubble-abs score-{{ part_overall }}">{{ part_overall }}</div>
+    <div class="bubble bubble-abs {{ 'score-empty' if part_overall is none else 'score-' ~ part_overall }}">{{ part_overall if part_overall is not none else '—' }}</div>
     <div class="part-body">
       <div class="part-left">
         <div class="media-label">Média</div>
         <div class="part-scores-row">
           <div class="part-score-item">
-            <div class="bubble bubble-md score-{{ part_scores[0] }}">{{ part_scores[0] }}</div>
+            <div class="bubble bubble-md {{ 'score-empty' if part_scores[0] is none else 'score-' ~ part_scores[0] }}">{{ part_scores[0] if part_scores[0] is not none else '—' }}</div>
             <div class="part-score-label">Contribuição<br>oral</div>
           </div>
           <div class="part-score-item">
-            <div class="bubble bubble-md score-{{ part_scores[1] }}">{{ part_scores[1] }}</div>
+            <div class="bubble bubble-md {{ 'score-empty' if part_scores[1] is none else 'score-' ~ part_scores[1] }}">{{ part_scores[1] if part_scores[1] is not none else '—' }}</div>
             <div class="part-score-label">Foco e<br>atenção</div>
           </div>
           <div class="part-score-item">
-            <div class="bubble bubble-md score-{{ part_scores[2] }}">{{ part_scores[2] }}</div>
+            <div class="bubble bubble-md {{ 'score-empty' if part_scores[2] is none else 'score-' ~ part_scores[2] }}">{{ part_scores[2] if part_scores[2] is not none else '—' }}</div>
             <div class="part-score-label">Trabalho em<br>equipe</div>
           </div>
         </div>
@@ -545,23 +559,23 @@ body {
 
   <div class="card">
     <div class="card-title">Desenvolvimento</div>
-    <div class="bubble bubble-abs score-{{ dev_overall }}">{{ dev_overall }}</div>
+    <div class="bubble bubble-abs {{ 'score-empty' if dev_overall is none else 'score-' ~ dev_overall }}">{{ dev_overall if dev_overall is not none else '—' }}</div>
     <div class="dev-body">
       <div class="dev-bars">
         <div class="bar-row">
-          <div class="bar-track"><div class="bar-fill score-{{ dev_scores[1] }}" style="width:{{ ((dev_scores[1] / 5) * 100)|int }}%"></div></div>
+          <div class="bar-track"><div class="bar-fill {{ 'score-empty' if dev_scores[1] is none else 'score-' ~ dev_scores[1] }}" style="width:{{ 0 if dev_scores[1] is none else ((dev_scores[1] / 5) * 100)|int }}%"></div></div>
           <div class="bar-label">Fala</div>
         </div>
         <div class="bar-row">
-          <div class="bar-track"><div class="bar-fill score-{{ dev_scores[0] }}" style="width:{{ ((dev_scores[0] / 5) * 100)|int }}%"></div></div>
+          <div class="bar-track"><div class="bar-fill {{ 'score-empty' if dev_scores[0] is none else 'score-' ~ dev_scores[0] }}" style="width:{{ 0 if dev_scores[0] is none else ((dev_scores[0] / 5) * 100)|int }}%"></div></div>
           <div class="bar-label">Audição</div>
         </div>
         <div class="bar-row">
-          <div class="bar-track"><div class="bar-fill score-{{ dev_scores[4] }}" style="width:{{ ((dev_scores[4] / 5) * 100)|int }}%"></div></div>
+          <div class="bar-track"><div class="bar-fill {{ 'score-empty' if dev_scores[4] is none else 'score-' ~ dev_scores[4] }}" style="width:{{ 0 if dev_scores[4] is none else ((dev_scores[4] / 5) * 100)|int }}%"></div></div>
           <div class="bar-label">Leitura</div>
         </div>
         <div class="bar-row">
-          <div class="bar-track"><div class="bar-fill score-{{ dev_scores[3] }}" style="width:{{ ((dev_scores[3] / 5) * 100)|int }}%"></div></div>
+          <div class="bar-track"><div class="bar-fill {{ 'score-empty' if dev_scores[3] is none else 'score-' ~ dev_scores[3] }}" style="width:{{ 0 if dev_scores[3] is none else ((dev_scores[3] / 5) * 100)|int }}%"></div></div>
           <div class="bar-label">Escrita</div>
         </div>
       </div>
@@ -574,7 +588,9 @@ body {
           {% for ep in axes %}
           <line x1="100" y1="105" x2="{{ ep[0] }}" y2="{{ ep[1] }}" stroke="#DDD" stroke-width="1"/>
           {% endfor %}
+          {% if pentagon %}
           <polygon points="{{ pentagon }}" fill="rgba(210,150,225,0.30)" stroke="#7B4FA0" stroke-width="2"/>
+          {% endif %}
           <text x="100" y="22" text-anchor="middle" font-size="10.8" font-weight="bold">Audição</text>
           <text x="198" y="82" text-anchor="end" font-size="10.8" font-weight="bold">Fala</text>
           <text x="175" y="200" text-anchor="middle" font-size="10.8" font-weight="bold">Gramática</text>
@@ -587,18 +603,18 @@ body {
 
   <div class="card">
     <div class="card-title">Comportamento</div>
-    <div class="bubble bubble-abs score-{{ comp_overall }}">{{ comp_overall }}</div>
+    <div class="bubble bubble-abs {{ 'score-empty' if comp_overall is none else 'score-' ~ comp_overall }}">{{ comp_overall if comp_overall is not none else '—' }}</div>
     <div class="comp-scores-row">
       <div class="comp-score-item">
-        <div class="bubble bubble-md score-{{ comp_scores[0] }}">{{ comp_scores[0] }}</div>
+        <div class="bubble bubble-md {{ 'score-empty' if comp_scores[0] is none else 'score-' ~ comp_scores[0] }}">{{ comp_scores[0] if comp_scores[0] is not none else '—' }}</div>
         <div class="comp-score-label">Organização</div>
       </div>
       <div class="comp-score-item">
-        <div class="bubble bubble-md score-{{ comp_scores[1] }}">{{ comp_scores[1] }}</div>
+        <div class="bubble bubble-md {{ 'score-empty' if comp_scores[1] is none else 'score-' ~ comp_scores[1] }}">{{ comp_scores[1] if comp_scores[1] is not none else '—' }}</div>
         <div class="comp-score-label">Pontualidade</div>
       </div>
       <div class="comp-score-item">
-        <div class="bubble bubble-md score-{{ comp_scores[2] }}">{{ comp_scores[2] }}</div>
+        <div class="bubble bubble-md {{ 'score-empty' if comp_scores[2] is none else 'score-' ~ comp_scores[2] }}">{{ comp_scores[2] if comp_scores[2] is not none else '—' }}</div>
         <div class="comp-score-label">Respeito às regras<br>da sala de aula</div>
       </div>
     </div>
