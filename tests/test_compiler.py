@@ -301,6 +301,10 @@ def test_individual_report_matches_stakeholder_layout():
     assert "--type-scale: 1.2" in html
     assert "pie-legend-item" in html
     assert "flex-direction: column" in html
+    print_css = html.split("@media print", 1)[1]
+    assert '"scores feedback"' in print_css
+    assert '"scale feedback"' in print_css
+    assert ".part-scores-row .bubble" in print_css
 
 
 def test_class_diagnostic_combines_medias_into_one_row():

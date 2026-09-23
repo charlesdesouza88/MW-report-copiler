@@ -353,12 +353,33 @@ body {
   html, body { height: 210mm; }
   body {
     width: 297mm; min-width: 297mm; height: 210mm;
-    background: #fff; padding: 6mm 8mm 4mm;
+    background: #fff; padding: 5mm 7mm 3mm;
     box-sizing: border-box; overflow: hidden;
   }
-  .grid { min-height: 0; grid-template-rows: 1fr 1fr; }
-  .card { overflow: hidden; }
-  .radar-wrap { max-width: 180px; }
+  .grid { min-height: 0; grid-template-rows: 1fr 1fr; gap: 6px; }
+  .card { overflow: hidden; padding: 7px 9px; }
+  .card-title { min-height: 28px; margin-bottom: 4px; padding-right: 40px; }
+  .radar-wrap { max-width: 160px; }
+  .part-body {
+    grid-template-columns: 1.1fr 1fr;
+    grid-template-areas:
+      "label feedback"
+      "scores feedback"
+      "scale feedback";
+    gap: 4px 12px;
+  }
+  .part-scores-row { padding: 6px 6px 4px; gap: 8px; }
+  .part-scores-row .bubble,
+  .bubble-md {
+    width: 42px; height: 42px;
+    font-size: calc(22px * var(--type-scale));
+  }
+  .part-score-label { margin-top: 2px; }
+  .scale-item { margin-bottom: 1px; }
+  .fb-heading { margin-bottom: 4px; }
+  .fb-item { padding: 3px 5px; margin-bottom: 3px; }
+  .bubble { width: 32px; height: 32px; font-size: calc(18px * var(--type-scale)); }
+  .bubble-abs { top: 7px; right: 9px; }
 }
 </style>
 </head>
