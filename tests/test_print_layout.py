@@ -10,9 +10,9 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from test_compiler import _lessons, _student
 
 from compiler import build_student_ctx, create_report_environment
-from test_compiler import _lessons, _student
 
 ROOT = Path(__file__).resolve().parent.parent
 CHROME_MAC = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
