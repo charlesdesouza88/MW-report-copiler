@@ -17,8 +17,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import app as web_app  # noqa: E402
-from auth import UserStore  # noqa: E402
+import app as web_app
+from auth import UserStore
 
 STUDENTS_CSV = (
     'teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,'
@@ -78,6 +78,25 @@ def _student_form(name, turma, teacher='Chuck'):
         'observacao': '',
     }
     return base
+
+
+def _lesson_form(turma):
+    return {
+        'turma': turma,
+        'aula_num': '1',
+        'date': '10/02/2026',
+        'licao_conteudo': 'Lesson 1',
+        'atividade_extra': '',
+        'habilidades': 'Speaking',
+    }
+
+
+def _extract_csrf(html):
+    match = re.search(r'name="csrf_token"\s+value="([^"]+)"', html)
+    if match:
+        return match.group(1)
+    match = re.search(r'value="([^"]+)"\s+name="csrf_token"', html)
+    return match.group(1) if match else ''
 
 
 class FlowRunner:
@@ -167,13 +186,29 @@ def run_inprocess():
         r = client.get('/students')
         runner.check('Students list shows new row', new_name in r.get_data(as_text=True))
 
+        r = client.post(
+            '/lessons/new',
+            data=_lesson_form('FLOW_TEST'),
+            follow_redirects=False,
+        )
+        loc = r.headers.get('Location', '')
+        runner.check(
+            'Create lesson for flow turma',
+            r.status_code == 302 and '/lessons' in loc,
+            loc,
+        )
+
         r = client.get('/lessons')
-        runner.check('Lessons page', r.status_code == 200 and 'MASTER' in r.get_data(as_text=True))
+        lessons_html = r.get_data(as_text=True)
+        runner.check(
+            'Lessons page',
+            r.status_code == 200 and 'FLOW_TEST' in lessons_html,
+        )
 
         r = client.get('/upload')
         runner.check('Upload page', r.status_code == 200)
 
-        r = client.post('/generate', follow_redirects=False)
+        r = client.post('/generate', data={'report_month': '2026-02'}, follow_redirects=False)
         loc = r.headers.get('Location', '')
         runner.check(
             'Generate reports',
@@ -181,7 +216,7 @@ def run_inprocess():
             loc,
         )
 
-        r = client.get(loc if loc.startswith('/') else f'/reports')
+        r = client.get(loc if loc.startswith('/') else '/reports')
         rep_html = r.get_data(as_text=True)
         runner.check(
             'Reports page after generate',
@@ -193,8 +228,12 @@ def run_inprocess():
             str(len(list(out_dir.glob('*.html')))) + ' files',
         )
 
-        r = client.get('/reports/preview/' + next(out_dir.glob('*_report.html')).name)
-        runner.check('Preview report', r.status_code == 200)
+        report = next(out_dir.glob('*_report.html'), None)
+        if report is None:
+            runner.check('Preview report', False, 'no report file generated')
+        else:
+            r = client.get('/reports/preview/' + report.name)
+            runner.check('Preview report', r.status_code == 200)
 
     return runner.finish()
 
@@ -239,22 +278,30 @@ def run_live(base: str):
                     return opener.open(loc if loc.startswith('http') else base + loc, timeout=60)
             raise
 
-    r = post('/login', {'email': email, 'password': password})
+    login_html = get('/login').read().decode('utf-8', errors='replace')
+    csrf = _extract_csrf(login_html)
+    r = post('/login', {'email': email, 'password': password, 'csrf_token': csrf})
     runner.check('Login', getattr(r, 'status', r.code) in (200, 302))
 
     html = get('/').read().decode('utf-8', errors='replace')
     runner.check('Dashboard', 'Gerar' in html or 'Relatório' in html)
 
     html = get('/students/new').read().decode('utf-8', errors='replace')
+    student_csrf = _extract_csrf(html)
     runner.check('New student form', 'Novo aluno' in html)
 
-    bad_resp = post('/students/new', {'student_name': 'X', 'turma': '', 'teacher': 'Chuck'})
+    bad_resp = post(
+        '/students/new',
+        {'student_name': 'X', 'turma': '', 'teacher': 'Chuck', 'csrf_token': student_csrf},
+    )
     bad_body = bad_resp.read().decode('utf-8', errors='replace')
     runner.check('New student validation', 'Informe o nome do aluno e a turma' in bad_body)
 
     new_name = 'Live Flow Kid'
     try:
-        post('/students/new', _student_form(new_name, 'LIVE_FLOW'), allow_redirect=False)
+        data = _student_form(new_name, 'LIVE_FLOW')
+        data['csrf_token'] = student_csrf
+        post('/students/new', data, allow_redirect=False)
         create_ok = False
         loc = ''
     except urllib.error.HTTPError as e:
@@ -265,8 +312,27 @@ def run_live(base: str):
     html = get('/students').read().decode('utf-8', errors='replace')
     runner.check('Students list', new_name in html)
 
+    lesson_html = get('/lessons/new?turma=LIVE_FLOW').read().decode('utf-8', errors='replace')
+    lesson_csrf = _extract_csrf(lesson_html)
     try:
-        post('/generate', {'report_month': '2026-02'}, allow_redirect=False)
+        data = _lesson_form('LIVE_FLOW')
+        data['csrf_token'] = lesson_csrf
+        post('/lessons/new', data, allow_redirect=False)
+        lesson_ok = False
+        lesson_loc = ''
+    except urllib.error.HTTPError as e:
+        lesson_loc = e.headers.get('Location', '')
+        lesson_ok = e.code in (302, 303) and '/lessons' in (lesson_loc or '')
+    runner.check('Create lesson for live turma', lesson_ok, lesson_loc or '')
+
+    try:
+        dashboard_html = get('/').read().decode('utf-8', errors='replace')
+        generate_csrf = _extract_csrf(dashboard_html)
+        post(
+            '/generate',
+            {'report_month': '2026-02', 'csrf_token': generate_csrf},
+            allow_redirect=False,
+        )
         gen_ok = False
         gen_loc = ''
     except urllib.error.HTTPError as e:
