@@ -19,6 +19,7 @@ sys.path.insert(0, str(ROOT))
 
 import app as web_app  # noqa: E402
 from auth import UserStore  # noqa: E402
+from teacher_classes import save_registry  # noqa: E402
 
 STUDENTS_CSV = (
     'teacher,turma,turma_display,nivel,horario,student_name,participacao,comportamento,'
@@ -33,6 +34,8 @@ LESSONS_CSV = (
     'turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n'
     'MASTER,1,01/02/2026,Lesson 1,,\n'
     'MASTER,2,15/02/2026,Lesson 2,,\n'
+    'FLOW_TEST,1,03/02/2026,Flow test lesson 1,,\n'
+    'FLOW_TEST,2,17/02/2026,Flow test lesson 2,,\n'
 )
 
 
@@ -51,6 +54,7 @@ def _load_dotenv():
 def _student_form(name, turma, teacher='Chuck'):
     base = {
         'teacher': teacher,
+        'class_choice': turma,
         'turma': turma,
         'turma_display': 'Test class',
         'nivel': 'Book 1',
@@ -126,6 +130,16 @@ def run_inprocess():
         web_app.DATA_DIR = data_dir
         web_app.OUT_DIR = out_dir
         web_app.SNAPSHOTS_PATH = data_dir / 'student_snapshots.json'
+        save_registry(data_dir / 'teacher_classes.json', {
+            'Chuck': [{
+                'turma': 'FLOW_TEST',
+                'turma_display': 'Test class',
+                'class_weekdays': ['Segunda-feira', 'Quarta-feira'],
+                'class_time_start': '10:00',
+                'class_time_end': '11:00',
+                'horario': 'Segunda-feira e Quarta-feira 10:00 - 11:00',
+            }],
+        })
         web_app.db_store = None
         web_app.DB_ENABLED = False
         web_app.user_store = store
@@ -187,14 +201,18 @@ def run_inprocess():
             'Reports page after generate',
             r.status_code == 200 and ('Relatório' in rep_html or 'relatório' in rep_html),
         )
+        report_files = sorted(out_dir.glob('*_report.html'))
         runner.check(
             'Report HTML files on disk',
-            any(out_dir.glob('*_report.html')),
+            bool(report_files),
             str(len(list(out_dir.glob('*.html')))) + ' files',
         )
 
-        r = client.get('/reports/preview/' + next(out_dir.glob('*_report.html')).name)
-        runner.check('Preview report', r.status_code == 200)
+        if report_files:
+            r = client.get('/reports/preview/' + report_files[0].name)
+            runner.check('Preview report', r.status_code == 200)
+        else:
+            runner.check('Preview report', False, 'no generated report file')
 
     return runner.finish()
 
