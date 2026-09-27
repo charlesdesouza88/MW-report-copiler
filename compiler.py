@@ -769,8 +769,10 @@ def build_attendance_calendar(turma_lessons, missed, tardy_aula_nums, report_mon
 
 
 def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=None,
-                      attendance_rows=None):
+                      attendance_rows=None, photos=None):
+    """photos: optional student_photos rows; a match is embedded in the report header."""
     from report_periods import month_label, student_composite_score
+    from student_photos import find_photo, photo_data_url
 
     turma = (s.get("turma") or "").strip()
     if not turma:
@@ -921,6 +923,7 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
             dict(label='Comport.', score=comp_overall),
         ]),
         composite_score=composite_score,
+        student_photo=photo_data_url(find_photo(photos, turma, s.get('student_name', ''))),
         comp_scores=comp_scores,
         comp_overall=comp_overall,
         expanded_radar=heptagon_polygon(expanded_scores),
@@ -993,7 +996,8 @@ def create_report_environment(template_dir):
 
 
 def generate_individual_reports(students, lessons, env, out_dir, report_month=None, snapshots=None,
-                                attendance_rows=None):
+                                attendance_rows=None, photos=None):
+    """photos: optional student_photos rows; a match is embedded in the report header."""
     from report_periods import compute_month_trend, month_label, student_composite_score
     tpl = env.get_template("individual_report.html")
     snapshots = snapshots or {}
@@ -1014,7 +1018,7 @@ def generate_individual_reports(students, lessons, env, out_dir, report_month=No
             )
         ctx = build_student_ctx(
             s, lessons, report_month=report_month, trend=trend, snapshots=snapshots,
-            attendance_rows=attendance_rows,
+            attendance_rows=attendance_rows, photos=photos,
         )
         if report_month:
             ctx['report_month_label'] = month_label(report_month)

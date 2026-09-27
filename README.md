@@ -144,6 +144,27 @@ Notes:
 
 ---
 
+## Student photos
+
+On **Alunos → Editar**, upload a JPG, PNG or WebP (up to 700 KB). The photo appears
+as the student's avatar in the list and in the header of every report generated or
+previewed afterwards. Students without a photo show their initials.
+
+Photos are keyed by the same pseudonymous `student_id` as snapshots
+(hash of `turma|student_name`), so the photo store holds no names. They live in the
+`student_photo_rows` table in database mode, or `data/student_photos.json` (git-ignored)
+in CSV mode. Renaming, transferring or deleting a student moves or removes the photo,
+and teachers can only reach photos of their own students.
+
+## Security headers
+
+Every response carries a Content-Security-Policy (same-origin only; inline scripts and
+styles allowed because the templates use them), `X-Content-Type-Options`,
+`X-Frame-Options`, `Referrer-Policy` and `Permissions-Policy`. HSTS is added on HTTPS
+requests in production.
+
+---
+
 ## Data model
 
 ### `data/students.csv`

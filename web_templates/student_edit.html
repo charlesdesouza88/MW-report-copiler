@@ -39,6 +39,68 @@
   </span>
 </div>
 <div id="autosave-status" class="font-sm" style="margin-bottom:12px; color:#5A1A64;" data-kind="ok">Salvamento automático ativo</div>
+{% if not is_new %}
+<!-- Foto do aluno: formulário próprio para o autosave não reenviar a imagem -->
+<div class="form-section student-photo-section" style="max-width: 860px;">
+  <div class="form-section-title">Foto do aluno</div>
+  {% if student_photo_ok %}<div class="alert alert-success" style="margin-bottom:10px;">✓ &nbsp;{{ student_photo_ok }}</div>{% endif %}
+  {% if student_photo_error %}<div class="alert" style="background:#FADBD8; color:#E24B4A; border:1px solid #F1948A; margin-bottom:10px;">✕ &nbsp;{{ student_photo_error }}</div>{% endif %}
+  <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+    {% if student_photo %}
+    <img class="student-avatar" style="width:72px;height:72px;" src="{{ url_for('student_photo', idx=idx, v=student_photo.updated_at) }}" alt="Foto de {{ student.student_name }}">
+    {% else %}
+    <span class="student-avatar" style="width:72px;height:72px;font-size:24px;" aria-hidden="true">{{ (student.student_name or '?').split()[:2]|map('first')|join|upper }}</span>
+    {% endif %}
+    <form method="post" action="{{ url_for('student_photo', idx=idx) }}" enctype="multipart/form-data" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required>
+      <button type="submit" class="btn btn-primary btn-sm">{{ 'Trocar foto' if student_photo else 'Enviar foto' }}</button>
+    </form>
+    {% if student_photo %}
+    <form method="post" action="{{ url_for('student_photo', idx=idx) }}" onsubmit="return confirm('Remover a foto deste aluno?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="clear_photo" value="1">
+      <button type="submit" class="btn btn-ghost btn-sm">Remover foto</button>
+    </form>
+    {% endif %}
+  </div>
+  <p class="font-sm text-gray" style="margin-top:8px;">JPG, PNG ou WebP. A foto é recortada em quadrado e reduzida antes do envio. Aparece na lista de alunos e no cabeçalho do relatório.</p>
+</div>
+<script>
+// Center-crop to a 512px square JPEG in the browser so uploads stay small
+// (the list and every report embed the photo). Falls back to the original file.
+(function () {
+  var input = document.querySelector('.student-photo-section input[type=file]');
+  if (!input || !window.DataTransfer || !HTMLCanvasElement.prototype.toBlob) return;
+  input.addEventListener('change', function () {
+    var file = input.files && input.files[0];
+    if (!file || !/^image\//.test(file.type)) return;
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      var side = Math.min(img.naturalWidth, img.naturalHeight);
+      var out = Math.min(512, side);
+      var canvas = document.createElement('canvas');
+      canvas.width = canvas.height = out;
+      canvas.getContext('2d').drawImage(
+        img,
+        (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side,
+        0, 0, out, out
+      );
+      URL.revokeObjectURL(url);
+      canvas.toBlob(function (blob) {
+        if (!blob || blob.size >= file.size) return;
+        var dt = new DataTransfer();
+        dt.items.add(new File([blob], 'foto.jpg', { type: 'image/jpeg' }));
+        input.files = dt.files;
+      }, 'image/jpeg', 0.85);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+})();
+</script>
+{% endif %}
 <form method="post" id="student-edit-form"
       class="form-narrow{% if no_teacher_classes %} disabled-form{% endif %}"
       style="max-width: 860px;"

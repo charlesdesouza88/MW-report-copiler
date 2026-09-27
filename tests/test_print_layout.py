@@ -100,7 +100,7 @@ def _render_busy_report() -> str:
     )
 
 
-def _render_sample_report() -> str:
+def _render_sample_report(photos=None) -> str:
     """The repo's sample CSVs: attendance calendar + missed-lesson list in Presença."""
     from compiler import load_csv
 
@@ -109,8 +109,17 @@ def _render_sample_report() -> str:
     lessons = load_csv(templates / "lessons_template.csv")
     env = create_report_environment(ROOT / "templates")
     return env.get_template("individual_report.html").render(
-        **build_student_ctx(students[0], lessons, report_month="2026-02")
+        **build_student_ctx(students[0], lessons, report_month="2026-02", photos=photos)
     )
+
+
+def _render_sample_report_with_photo() -> str:
+    from student_photos import set_photo
+
+    photos = set_photo([], "MASTER", "Jane Doe", "image/png", "iVBORw0KGgo=")
+    html = _render_sample_report(photos)
+    assert 'class="student-photo"' in html
+    return html
 
 
 def _force_print_css(html: str) -> str:
@@ -133,7 +142,11 @@ def test_print_css_places_feedback_beside_scores():
 
 
 @pytest.mark.skipif(_chrome_bin() is None, reason="Chrome is required to measure print overflow")
-@pytest.mark.parametrize("render", [_render_busy_report, _render_sample_report], ids=["busy", "sample"])
+@pytest.mark.parametrize(
+    "render",
+    [_render_busy_report, _render_sample_report, _render_sample_report_with_photo],
+    ids=["busy", "sample", "sample-photo"],
+)
 def test_print_layout_does_not_clip_participacao(tmp_path: Path, render):
     html = _force_print_css(render()).replace("</body>", PRINT_PROBE_JS + "\n</body>")
     report = tmp_path / "report.html"

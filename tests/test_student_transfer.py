@@ -172,6 +172,11 @@ def test_transfer_route_moves_student_and_history(monkeypatch, tmp_path):
     (data_dir / "student_monthly_reviews.json").write_text(
         json.dumps([row]), encoding="utf-8",
     )
+    from student_photos import set_photo
+    (data_dir / "student_photos.json").write_text(
+        json.dumps(set_photo([], "TEENS_1", "Jane Doe", "image/png", "iVBORw0KGgo=")),
+        encoding="utf-8",
+    )
 
     _init_user_store(monkeypatch, data_dir)
     monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
@@ -217,6 +222,12 @@ def test_transfer_route_moves_student_and_history(monkeypatch, tmp_path):
     assert reviews[0]["turma"] == "TEENS_2"
     assert reviews[0]["student_id"] == student_snapshot_id("TEENS_2", "Jane Doe")
     assert reviews[0]["faltas"] == "3"
+
+    # Photo follows the student to the new turma.
+    from student_photos import find_photo
+    photos = json.loads((data_dir / "student_photos.json").read_text(encoding="utf-8"))
+    assert find_photo(photos, "TEENS_2", "Jane Doe")
+    assert not find_photo(photos, "TEENS_1", "Jane Doe")
 
     # Transfer log written.
     log = json.loads((data_dir / "student_transfers.json").read_text(encoding="utf-8"))

@@ -80,6 +80,11 @@ from teacher_chat import (KIND_BUG, KIND_CHAT, ROOM_TITLE, append_message,
                           can_access_chat, can_resolve_bugs, load_messages,
                           messages_after, open_bug_count, resolve_bug,
                           save_messages, thread_tree)
+from student_photos import (encode_photo as encode_student_photo, find_photo as find_student_photo,
+                            load_photos as load_student_photos, move_photo as move_student_photo,
+                            photo_key,
+                            remove_photo as remove_student_photo, save_photos as save_student_photos,
+                            set_photo as set_student_photo)
 from teacher_profiles import (can_edit_profile, can_view_profile, encode_photo,
                               get_or_empty, load_profiles, photo_data_url,
                               save_profiles, upsert_profile)
@@ -1427,9 +1432,18 @@ def _student_form_context(all_rows, user, is_new, student, idx, form_error=None)
             entries, student.get('student_name'), student.get('turma'),
         )
 
+    photo = None
+    if not is_new and student:
+        photo = find_student_photo(
+            _load_student_photos(), student.get('turma'), student.get('student_name'),
+        )
+
     return dict(
         student=student,
         idx=idx,
+        student_photo=photo,
+        student_photo_ok=session.pop('student_photo_ok', None),
+        student_photo_error=session.pop('student_photo_error', None),
         score_fields=SCORE_FIELDS,
         is_new=is_new,
         form_error=form_error,
@@ -1979,6 +1993,47 @@ def _chat_open_bug_count():
         return open_bug_count(_load_chat_messages())
     except Exception:
         return 0
+
+
+def _student_photos_path():
+    return Path(DATA_DIR) / 'student_photos.json'
+
+
+def _load_student_photos():
+    if db_store:
+        rows, version = db_store.load_student_photos_versioned()
+        _bind_store_version('student_photos', version)
+        return list(rows or [])
+    return load_student_photos(_student_photos_path())
+
+
+def _save_student_photos(rows):
+    if db_store:
+        try:
+            version = db_store.save_student_photos(
+                rows,
+                expected_version=_expected_store_version('student_photos'),
+            )
+        except StaleDataError:
+            _note_save_conflict()
+            return False
+        _bind_store_version('student_photos', version)
+        return True
+    save_student_photos(_student_photos_path(), rows)
+    return True
+
+
+def _move_student_photo(old_row, new_row):
+    """Keep a student's photo attached after a rename or turma change."""
+    old_turma, old_name = old_row.get('turma'), old_row.get('student_name')
+    new_turma, new_name = new_row.get('turma'), new_row.get('student_name')
+    if photo_key(old_turma, old_name) == photo_key(new_turma, new_name):
+        return  # autosave hits this on every keystroke batch; skip the store load
+    rows, moved = move_student_photo(
+        _load_student_photos(), old_turma, old_name, new_turma, new_name,
+    )
+    if moved and not _save_student_photos(rows):
+        logger.warning('Could not move student photo after identity change')
 
 
 def _teacher_profiles_path():
@@ -2940,9 +2995,16 @@ def students():
     _reconcile_flagged_extra_sessions(rows)
     turma_labels = _turma_display_map(rows, user)
     turma_filters = _turma_filters(rows, user)
+    photos = {row['student_id']: row.get('updated_at', '') for row in _load_student_photos()}
+    photo_versions = {}
+    for i, row in enumerate(rows):
+        key = photo_key(row.get('turma'), row.get('student_name'))
+        if key in photos:
+            photo_versions[i] = photos[key]
     return render_template(
         'students.html',
         students=rows,
+        photo_versions=photo_versions,
         turma_filters=turma_filters,
         turma_labels=turma_labels,
         student_flash_ok=session.pop('student_flash_ok', None),
@@ -2992,6 +3054,7 @@ def student_edit(idx):
                 ),
             )
         _sync_student_aula_extra_sessions(updated)
+        _move_student_photo(visible[idx], updated)
         return _redirect_students(flash_ok=f'Aluno "{updated.get("student_name", "")}" salvo.')
     return render_template(
         'student_edit.html',
@@ -3032,6 +3095,7 @@ def student_autosave(idx):
             'error': SAVE_CONFLICT_MESSAGE,
         }), 409
     _sync_student_aula_extra_sessions(updated)
+    _move_student_photo(visible[idx], updated)
     return jsonify({
         'ok': True,
         'saved_at': datetime.now(timezone.utc).strftime('%H:%M'),
@@ -3117,10 +3181,61 @@ def student_delete(idx):
                     save_snapshots(SNAPSHOTS_PATH, list(cleaned.values()))
                 extras = remove_sessions_for_student(_load_extra_sessions(), removed)
                 _save_extra_sessions(extras)
+                photos, photo_removed = remove_student_photo(
+                    _load_student_photos(), removed.get('turma'), removed.get('student_name'),
+                )
+                if photo_removed:
+                    _save_student_photos(photos)
                 return _redirect_students(
                     flash_ok=f'Aluno "{removed.get("student_name", "")}" excluído.',
                 )
     return _redirect_students()
+
+
+@app.route('/students/<int:idx>/photo', methods=['GET', 'POST'])
+@login_required
+def student_photo(idx):
+    """GET serves the photo; POST uploads a new one or removes it (clear_photo)."""
+    _all_rows, visible = _scoped_students()
+    if idx < 0 or idx >= len(visible):
+        abort(404)
+    student = visible[idx]
+    turma, name = student.get('turma'), student.get('student_name')
+    if request.method == 'GET':
+        photo = find_student_photo(_load_student_photos(), turma, name)
+        if not photo:
+            abort(404)
+        try:
+            raw = base64.b64decode(photo['photo_base64'], validate=True)
+        except Exception:
+            abort(404)
+        response = Response(raw, mimetype=photo['photo_mime'])
+        response.headers['Cache-Control'] = 'private, max-age=300'
+        return response
+
+    edit_url = url_for('student_edit', idx=idx)
+    if request.form.get('clear_photo'):
+        rows, removed = remove_student_photo(_load_student_photos(), turma, name)
+        if removed and not _save_student_photos(rows):
+            session['student_photo_error'] = SAVE_CONFLICT_MESSAGE
+        else:
+            session['student_photo_ok'] = 'Foto removida.'
+        return redirect(edit_url)
+
+    upload = request.files.get('photo')
+    raw = upload.read() if upload else b''
+    if not raw:
+        session['student_photo_error'] = 'Escolha uma foto para enviar.'
+        return redirect(edit_url)
+    mime, data_b64, error = encode_student_photo(raw)
+    if error:
+        session['student_photo_error'] = error
+        return redirect(edit_url)
+    if not _save_student_photos(set_student_photo(_load_student_photos(), turma, name, mime, data_b64)):
+        session['student_photo_error'] = SAVE_CONFLICT_MESSAGE
+    else:
+        session['student_photo_ok'] = 'Foto atualizada. Ela aparece nos próximos relatórios gerados.'
+    return redirect(edit_url)
 
 
 # ── Lessons (class details) ───────────────────────────────────────────────────────────
@@ -3677,6 +3792,7 @@ def _run_report_generation(students, lessons, report_month):
         students, lessons, env, OUT_DIR,
         report_month=report_month, snapshots=snapshots,
         attendance_rows=attendance_rows,
+        photos=_load_student_photos(),
     )
     generate_class_diagnostics(
         students, lessons, env, OUT_DIR,
@@ -4173,6 +4289,15 @@ def student_transfer_page():
         else:
             history_ok = _save_monthly_review_store(monthly_store)
             save_snapshots(SNAPSHOTS_PATH, list(snapshot_store.values()))
+            photos = _load_student_photos()
+            photos_moved = False
+            for name in summary['students']:
+                photos, moved = move_student_photo(
+                    photos, summary['from_turma'], name, summary['to_turma'], name,
+                )
+                photos_moved = photos_moved or moved
+            if photos_moved and not _save_student_photos(photos):
+                history_ok = False
             extras_ok = _save_extra_sessions(extra_rows)
             save_transfer_log(_student_transfers_path(), log_entries)
             if not history_ok or not extras_ok:
@@ -4315,6 +4440,7 @@ def _live_render_individual_preview(path):
     ctx = build_student_ctx(
         student, lessons, report_month=month, trend=trend,
         snapshots=snapshots, attendance_rows=attendance_rows,
+        photos=_load_student_photos(),
     )
     if month:
         ctx['report_month_label'] = month_label(month)
