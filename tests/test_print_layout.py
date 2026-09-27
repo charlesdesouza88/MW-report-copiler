@@ -41,6 +41,19 @@ document.addEventListener('DOMContentLoaded', () => {
       return {i, clipped: clips(card.getBoundingClientRect(), kids)};
     }),
   };
+  // Text blocks inside a card must not overlap each other (clipping alone misses this).
+  report.overlaps = [];
+  cards.forEach((card, i) => {
+    const blocks = [...card.querySelectorAll('.missed-heading, .missed-total, .missed-io-line, .no-makeup, .bar-row, .radar-caption')];
+    for (let a = 0; a < blocks.length; a++) {
+      for (let b = a + 1; b < blocks.length; b++) {
+        const r1 = blocks[a].getBoundingClientRect(), r2 = blocks[b].getBoundingClientRect();
+        const ox = Math.min(r1.right, r2.right) - Math.max(r1.left, r2.left);
+        const oy = Math.min(r1.bottom, r2.bottom) - Math.max(r1.top, r2.top);
+        if (ox > 1 && oy > 1) report.overlaps.push({i, a: blocks[a].className, b: blocks[b].className});
+      }
+    }
+  });
   document.documentElement.setAttribute('data-print-check', JSON.stringify(report));
 });
 </script>
@@ -87,6 +100,19 @@ def _render_busy_report() -> str:
     )
 
 
+def _render_sample_report() -> str:
+    """The repo's sample CSVs: attendance calendar + missed-lesson list in Presença."""
+    from compiler import load_csv
+
+    templates = ROOT / "data" / "templates"
+    students = load_csv(templates / "students_template.csv")
+    lessons = load_csv(templates / "lessons_template.csv")
+    env = create_report_environment(ROOT / "templates")
+    return env.get_template("individual_report.html").render(
+        **build_student_ctx(students[0], lessons, report_month="2026-02")
+    )
+
+
 def _force_print_css(html: str) -> str:
     return (
         html.replace("@media screen {", "@media screen and (min-width: 100000px) {")
@@ -107,8 +133,9 @@ def test_print_css_places_feedback_beside_scores():
 
 
 @pytest.mark.skipif(_chrome_bin() is None, reason="Chrome is required to measure print overflow")
-def test_print_layout_does_not_clip_participacao(tmp_path: Path):
-    html = _force_print_css(_render_busy_report()).replace("</body>", PRINT_PROBE_JS + "\n</body>")
+@pytest.mark.parametrize("render", [_render_busy_report, _render_sample_report], ids=["busy", "sample"])
+def test_print_layout_does_not_clip_participacao(tmp_path: Path, render):
+    html = _force_print_css(render()).replace("</body>", PRINT_PROBE_JS + "\n</body>")
     report = tmp_path / "report.html"
     report.write_text(html)
     profile = tmp_path / "chrome-profile"
@@ -138,5 +165,6 @@ def test_print_layout_does_not_clip_participacao(tmp_path: Path):
     assert match, "print probe script did not run"
     result = json.loads(htmlmod.unescape(match.group(1)))
     assert result["pageClipped"] == []
+    assert result["overlaps"] == []
     for card in result["cards"]:
         assert card["clipped"] == [], card

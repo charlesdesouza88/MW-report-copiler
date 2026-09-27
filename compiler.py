@@ -520,6 +520,16 @@ def _pie_midpoint(start_pct, end_pct, cx, cy, radius):
     return round(cx + radius * math.cos(angle), 1), round(cy + radius * math.sin(angle), 1)
 
 
+# Label for each 1–5 score, matching the scale printed on the report.
+SCORE_LEVELS = {
+    1: 'Raramente',
+    2: 'Quando solicitado',
+    3: 'Regularmente',
+    4: 'Sempre',
+    5: 'Com excelência',
+}
+
+
 def pie_slice_labels(percentage, cx=58, cy=58, pie_r=48):
     """On-slice labels for presence (purple) and absences (gray), clockwise from 12 o'clock."""
     pct = max(0, min(100, int(round(float(percentage)))))
@@ -876,6 +886,8 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
         pie_labels=pie_labels,
         full_circle=full_circle,
         total_lessons=total,
+        attended=max(0, total - faltas) if total else None,
+        score_levels=SCORE_LEVELS,
         missed=missed,
         pres_score=pres_score,
         needs_makeup=needs_makeup,
