@@ -356,6 +356,41 @@ if PRODUCTION_ENV:
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 csrf = CSRFProtect(app)
+
+# Pages use inline <script>/<style> and on* handlers, so 'unsafe-inline' stays;
+# everything else is locked to this origin. Reports embed their logo as data:.
+CONTENT_SECURITY_POLICY = '; '.join([
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+    "form-action 'self'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "style-src 'self' 'unsafe-inline'",
+    "script-src 'self' 'unsafe-inline'",
+    "connect-src 'self'",
+])
+SECURITY_HEADERS = {
+    'Content-Security-Policy': CONTENT_SECURITY_POLICY,
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+}
+
+
+@app.after_request
+def _set_security_headers(response):
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    if PRODUCTION_ENV and request.is_secure:
+        response.headers.setdefault(
+            'Strict-Transport-Security', 'max-age=63072000; includeSubDomains',
+        )
+    return response
+
+
 limiter = Limiter(
     key_func=get_remote_address,
     app=app,

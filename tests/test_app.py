@@ -92,6 +92,20 @@ def test_health_returns_ok():
     assert response.get_data(as_text=True) == "ok"
 
 
+def test_responses_carry_security_headers():
+    client = web_app.app.test_client()
+    response = client.get("/login")
+    csp = response.headers["Content-Security-Policy"]
+    assert "default-src 'self'" in csp
+    assert "object-src 'none'" in csp
+    assert "frame-ancestors 'self'" in csp
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "SAMEORIGIN"
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    # HSTS only over HTTPS in production, never on local http.
+    assert "Strict-Transport-Security" not in response.headers
+
+
 def test_database_outage_refuses_data_routes(monkeypatch):
     monkeypatch.setattr(web_app, "DB_UNAVAILABLE", True)
     monkeypatch.setattr(web_app, "DATABASE_URL", "postgresql://example")
