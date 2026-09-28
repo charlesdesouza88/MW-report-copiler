@@ -3,7 +3,6 @@
 import re
 from pathlib import Path
 
-
 _SAFE_PART_RE = re.compile(r'[^A-Za-z0-9._-]+')
 
 
