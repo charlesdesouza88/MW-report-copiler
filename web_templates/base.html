@@ -659,6 +659,111 @@ body.nav-open .nav-backdrop { display: block; }
   .reports-table-view { display: block !important; }
   .reports-cards-view { display: none !important; }
 }
+
+/* ══ Dashboard theme ════════════════════════════════════════════════════════
+   Purple gradient sidebar, gradient page-header card, soft white cards on a
+   lavender page — the Dashboard_Alunos look, on this app's components. */
+:root {
+  --page-bg: #F7F3FA;
+  --grad-side: linear-gradient(180deg, #4A1766 0%, #6A2280 45%, #8E2FAE 100%);
+  --grad-head: linear-gradient(100deg, #5A1A64 0%, #792D83 55%, #9B3FB0 100%);
+  --card-shadow: 0 1px 3px rgba(45, 16, 64, 0.07), 0 6px 18px rgba(45, 16, 64, 0.06);
+  --sidebar-width: 240px;
+}
+body { background: var(--page-bg); }
+
+.sidebar {
+  background: var(--grad-side);
+  border-right: none;
+  color: #fff;
+  padding: 0 12px max(14px, env(safe-area-inset-bottom));
+}
+.brand { padding: 20px 10px 14px; border-bottom: none; margin-bottom: 4px; }
+.brand-wordmark { max-width: 170px; }
+.brand-sub { color: rgba(255, 255, 255, 0.65); }
+.nav-group {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55); padding: 14px 12px 6px;
+}
+.nav-link {
+  color: rgba(255, 255, 255, 0.92);
+  border-radius: 10px; padding: 10px 12px; margin: 1px 0;
+}
+.nav-link:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.nav-link.active {
+  background: #fff; color: var(--purple);
+  box-shadow: 0 4px 14px rgba(20, 0, 40, 0.18);
+}
+.nav-user {
+  display: flex; align-items: center; gap: 10px;
+  margin: 12px 0 6px; padding: 10px 12px;
+  border-top: none; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12); color: #fff;
+}
+.nav-user-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.22); font-weight: 700; font-size: 13px;
+}
+.nav-user-text { min-width: 0; font-size: 11px; line-height: 1.35; overflow-wrap: anywhere; }
+.nav-user-role { color: rgba(255, 255, 255, 0.7); font-weight: 700; }
+.nav-logout { border-top: none; color: rgba(255, 255, 255, 0.8); }
+.nav-logout:hover { color: #fff; background: rgba(226, 75, 74, 0.35); }
+
+.page-header {
+  margin: 18px 24px 0;
+  border: none; border-radius: 18px;
+  background: var(--grad-head); color: #fff;
+  padding: 16px 22px;
+  box-shadow: 0 8px 24px rgba(90, 26, 100, 0.22);
+  top: 12px;
+}
+.page-title { color: #fff; font-size: 20px; font-weight: 700; }
+.review-month-form label { color: rgba(255, 255, 255, 0.75); }
+.page-header select {
+  background-color: #fff; color: var(--plum);
+  border: none; border-radius: 10px;
+}
+.topbar-actions .btn-ghost,
+.topbar-actions .btn-outline {
+  background: rgba(255, 255, 255, 0.14); color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+.topbar-actions .btn-ghost:hover,
+.topbar-actions .btn-outline:hover { background: rgba(255, 255, 255, 0.24); }
+.topbar-actions .btn-primary { background: #fff; color: var(--purple); }
+.topbar-actions .btn-danger { background: #fff; color: var(--red); }
+.content { padding: 20px 24px; }
+
+.card, .stat-card, .page-toolbar {
+  border: none; border-radius: 14px;
+  box-shadow: var(--card-shadow);
+}
+.card:hover { box-shadow: var(--card-shadow); }
+.stat-card { border-top: none; }
+.stat-card:hover { transform: none; box-shadow: var(--card-shadow); }
+.stat-value { font-weight: 700; }
+.review-banner { background: #fff; border: none; border-radius: 12px; box-shadow: var(--card-shadow); }
+.alert { border-radius: 12px; }
+.btn { border-radius: 10px; }
+.btn-primary { background: linear-gradient(100deg, var(--purple-dk), var(--purple)); }
+.btn-sm { border-radius: 8px; }
+.tag { border-radius: 999px; padding: 2px 10px; }
+.table-wrap { border: none; border-radius: 14px; box-shadow: var(--card-shadow); background: #fff; }
+thead tr { background: var(--grad-head); }
+thead th { background: transparent; }
+tr:hover td { background: #FAF6FC; }
+input, select, textarea { border-radius: 10px; }
+
+@media (max-width: 1023px) {
+  .page-header {
+    margin: 0; border-radius: 0 0 18px 18px; top: 0;
+    padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top));
+    background: var(--grad-head);
+  }
+  .sidebar { padding-top: 0; }
+  .content { padding: 16px; }
+}
 </style>
 </head>
 <body>
@@ -669,10 +774,11 @@ body.nav-open .nav-backdrop { display: block; }
 <nav class="sidebar" id="sidebar" aria-label="Menu principal">
   <div class="brand">
     <div class="brand-lockup">
-      <img class="brand-wordmark" src="{{ url_for('static', filename='img/logo-primary-transparent.png') }}" alt="Mister Wiz" width="196" height="25">
+      <img class="brand-wordmark" src="{{ url_for('static', filename='img/logo-primary-white.png') }}" alt="Mister Wiz" width="196" height="25">
       <div class="brand-sub">{% if current_user and current_user.role == 'teacher' %}Professor{% else %}Admin{% endif %}</div>
     </div>
   </div>
+  <div class="nav-group">Menu</div>
   <a href="{{ url_with_month('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
     <span class="nav-icon">{{ icon('house', 20) }}</span> Dashboard
   </a>
@@ -688,17 +794,6 @@ body.nav-open .nav-backdrop { display: block; }
   <a href="{{ url_with_month('upload') }}" class="nav-link {% if request.endpoint in ('upload', 'delete_csv') %}active{% endif %}">
     <span class="nav-icon">{{ icon('upload', 20) }}</span> Upload CSV
   </a>
-  {% if can_manage_teachers %}
-  <a href="{{ url_for('manage_teachers') }}" class="nav-link {% if request.endpoint == 'manage_teachers' %}active{% endif %}">
-    <span class="nav-icon">{{ icon('id-card', 20) }}</span> Usuários
-  </a>
-  <a href="{{ url_for('turma_transfer') }}" class="nav-link {% if request.endpoint == 'turma_transfer' %}active{% endif %}">
-    <span class="nav-icon">{{ icon('route', 20) }}</span> Transferir turma
-  </a>
-  <a href="{{ url_for('student_transfer_page') }}" class="nav-link {% if request.endpoint == 'student_transfer_page' %}active{% endif %}">
-    <span class="nav-icon">{{ icon('arrow-right', 20) }}</span> Transferir alunos
-  </a>
-  {% endif %}
   <a href="{{ url_with_month('reports') }}" class="nav-link {% if request.endpoint in ('reports','preview') %}active{% endif %}">
     <span class="nav-icon">{{ icon('clipboard-check', 20) }}</span> Relatórios
   </a>
@@ -713,11 +808,26 @@ body.nav-open .nav-backdrop { display: block; }
     <span class="nav-icon">{{ icon('user', 20) }}</span> Meu perfil
   </a>
   {% endif %}
+  {% if can_manage_teachers %}
+  <div class="nav-group">Gestão</div>
+  <a href="{{ url_for('manage_teachers') }}" class="nav-link {% if request.endpoint == 'manage_teachers' %}active{% endif %}">
+    <span class="nav-icon">{{ icon('id-card', 20) }}</span> Usuários
+  </a>
+  <a href="{{ url_for('turma_transfer') }}" class="nav-link {% if request.endpoint == 'turma_transfer' %}active{% endif %}">
+    <span class="nav-icon">{{ icon('route', 20) }}</span> Transferir turma
+  </a>
+  <a href="{{ url_for('student_transfer_page') }}" class="nav-link {% if request.endpoint == 'student_transfer_page' %}active{% endif %}">
+    <span class="nav-icon">{{ icon('arrow-right', 20) }}</span> Transferir alunos
+  </a>
+  {% endif %}
   <div class="nav-spacer"></div>
   {% if current_user %}
   <div class="nav-user">
-    {{ current_user.email }}<br>
-    <span class="nav-user-role">{{ role_labels.get(current_user.role, current_user.role) }}</span>
+    <span class="nav-user-avatar" aria-hidden="true">{{ ((current_user.teacher_name or current_user.email or '?')[:1])|upper }}</span>
+    <span class="nav-user-text">
+      {{ current_user.teacher_name or current_user.email }}<br>
+      <span class="nav-user-role">{{ role_labels.get(current_user.role, current_user.role) }}</span>
+    </span>
   </div>
   {% endif %}
   <a href="{{ url_for('logout') }}" class="nav-link nav-logout">

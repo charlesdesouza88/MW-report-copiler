@@ -615,8 +615,10 @@ def test_authenticated_shell_uses_official_lockups(monkeypatch, tmp_path):
     html = client.get("/").get_data(as_text=True)
     assert 'class="brand-wordmark"' in html
     assert 'class="brand-mark"' not in html
-    assert "logo-primary-transparent.png" in html
+    # Purple sidebar and header carry the white knockout wordmark.
     assert "logo-primary-white.png" in html
+    assert html.count("logo-primary-white.png") >= 2
+    assert 'class="nav-group">Menu<' in html
     assert "logo-symbol.png" in html
     assert 'id="icon-house"' in html
     assert 'href="#icon-house"' in html
