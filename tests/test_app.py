@@ -1698,9 +1698,10 @@ def test_student_new_form_does_not_copy_existing_student(monkeypatch, tmp_path):
     html = client.get("/students/new").get_data(as_text=True)
 
     assert 'name="student_name" value=""' in html
-    assert 'id="val-speaking" value="3"' in html
-    assert 'id="val-listening" value="3"' in html
-    assert 'id="val-gramatica" value="3"' in html
+    # New students start unscored: no pre-picked 3 that would print on the report.
+    assert 'id="val-speaking" value=""' in html
+    assert 'id="val-listening" value=""' in html
+    assert 'id="val-gramatica" value=""' in html
     assert 'name="faltas" value="0"' in html
     assert 'name="missed_aulas" value=""' in html
     assert "Practice speaking" not in html

@@ -227,3 +227,20 @@ def test_parse_upload_csv_amanda_grade_sheet():
     assert rows[0]['teacher'] == 'Amanda'
     assert rows[0]['turma'] == 'COMET'
     assert rows[0]['gramatica']
+
+
+def test_normalize_student_row_leaves_unscored_student_blank():
+    row = normalize_student_row({
+        'teacher': 'Chuck', 'turma': 'MASTER', 'student_name': 'nina costa',
+    })
+    for field in ('comportamento', 'gramatica', 'trabalho_equipe', 'organizacao',
+                  'pontualidade', 'respeito_regras', 'speaking'):
+        assert row[field] == '', field
+
+
+def test_normalize_student_row_subscores_still_follow_comportamento():
+    row = normalize_student_row({
+        'teacher': 'Chuck', 'turma': 'MASTER', 'student_name': 'Jane', 'comportamento': '4',
+    })
+    assert row['organizacao'] == '4'
+    assert row['respeito_regras'] == '4'

@@ -190,3 +190,15 @@ def test_upsert_sets_report_month_and_scores():
     assert row['report_month'] == '2026-06'
     assert row['participacao'] == '3'
     assert row['turma'] == 'MASTER'
+
+
+def test_unsaved_month_starts_every_score_blank():
+    """A month nobody reviewed yet must not print invented 3s on the report."""
+    roster = [_student()]
+    store = {}
+    upsert_monthly_review(store, {**_student(participacao='4'), 'speaking': '5'}, '2026-02')
+    merged = merge_roster_for_month(roster, store, '2026-03')[0]
+    for field in ('participacao', 'comportamento', 'speaking', 'listening', 'foco', 'writing',
+                  'reading', 'gramatica', 'trabalho_equipe', 'organizacao', 'pontualidade',
+                  'respeito_regras'):
+        assert merged[field] == '', field
