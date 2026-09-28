@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Mister Wiz Report Compiler — generates student and class reports from CSV data."""
 
+import base64
 import calendar as _calendar
 import csv
 import math
@@ -520,6 +521,16 @@ def _pie_midpoint(start_pct, end_pct, cx, cy, radius):
     return round(cx + radius * math.cos(angle), 1), round(cy + radius * math.sin(angle), 1)
 
 
+# Label for each 1–5 score, matching the scale printed on the report.
+SCORE_LEVELS = {
+    1: 'Raramente',
+    2: 'Quando solicitado',
+    3: 'Regularmente',
+    4: 'Sempre',
+    5: 'Com excelência',
+}
+
+
 def pie_slice_labels(percentage, cx=58, cy=58, pie_r=48):
     """On-slice labels for presence (purple) and absences (gray), clockwise from 12 o'clock."""
     pct = max(0, min(100, int(round(float(percentage)))))
@@ -592,6 +603,29 @@ def avg_score(scores):
             continue
         vals.append(float(score))
     return round_half_up(sum(vals) / len(vals)) if vals else None
+
+
+def avg_decimal(scores):
+    """Average of the scored values to one decimal (e.g. 3.8), or None if all blank."""
+    vals = [float(v) for v in scores if v is not None and not (isinstance(v, str) and not v.strip())]
+    if not vals:
+        return None
+    return math.floor(sum(vals) / len(vals) * 10 + 0.5) / 10
+
+
+_WHITE_LOGO_CACHE = {}
+
+
+def white_logo_data_url():
+    """White knockout wordmark for the purple report header, embedded so reports stay self-contained."""
+    if 'url' not in _WHITE_LOGO_CACHE:
+        path = Path(__file__).parent / 'static' / 'img' / 'logo-primary-white.png'
+        try:
+            data = base64.b64encode(path.read_bytes()).decode('ascii')
+            _WHITE_LOGO_CACHE['url'] = f'data:image/png;base64,{data}'
+        except OSError:
+            _WHITE_LOGO_CACHE['url'] = ''
+    return _WHITE_LOGO_CACHE['url']
 
 
 def presence_pct(faltas, total_lessons):
@@ -759,8 +793,10 @@ def build_attendance_calendar(turma_lessons, missed, tardy_aula_nums, report_mon
 
 
 def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=None,
-                      attendance_rows=None):
+                      attendance_rows=None, photos=None):
+    """photos: optional student_photos rows; a match is embedded in the report header."""
     from report_periods import month_label, student_composite_score
+    from student_photos import find_photo, photo_data_url
 
     turma = (s.get("turma") or "").strip()
     if not turma:
@@ -876,6 +912,8 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
         pie_labels=pie_labels,
         full_circle=full_circle,
         total_lessons=total,
+        attended=max(0, total - faltas) if total else None,
+        score_levels=SCORE_LEVELS,
         missed=missed,
         pres_score=pres_score,
         needs_makeup=needs_makeup,
@@ -909,6 +947,14 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
             dict(label='Comport.', score=comp_overall),
         ]),
         composite_score=composite_score,
+        dev_avg=avg_decimal(dev_scores),
+        part_avg=avg_decimal(part_scores),
+        comp_avg=avg_decimal(comp_scores),
+        absences=min(faltas, total) if total else 0,
+        # Vertex dots for the scored skills only (blank skills have no point).
+        radar_dots=[tuple(pt.split(',')) for pt in pentagon_polygon(dev_scores).split()],
+        logo_white=white_logo_data_url(),
+        student_photo=photo_data_url(find_photo(photos, turma, s.get('student_name', ''))),
         comp_scores=comp_scores,
         comp_overall=comp_overall,
         expanded_radar=heptagon_polygon(expanded_scores),
@@ -933,7 +979,7 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
     return ctx
 
 
-def build_class_ctx(turma, students, all_lessons, report_month=None, snapshots=None):
+def build_class_ctx(turma, students, all_lessons, report_month=None, snapshots=None, photos=None):
     from report_periods import compute_month_trend, month_label, student_composite_score
 
     turma_lessons = lessons_for(turma, all_lessons, report_month=report_month)
@@ -952,8 +998,15 @@ def build_class_ctx(turma, students, all_lessons, report_month=None, snapshots=N
             )
         ctx = build_student_ctx(
             s, all_lessons, report_month=report_month, trend=trend, snapshots=snapshots,
+            photos=photos,
         )
         student_data.append(ctx)
+
+    def _class_mean(key):
+        vals = [sd[key] for sd in student_data if sd.get(key) is not None]
+        return math.floor(sum(vals) / len(vals) * 10 + 0.5) / 10 if vals else None
+
+    freq_vals = [sd['pct'] for sd in student_data if sd.get('pct') is not None]
 
     return dict(
         turma=turma,
@@ -966,6 +1019,14 @@ def build_class_ctx(turma, students, all_lessons, report_month=None, snapshots=N
         lessons=turma_lessons,
         students=student_data,
         class_summary=class_summary_charts(student_data),
+        # One-decimal class means of each student's scored values (blank students skipped).
+        class_avgs=dict(
+            freq=round(sum(freq_vals) / len(freq_vals)) if freq_vals else None,
+            dev=_class_mean('dev_avg'),
+            part=_class_mean('part_avg'),
+            comp=_class_mean('comp_avg'),
+        ),
+        logo_white=white_logo_data_url(),
         grid=pentagon_grid(),
         axes=axis_endpoints(),
     )
@@ -981,7 +1042,8 @@ def create_report_environment(template_dir):
 
 
 def generate_individual_reports(students, lessons, env, out_dir, report_month=None, snapshots=None,
-                                attendance_rows=None):
+                                attendance_rows=None, photos=None):
+    """photos: optional student_photos rows; a match is embedded in the report header."""
     from report_periods import compute_month_trend, month_label, student_composite_score
     tpl = env.get_template("individual_report.html")
     snapshots = snapshots or {}
@@ -1002,7 +1064,7 @@ def generate_individual_reports(students, lessons, env, out_dir, report_month=No
             )
         ctx = build_student_ctx(
             s, lessons, report_month=report_month, trend=trend, snapshots=snapshots,
-            attendance_rows=attendance_rows,
+            attendance_rows=attendance_rows, photos=photos,
         )
         if report_month:
             ctx['report_month_label'] = month_label(report_month)
@@ -1018,11 +1080,13 @@ def generate_individual_reports(students, lessons, env, out_dir, report_month=No
         print(f"  ✓ {fname}")
 
 
-def generate_class_diagnostics(students, lessons, env, out_dir, report_month=None, snapshots=None):
+def generate_class_diagnostics(students, lessons, env, out_dir, report_month=None, snapshots=None,
+                               photos=None):
     tpl = env.get_template("class_diagnostic.html")
     snapshots = snapshots or {}
     for turma, group in group_by_turma(students).items():
-        ctx = build_class_ctx(turma, group, lessons, report_month=report_month, snapshots=snapshots)
+        ctx = build_class_ctx(turma, group, lessons, report_month=report_month, snapshots=snapshots,
+                              photos=photos)
         html = tpl.render(**ctx)
         fname = class_diagnostic_filename(turma, report_month)
         safe_child_path(out_dir, fname).write_text(html, encoding="utf-8")

@@ -451,15 +451,15 @@ def _derive_gramatica(row):
             continue
     if scores:
         return str(max(1, min(5, round(sum(scores) / len(scores)))))
-    fallback = row.get('comportamento') or row.get('participacao') or '3'
-    return fallback
+    return row.get('comportamento') or row.get('participacao') or ''
 
 
 def normalize_student_row(row):
     """Ensure every upload column exists with valid defaults."""
     out = {field: _norm_cell(row.get(field, '')) for field in STUDENT_FIELDS}
     out['student_name'] = capitalize_student_name(out.get('student_name'))
-    comp = out.get('comportamento') or out.get('participacao') or '3'
+    # Sub-scores fall back to the teacher's overall behaviour score; with no score at all they stay blank.
+    comp = out.get('comportamento') or out.get('participacao') or ''
     if not out.get('comportamento'):
         out['comportamento'] = comp
     for field in SCORE_FIELDS:
@@ -603,7 +603,7 @@ def parse_teacher_student_report_csv(text, teacher_name, source_filename):
         if not any(raw.get(field) for field in ('participacao', 'foco', 'speaking', 'listening', 'writing', 'reading')):
             continue
 
-        comportamento = raw.get('comportamento') or raw.get('participacao') or '3'
+        comportamento = raw.get('comportamento') or raw.get('participacao') or ''
         parsed.append({
             'teacher': teacher,
             'turma': turma,

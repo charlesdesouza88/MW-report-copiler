@@ -7,6 +7,7 @@ data/lessons.csv
 data/lesson_attendance.csv
 data/extra_sessions.csv
 data/teacher_classes.json
+data/student_photos.json
 data/imported/
 __pycache__/
 *.pyc

@@ -19,7 +19,7 @@ CHROME_MAC = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 PRINT_PROBE_JS = """
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const page = document.body.getBoundingClientRect();
+  const page = document.querySelector('.sheet').getBoundingClientRect();
   function clips(box, nodes) {
     return nodes.map(el => {
       const r = el.getBoundingClientRect();
@@ -33,14 +33,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const cards = [...document.querySelectorAll('.card')];
   const report = {
     pageH: +page.height.toFixed(1),
-    pageClipped: clips(page, [...document.querySelectorAll('.header, .card, .recomendacoes')]),
+    pageClipped: clips(page, [...document.querySelectorAll('.sheet-head, .stat, .card')]),
     cards: cards.map((card, i) => {
       const kids = [...card.querySelectorAll(
-        '.part-scores-row, .scale-item, .fb-item, .fb-heading, .no-makeup, .comp-criteria-item, .bar-label, .pie-cal'
+        '.bar, .bar-note, .missed-line, .makeup, .cal, .radar, .skill-chips, .recs p'
       )];
       return {i, clipped: clips(card.getBoundingClientRect(), kids)};
     }),
   };
+  // Text blocks inside a card must not overlap each other (clipping alone misses this).
+  report.overlaps = [];
+  cards.forEach((card, i) => {
+    const blocks = [...card.querySelectorAll('.pres-top, .cal, .missed-title, .missed-line, .makeup, .bar, .radar, .skill-chips')];
+    for (let a = 0; a < blocks.length; a++) {
+      for (let b = a + 1; b < blocks.length; b++) {
+        const r1 = blocks[a].getBoundingClientRect(), r2 = blocks[b].getBoundingClientRect();
+        const ox = Math.min(r1.right, r2.right) - Math.max(r1.left, r2.left);
+        const oy = Math.min(r1.bottom, r2.bottom) - Math.max(r1.top, r2.top);
+        if (ox > 1 && oy > 1) report.overlaps.push({i, a: blocks[a].className, b: blocks[b].className});
+      }
+    }
+  });
   document.documentElement.setAttribute('data-print-check', JSON.stringify(report));
 });
 </script>
@@ -87,28 +100,55 @@ def _render_busy_report() -> str:
     )
 
 
+def _render_sample_report(photos=None) -> str:
+    """The repo's sample CSVs: attendance calendar + missed-lesson list in Presença."""
+    from compiler import load_csv
+
+    templates = ROOT / "data" / "templates"
+    students = load_csv(templates / "students_template.csv")
+    lessons = load_csv(templates / "lessons_template.csv")
+    env = create_report_environment(ROOT / "templates")
+    return env.get_template("individual_report.html").render(
+        **build_student_ctx(students[0], lessons, report_month="2026-02", photos=photos)
+    )
+
+
+def _render_sample_report_with_photo() -> str:
+    from student_photos import set_photo
+
+    photos = set_photo([], "MASTER", "Jane Doe", "image/png", "iVBORw0KGgo=")
+    html = _render_sample_report(photos)
+    assert 'class="student-photo"' in html
+    return html
+
+
 def _force_print_css(html: str) -> str:
     return (
         html.replace("@media screen {", "@media screen and (min-width: 100000px) {")
-        .replace("@media screen and (max-width: 980px)", "@media not all")
-        .replace("@media screen and (max-width: 720px)", "@media not all")
+        .replace("@media screen and (max-width: 860px)", "@media not all")
         .replace("@media print {", "@media all {")
     )
 
 
-def test_print_css_places_feedback_beside_scores():
+def test_print_css_fits_sheet_to_a4():
     html = _render_busy_report()
     print_css = html.split("@media print", 1)[1]
-    assert '"scores feedback"' in print_css
-    assert '"scale feedback"' in print_css
-    assert "width: 42px" in print_css
-    assert "Com excelência" in html
-    assert "Feedback do professor" in html
+    assert "width: 297mm; height: 210mm" in print_css
+    # Printed page is white (saves ink); only cards keep a hairline border.
+    assert ".sheet { width: 297mm; height: 210mm; overflow: hidden; background: #fff; }" in print_css
+    assert "print-color-adjust: exact" in print_css
+    assert "Recomendações do professor" in html
+    assert html.count('class="bar-note"') == 3
 
 
 @pytest.mark.skipif(_chrome_bin() is None, reason="Chrome is required to measure print overflow")
-def test_print_layout_does_not_clip_participacao(tmp_path: Path):
-    html = _force_print_css(_render_busy_report()).replace("</body>", PRINT_PROBE_JS + "\n</body>")
+@pytest.mark.parametrize(
+    "render",
+    [_render_busy_report, _render_sample_report, _render_sample_report_with_photo],
+    ids=["busy", "sample", "sample-photo"],
+)
+def test_print_layout_does_not_clip_participacao(tmp_path: Path, render):
+    html = _force_print_css(render()).replace("</body>", PRINT_PROBE_JS + "\n</body>")
     report = tmp_path / "report.html"
     report.write_text(html)
     profile = tmp_path / "chrome-profile"
@@ -138,5 +178,6 @@ def test_print_layout_does_not_clip_participacao(tmp_path: Path):
     assert match, "print probe script did not run"
     result = json.loads(htmlmod.unescape(match.group(1)))
     assert result["pageClipped"] == []
+    assert result["overlaps"] == []
     for card in result["cards"]:
         assert card["clipped"] == [], card

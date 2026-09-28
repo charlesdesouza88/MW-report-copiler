@@ -42,7 +42,7 @@
 <div class="card" style="margin-bottom:20px;background:#F9F7FC;border-color:#D8C8EB;">
   <h2 style="font-size:15px;font-weight:900;margin-bottom:10px;">2. Alunos e destino</h2>
   <form method="post" action="{{ url_for('student_transfer_page') }}"
-        onsubmit="return confirm('Confirmar transferência? O histórico dos alunos selecionados será movido junto.');">
+        onsubmit="return mwConfirmTransfer();">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="action" value="transfer">
     <input type="hidden" name="from_turma" value="{{ from_turma }}">
@@ -132,6 +132,19 @@
       document.getElementById('transfer-origin-form').submit();
     });
   }
+  // All students start ticked (whole-class promotion), so spell out who moves.
+  window.mwConfirmTransfer = function () {
+    var names = Array.prototype.filter.call(
+      document.querySelectorAll('.student-check'), function (b) { return b.checked; }
+    ).map(function (b) { return b.value; });
+    if (!names.length) {
+      alert('Selecione ao menos um aluno para transferir.');
+      return false;
+    }
+    var list = names.length <= 8 ? '\n\n' + names.join('\n') : '';
+    return confirm('Transferir ' + names.length + ' aluno(s)?' + list +
+      '\n\nO histórico dos alunos selecionados será movido junto.');
+  };
   var toggle = document.getElementById('toggle-all-students');
   if (toggle) {
     toggle.addEventListener('click', function () {

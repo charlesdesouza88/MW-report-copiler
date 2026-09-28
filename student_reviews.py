@@ -17,19 +17,21 @@ MONTHLY_REVIEW_FIELDS = (
     'recomendacoes', 'observacao',
 )
 
+# Scores start blank ("not assessed") until the teacher picks one; blanks stay
+# out of averages and print as "—".
 DEFAULT_MONTHLY_VALUES = {
-    'participacao': '3',
-    'comportamento': '3',
-    'speaking': '3',
-    'listening': '3',
-    'foco': '3',
-    'writing': '3',
-    'reading': '3',
-    'gramatica': '3',
-    'trabalho_equipe': '3',
-    'organizacao': '3',
-    'pontualidade': '3',
-    'respeito_regras': '3',
+    'participacao': '',
+    'comportamento': '',
+    'speaking': '',
+    'listening': '',
+    'foco': '',
+    'writing': '',
+    'reading': '',
+    'gramatica': '',
+    'trabalho_equipe': '',
+    'organizacao': '',
+    'pontualidade': '',
+    'respeito_regras': '',
     'faltas': '0',
     'missed_aulas': '',
     'aula_extra': '',

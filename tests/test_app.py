@@ -92,6 +92,20 @@ def test_health_returns_ok():
     assert response.get_data(as_text=True) == "ok"
 
 
+def test_responses_carry_security_headers():
+    client = web_app.app.test_client()
+    response = client.get("/login")
+    csp = response.headers["Content-Security-Policy"]
+    assert "default-src 'self'" in csp
+    assert "object-src 'none'" in csp
+    assert "frame-ancestors 'self'" in csp
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "SAMEORIGIN"
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    # HSTS only over HTTPS in production, never on local http.
+    assert "Strict-Transport-Security" not in response.headers
+
+
 def test_database_outage_refuses_data_routes(monkeypatch):
     monkeypatch.setattr(web_app, "DB_UNAVAILABLE", True)
     monkeypatch.setattr(web_app, "DATABASE_URL", "postgresql://example")
@@ -492,7 +506,7 @@ def test_reports_preview_live_renders_class_medias_row(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert "class-media-row" in html
+    assert 'class="sheet-head"' in html
     assert "class-overview" in html
     assert "stale class diagnostic" not in html
 
@@ -521,9 +535,9 @@ def test_reports_preview_live_renders_individual_report(monkeypatch, tmp_path):
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert "Presença" in html
-    assert "bubble-abs" in html
-    assert "pie-cal" in html
-    assert "Período:" in html
+    assert 'class="sheet-head"' in html
+    assert 'class="cal-grid"' in html
+    assert "<b>Período</b>" in html
     assert "stale report without layout" not in html
 
 
@@ -601,8 +615,10 @@ def test_authenticated_shell_uses_official_lockups(monkeypatch, tmp_path):
     html = client.get("/").get_data(as_text=True)
     assert 'class="brand-wordmark"' in html
     assert 'class="brand-mark"' not in html
-    assert "logo-primary-transparent.png" in html
+    # Purple sidebar and header carry the white knockout wordmark.
     assert "logo-primary-white.png" in html
+    assert html.count("logo-primary-white.png") >= 2
+    assert 'class="nav-group">Menu<' in html
     assert "logo-symbol.png" in html
     assert 'id="icon-house"' in html
     assert 'href="#icon-house"' in html
@@ -1682,9 +1698,10 @@ def test_student_new_form_does_not_copy_existing_student(monkeypatch, tmp_path):
     html = client.get("/students/new").get_data(as_text=True)
 
     assert 'name="student_name" value=""' in html
-    assert 'id="val-speaking" value="3"' in html
-    assert 'id="val-listening" value="3"' in html
-    assert 'id="val-gramatica" value="3"' in html
+    # New students start unscored: no pre-picked 3 that would print on the report.
+    assert 'id="val-speaking" value=""' in html
+    assert 'id="val-listening" value=""' in html
+    assert 'id="val-gramatica" value=""' in html
     assert 'name="faltas" value="0"' in html
     assert 'name="missed_aulas" value=""' in html
     assert "Practice speaking" not in html
@@ -3009,3 +3026,90 @@ def test_admin_can_edit_teacher_profile(monkeypatch, tmp_path):
     profile = web_app._load_teacher_profiles()[0]
     assert profile["user_id"] == teacher["id"]
     assert profile["specialty"] == "Kids"
+
+
+def test_student_edit_form_keeps_blank_scores_blank(monkeypatch, tmp_path):
+    """A blank skill renders with no score picked, so saving can't turn it into 3."""
+    import re
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    csv_text = _students_csv().replace(
+        "Jane Doe,4,3,4,5,4,3,4,2,", "Jane Doe,4,3,4,,4,3,4,2,",
+    )
+    assert "Jane Doe,4,3,4,,4" in csv_text
+    (data_dir / "students.csv").write_text(csv_text, encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_teacher_store(monkeypatch, data_dir, teacher_name="Chuck")
+
+    client = web_app.app.test_client()
+    _login(client, email="teacher@test.local", password="teachpass")
+    html = client.get("/students/0/edit").get_data(as_text=True)
+
+    assert 'id="val-listening" value=""' in html
+    assert 'id="val-speaking" value="4"' in html
+    picker = re.search(r'id="picker-listening">(.*?)</div>', html, re.S).group(1)
+    assert 'class="score-btn score-btn-clear active"' in picker
+    assert 'score-btn active' not in picker
+
+
+def test_favicon_route_serves_icon():
+    response = web_app.app.test_client().get("/favicon.ico")
+    assert response.status_code == 200
+    assert response.mimetype == "image/png"
+
+
+def test_error_pages_are_branded_and_keep_status(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_teacher_store(monkeypatch, data_dir, teacher_name="Chuck")
+    client = web_app.app.test_client()
+    _login(client, email="teacher@test.local", password="teachpass")
+
+    forbidden = client.get("/admin/teachers")
+    assert forbidden.status_code == 403
+    assert "Acesso não permitido" in forbidden.get_data(as_text=True)
+    missing = client.get("/students/99/edit")
+    assert missing.status_code == 404
+    assert "Página não encontrada" in missing.get_data(as_text=True)
+
+
+def test_teacher_dashboard_hides_storage_banner(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_teacher_store(monkeypatch, data_dir, teacher_name="Chuck")
+    client = web_app.app.test_client()
+    _login(client, email="teacher@test.local", password="teachpass")
+    html = client.get("/").get_data(as_text=True)
+    assert "Modo CSV" not in html
+    assert "Banco de dados:" not in html
+
+
+def test_login_rate_limit_counts_attempts_not_page_loads(monkeypatch, tmp_path):
+    monkeypatch.setattr(web_app, "DATA_DIR", tmp_path / "data")
+    web_app.DATA_DIR.mkdir()
+    _init_user_store(monkeypatch, web_app.DATA_DIR)
+    client = web_app.app.test_client()
+
+    # A school shares one IP: many teachers opening the login page is fine.
+    for _ in range(15):
+        assert client.get("/login").status_code == 200
+
+    codes = [
+        client.post("/login", data={"email": "admin@test.local", "password": "nope"}).status_code
+        for _ in range(11)
+    ]
+    assert 429 not in codes[:10]
+    assert codes[10] == 429
+    blocked = client.post("/login", data={"email": "admin@test.local", "password": "nope"})
+    assert "Muitas tentativas" in blocked.get_data(as_text=True)

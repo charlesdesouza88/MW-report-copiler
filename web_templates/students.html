@@ -9,6 +9,14 @@
 
 {% block topbar_actions %}{% endblock %}
 
+{% macro student_avatar(s, i, size='') -%}
+  {%- if i in photo_versions -%}
+  <img class="student-avatar {{ size }}" src="{{ url_for('student_photo', idx=i, v=photo_versions[i]) }}" alt="" loading="lazy">
+  {%- else -%}
+  <span class="student-avatar {{ size }}" aria-hidden="true">{{ (s.student_name or '?').split()[:2]|map('first')|join|upper }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
 {% block content %}
 
 {% if student_flash_ok %}
@@ -45,9 +53,12 @@
        data-aula-extra="{{ s.aula_extra or '__none__' }}"
        data-search="{{ (s.student_name ~ ' ' ~ turma_labels.get(s.turma, s.turma) ~ ' ' ~ (s.nivel or '') ~ ' ' ~ (s.aula_extra or ''))|lower }}">
     <div class="student-card-header">
-      <div>
-        <strong style="font-size:15px;">{{ s.student_name }}</strong>
-        <div class="font-sm text-gray" style="margin-top:4px;">{{ s.nivel or '—' }}</div>
+      <div class="student-ident">
+        {{ student_avatar(s, loop.index0) }}
+        <div>
+          <strong style="font-size:15px;">{{ s.student_name }}</strong>
+          <div class="font-sm text-gray" style="margin-top:4px;">{{ s.nivel or '—' }}</div>
+        </div>
       </div>
       <span class="tag">{{ turma_labels.get(s.turma, s.turma) }}</span>
     </div>
@@ -101,7 +112,7 @@
           data-aula-extra="{{ s.aula_extra or '__none__' }}"
           data-search="{{ (s.student_name ~ ' ' ~ turma_labels.get(s.turma, s.turma) ~ ' ' ~ (s.nivel or '') ~ ' ' ~ (s.aula_extra or ''))|lower }}">
         <td class="text-gray font-sm">{{ loop.index }}</td>
-        <td><strong>{{ s.student_name }}</strong></td>
+        <td><span class="student-ident">{{ student_avatar(s, loop.index0, 'student-avatar-sm') }}<strong>{{ s.student_name }}</strong></span></td>
         <td><span class="tag">{{ turma_labels.get(s.turma, s.turma) }}</span></td>
         <td class="text-gray font-sm">{{ s.nivel or '—' }}</td>
         <td><div style="width:26px;height:26px;border-radius:50%;background:#792D83;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;">{{ s.speaking or '—' }}</div></td>
