@@ -3797,6 +3797,7 @@ def _run_report_generation(students, lessons, report_month):
     generate_class_diagnostics(
         students, lessons, env, OUT_DIR,
         report_month=report_month, snapshots=snapshots,
+        photos=_load_student_photos(),
     )
     try:
         upsert_month_snapshots(
@@ -4479,6 +4480,7 @@ def _live_render_class_preview(path):
     env = create_report_environment(TMPL_DIR)
     ctx = build_class_ctx(
         turma, group, lessons, report_month=month, snapshots=snapshots,
+        photos=_load_student_photos(),
     )
     return env.get_template('class_diagnostic.html').render(**ctx)
 

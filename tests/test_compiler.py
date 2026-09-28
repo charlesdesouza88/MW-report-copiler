@@ -288,27 +288,32 @@ def test_individual_report_matches_stakeholder_layout():
     assert "@page { size: A4 landscape; margin: 0; }" in html
 
 
-def test_class_diagnostic_combines_medias_into_one_row():
+def test_class_diagnostic_uses_dashboard_layout():
     from pathlib import Path
 
     base = Path(__file__).resolve().parent.parent
     env = create_report_environment(base / "templates")
-    html = env.get_template("class_diagnostic.html").render(
-        **build_class_ctx("MASTER", [_student()], _lessons(), report_month="2026-08")
-    )
+    students = [
+        _student(student_name="Jane Doe", aula_extra="Reforço"),
+        _student(student_name="Bob Roe", listening="", aula_extra=""),
+    ]
+    ctx = build_class_ctx("MASTER", students, _lessons(), report_month="2026-08")
+    html = env.get_template("class_diagnostic.html").render(**ctx)
 
     assert html.count('class="class-overview"') == 1
-    assert html.count('class="class-media-row"') == 1
-    assert html.count('class="class-media-cell"') == 4
-    assert 'class="class-ring-cell"' not in html
-    assert "Gráfico de colunas" not in html
+    assert html.count('class="sheet-head"') == 3 + 1  # overview, skills, indices + 1 reforço page
+    assert html.count('class="card skill-card"') == 2
+    assert html.count('class="page student-page"') == 1
+    assert "Plano de reforço" in html
     assert 'href="#ri-calendar-check"' in html
     assert 'href="#ri-book-open"' in html
     assert 'href="#ri-users"' in html
-    assert "Médias da turma — índices do período" in html
-    assert 'class="logo-wordmark"' in html
+    assert 'class="logo-white"' in html
     assert "data:image/png;base64," in html
-    assert "logo-mark" not in html
+    # Class means use each student's scored values; Bob's blank Audição stays blank.
+    assert ctx["class_avgs"]["dev"] is not None
+    assert '<b>—</b><span class="skill-label">Audição</span>' in html
+    assert "@page { size: A4 landscape; margin: 0; }" in html
 
 
 def test_individual_report_embeds_attendance_calendar_in_presenca():

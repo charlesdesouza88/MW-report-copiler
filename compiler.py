@@ -979,7 +979,7 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
     return ctx
 
 
-def build_class_ctx(turma, students, all_lessons, report_month=None, snapshots=None):
+def build_class_ctx(turma, students, all_lessons, report_month=None, snapshots=None, photos=None):
     from report_periods import compute_month_trend, month_label, student_composite_score
 
     turma_lessons = lessons_for(turma, all_lessons, report_month=report_month)
@@ -998,8 +998,15 @@ def build_class_ctx(turma, students, all_lessons, report_month=None, snapshots=N
             )
         ctx = build_student_ctx(
             s, all_lessons, report_month=report_month, trend=trend, snapshots=snapshots,
+            photos=photos,
         )
         student_data.append(ctx)
+
+    def _class_mean(key):
+        vals = [sd[key] for sd in student_data if sd.get(key) is not None]
+        return math.floor(sum(vals) / len(vals) * 10 + 0.5) / 10 if vals else None
+
+    freq_vals = [sd['pct'] for sd in student_data if sd.get('pct') is not None]
 
     return dict(
         turma=turma,
@@ -1012,6 +1019,14 @@ def build_class_ctx(turma, students, all_lessons, report_month=None, snapshots=N
         lessons=turma_lessons,
         students=student_data,
         class_summary=class_summary_charts(student_data),
+        # One-decimal class means of each student's scored values (blank students skipped).
+        class_avgs=dict(
+            freq=round(sum(freq_vals) / len(freq_vals)) if freq_vals else None,
+            dev=_class_mean('dev_avg'),
+            part=_class_mean('part_avg'),
+            comp=_class_mean('comp_avg'),
+        ),
+        logo_white=white_logo_data_url(),
         grid=pentagon_grid(),
         axes=axis_endpoints(),
     )
@@ -1065,11 +1080,13 @@ def generate_individual_reports(students, lessons, env, out_dir, report_month=No
         print(f"  ✓ {fname}")
 
 
-def generate_class_diagnostics(students, lessons, env, out_dir, report_month=None, snapshots=None):
+def generate_class_diagnostics(students, lessons, env, out_dir, report_month=None, snapshots=None,
+                               photos=None):
     tpl = env.get_template("class_diagnostic.html")
     snapshots = snapshots or {}
     for turma, group in group_by_turma(students).items():
-        ctx = build_class_ctx(turma, group, lessons, report_month=report_month, snapshots=snapshots)
+        ctx = build_class_ctx(turma, group, lessons, report_month=report_month, snapshots=snapshots,
+                              photos=photos)
         html = tpl.render(**ctx)
         fname = class_diagnostic_filename(turma, report_month)
         safe_child_path(out_dir, fname).write_text(html, encoding="utf-8")

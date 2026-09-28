@@ -506,7 +506,7 @@ def test_reports_preview_live_renders_class_medias_row(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert "class-media-row" in html
+    assert 'class="sheet-head"' in html
     assert "class-overview" in html
     assert "stale class diagnostic" not in html
 
