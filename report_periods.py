@@ -212,6 +212,9 @@ def default_semester(lessons, now=None):
 def student_composite_score(ctx):
     from compiler import round_half_up
 
+    # Attendance alone is not a grade: with no teacher scores the average stays blank (—).
+    if all(ctx.get(key) is None for key in ('dev_overall', 'part_overall', 'comp_overall')):
+        return None
     vals = [
         ctx[key]
         for key in ('dev_overall', 'part_overall', 'comp_overall', 'pres_score')

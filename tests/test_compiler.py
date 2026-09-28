@@ -544,6 +544,35 @@ def test_composite_score_rounds_half_up():
     assert student_composite_score(ctx) == 3  # 2.5 rounds up, not to even
 
 
+def test_composite_score_blank_when_teacher_gave_no_grades():
+    from report_periods import student_composite_score
+
+    # Attendance alone must not turn into a "Média geral".
+    ctx = {'dev_overall': None, 'part_overall': None, 'comp_overall': None, 'pres_score': 5}
+    assert student_composite_score(ctx) is None
+
+
+def test_ungraded_student_report_shows_dashes():
+    import re
+
+    blank = {k: '' for k in ('participacao', 'comportamento', 'speaking', 'listening', 'foco',
+                             'writing', 'reading', 'gramatica')}
+    ctx = build_student_ctx(
+        _student(faltas='0', missed_aulas='', aula_extra='', **blank), _lessons(),
+    )
+    assert ctx['composite_score'] is None
+    from pathlib import Path
+
+    env = create_report_environment(Path(__file__).resolve().parent.parent / 'templates')
+    html = env.get_template('individual_report.html').render(**ctx)
+    assert 'Média geral <b>—</b>' in html
+    for field in ('Desenvolvimento', 'Participação', 'Comportamento'):
+        assert re.search(rf'stat-value">—</div><div class="stat-label">{field}', html)
+    assert html.count('<b>—</b><span class="skill-label">') == 5
+    assert html.count('<span class="bar-val">—</span>') == 6
+    assert '/5</span>' not in html
+
+
 def test_presence_pct_clamped_to_0_100():
     assert presence_pct(5, 3) == 0  # more faltas than lessons can't go negative
     assert presence_pct(-1, 4) == 100  # negative faltas can't exceed 100

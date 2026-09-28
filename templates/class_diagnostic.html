@@ -248,7 +248,7 @@ td.c, th.c { text-align: center; }
       <div class="card skill-card">
         <div class="skill-card-head">
           {{ avatar(sd, 'avatar-md') }}
-          <div><div class="n">{{ sd.student.student_name }}</div><div class="s">Desenvolvimento {{ avg_text(sd.dev_avg) }} de 5</div></div>
+          <div><div class="n">{{ sd.student.student_name }}</div><div class="s">Desenvolvimento {{ avg_text(sd.dev_avg) }}{% if sd.dev_avg is not none %} de 5{% endif %}</div></div>
         </div>
         <div class="skill-card-body">
           <div class="mini-radar">
