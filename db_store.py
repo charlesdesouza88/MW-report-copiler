@@ -118,6 +118,22 @@ class StudentPhotoRow(Base):
     data_json: Mapped[str] = mapped_column(Text, nullable=False)
 
 
+class StudentSnapshotRow(Base):
+    __tablename__ = "student_snapshot_rows"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    row_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    data_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class StudentTransferRow(Base):
+    __tablename__ = "student_transfer_rows"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    row_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    data_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class LoginEventRow(Base):
     __tablename__ = "login_event_rows"
 
@@ -155,6 +171,8 @@ class DatabaseStore:
         ChatMessageRow: "chat_messages",
         TeacherProfileRow: "teacher_profiles",
         StudentPhotoRow: "student_photos",
+        StudentSnapshotRow: "student_snapshots",
+        StudentTransferRow: "student_transfers",
         LoginEventRow: "login_events",
     }
 
@@ -287,6 +305,18 @@ class DatabaseStore:
 
     def save_student_photos(self, rows, expected_version=None):
         return self._replace_rows(StudentPhotoRow, rows, expected_version=expected_version)
+
+    def load_student_snapshots_versioned(self):
+        return self._load_rows(StudentSnapshotRow)
+
+    def save_student_snapshots(self, rows, expected_version=None):
+        return self._replace_rows(StudentSnapshotRow, rows, expected_version=expected_version)
+
+    def load_student_transfers_versioned(self):
+        return self._load_rows(StudentTransferRow)
+
+    def save_student_transfers(self, rows, expected_version=None):
+        return self._replace_rows(StudentTransferRow, rows, expected_version=expected_version)
 
     def load_login_events(self):
         rows, _version = self.load_login_events_versioned()

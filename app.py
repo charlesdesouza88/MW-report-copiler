@@ -103,9 +103,9 @@ from report_periods import (available_report_months, available_semesters,
                             filter_report_files_by_month,
                             individual_report_filename, load_snapshots,
                             month_in_semester, month_label, parse_lesson_month,
-                            report_month_from_filename, save_snapshots,
+                            report_month_from_filename, save_snapshots, snapshots_from_rows,
                             semester_for_date, semester_for_month, semester_label,
-                            student_composite_score, upsert_month_snapshots)
+                            student_composite_score, upsert_month_snapshot_store)
 from student_transfer import (load_transfer_log, save_transfer_log,
                               students_with_transfer_aliases,
                               transfer_students, transfers_for_student)
@@ -1451,7 +1451,7 @@ def _student_form_context(all_rows, user, is_new, student, idx, form_error=None)
 
     transfer_history = []
     if not is_new and student and (student.get('student_name') or '').strip():
-        entries = load_transfer_log(_student_transfers_path())
+        entries = _load_transfer_log()
         transfer_history = transfers_for_student(
             entries, student.get('student_name'), student.get('turma'),
         )
@@ -1708,6 +1708,78 @@ def _monthly_reviews_path():
 def _student_transfers_path():
     """Resolve the student transfer log from DATA_DIR (supports test monkeypatching)."""
     return DATA_DIR / 'student_transfers.json'
+
+
+def _db_rows_with_file_import(store_name, load_versioned, save, read_file):
+    """Rows from the database; on a store that was never written, import the
+    legacy JSON file once so data from before the move to Postgres is kept."""
+    rows, version = load_versioned()
+    if not version and not rows:
+        legacy = read_file()
+        if legacy:
+            try:
+                version = save(legacy, expected_version=0)
+                rows = legacy
+                logger.info('Imported %d %s rows from disk into the database', len(legacy), store_name)
+            except StaleDataError:
+                rows, version = load_versioned()
+    _bind_store_version(store_name, version)
+    return list(rows or [])
+
+
+def _load_snapshot_store():
+    """Month-to-month composite snapshots (report trends), keyed by turma|student_id|month."""
+    if db_store:
+        rows = _db_rows_with_file_import(
+            'student_snapshots',
+            db_store.load_student_snapshots_versioned,
+            db_store.save_student_snapshots,
+            lambda: list(load_snapshots(SNAPSHOTS_PATH).values()),
+        )
+        return snapshots_from_rows(rows)
+    return load_snapshots(SNAPSHOTS_PATH)
+
+
+def _save_snapshot_store(store):
+    rows = list(store.values())
+    if db_store:
+        try:
+            version = db_store.save_student_snapshots(
+                rows, expected_version=_expected_store_version('student_snapshots'),
+            )
+        except StaleDataError:
+            _note_save_conflict()
+            return False
+        _bind_store_version('student_snapshots', version)
+        return True
+    save_snapshots(SNAPSHOTS_PATH, rows)
+    return True
+
+
+def _load_transfer_log():
+    if db_store:
+        return _db_rows_with_file_import(
+            'student_transfers',
+            db_store.load_student_transfers_versioned,
+            db_store.save_student_transfers,
+            lambda: load_transfer_log(_student_transfers_path()),
+        )
+    return load_transfer_log(_student_transfers_path())
+
+
+def _save_transfer_log(entries):
+    if db_store:
+        try:
+            version = db_store.save_student_transfers(
+                entries, expected_version=_expected_store_version('student_transfers'),
+            )
+        except StaleDataError:
+            _note_save_conflict()
+            return False
+        _bind_store_version('student_transfers', version)
+        return True
+    save_transfer_log(_student_transfers_path(), entries)
+    return True
 
 
 def _load_monthly_review_store():
@@ -3199,7 +3271,7 @@ def student_delete(idx):
                 # Snapshots live in a separate store — purge them too so a
                 # recreated student with the same name doesn't inherit trends.
                 from report_periods import student_snapshot_id as _sid
-                snaps = load_snapshots(SNAPSHOTS_PATH)
+                snaps = _load_snapshot_store()
                 old_prefix = (
                     f'{(removed.get("turma") or "").strip()}|'
                     f'{_sid(removed.get("turma"), removed.get("student_name"))}|'
@@ -3209,7 +3281,7 @@ def student_delete(idx):
                     if not key.startswith(old_prefix)
                 }
                 if len(cleaned) != len(snaps):
-                    save_snapshots(SNAPSHOTS_PATH, list(cleaned.values()))
+                    _save_snapshot_store(cleaned)
                 extras = remove_sessions_for_student(_load_extra_sessions(), removed)
                 _save_extra_sessions(extras)
                 photos, photo_removed = remove_student_photo(
@@ -3816,7 +3888,7 @@ def _run_report_generation(students, lessons, report_month):
     except OSError as exc:
         raise RuntimeError(f'Cannot write reports to {OUT_DIR}: {exc}') from exc
 
-    snapshots = load_snapshots(SNAPSHOTS_PATH)
+    snapshots = _load_snapshot_store()
     attendance_rows = _load_lesson_attendance()
     env = create_report_environment(TMPL_DIR)
     generate_individual_reports(
@@ -3831,9 +3903,11 @@ def _run_report_generation(students, lessons, report_month):
         photos=_load_student_photos(),
     )
     try:
-        upsert_month_snapshots(
-            SNAPSHOTS_PATH, report_month, students, lessons, build_student_ctx,
+        store = upsert_month_snapshot_store(
+            _load_snapshot_store(), report_month, students, lessons, build_student_ctx,
         )
+        if not _save_snapshot_store(store):
+            logger.warning('Monthly snapshots changed during generation; trends kept from the other save')
     except OSError as exc:
         logger.warning('Could not save monthly snapshots to %s: %s', SNAPSHOTS_PATH, exc)
 
@@ -3856,7 +3930,7 @@ def _students_with_report_aliases(students):
     correctly attributed after a student is promoted to another turma.
     """
     return students_with_transfer_aliases(
-        students, load_transfer_log(_student_transfers_path()),
+        students, _load_transfer_log(),
     )
 
 
@@ -4279,7 +4353,7 @@ def _student_transfer_options(students, registry):
 def student_transfer_page():
     students = _load_students()
     registry = _load_teacher_class_registry()
-    log_entries = load_transfer_log(_student_transfers_path())
+    log_entries = _load_transfer_log()
     messages = []
     errors = []
 
@@ -4308,7 +4382,7 @@ def student_transfer_page():
             )
 
         monthly_store = _load_monthly_review_store()
-        snapshot_store = load_snapshots(SNAPSHOTS_PATH)
+        snapshot_store = _load_snapshot_store()
         extra_rows = _load_extra_sessions()
         summary, err = transfer_students(
             students, selected, from_turma, dest_info,
@@ -4320,7 +4394,7 @@ def student_transfer_page():
             errors.append(SAVE_CONFLICT_MESSAGE)
         else:
             history_ok = _save_monthly_review_store(monthly_store)
-            save_snapshots(SNAPSHOTS_PATH, list(snapshot_store.values()))
+            snapshots_ok = _save_snapshot_store(snapshot_store)
             photos = _load_student_photos()
             photos_moved = False
             for name in summary['students']:
@@ -4331,8 +4405,8 @@ def student_transfer_page():
             if photos_moved and not _save_student_photos(photos):
                 history_ok = False
             extras_ok = _save_extra_sessions(extra_rows)
-            save_transfer_log(_student_transfers_path(), log_entries)
-            if not history_ok or not extras_ok:
+            log_ok = _save_transfer_log(log_entries)
+            if not (history_ok and extras_ok and snapshots_ok and log_ok):
                 errors.append(
                     'Os alunos foram movidos, mas parte do histórico não pôde ser '
                     'salva. Recarregue a página e confira os alunos transferidos.'
@@ -4388,7 +4462,7 @@ def reports():
         individual = [f for f in files if 'class_diagnostic' not in f.name]
         diagnostics = [f for f in files if 'class_diagnostic' in f.name]
 
-        snapshots = load_snapshots(SNAPSHOTS_PATH)
+        snapshots = _load_snapshot_store()
         user = _current_user()
         report_rows = _build_report_rows(
             individual, diagnostics,
@@ -4457,7 +4531,7 @@ def _live_render_individual_preview(path):
             break
     if not student:
         return None
-    snapshots = load_snapshots(SNAPSHOTS_PATH)
+    snapshots = _load_snapshot_store()
     attendance_rows = _load_lesson_attendance()
     trend = None
     if month:
@@ -4507,7 +4581,7 @@ def _live_render_class_preview(path):
         ]
     if not group:
         return None
-    snapshots = load_snapshots(SNAPSHOTS_PATH)
+    snapshots = _load_snapshot_store()
     env = create_report_environment(TMPL_DIR)
     ctx = build_class_ctx(
         turma, group, lessons, report_month=month, snapshots=snapshots,

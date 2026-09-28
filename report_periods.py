@@ -304,6 +304,11 @@ def load_snapshots(path):
         raw = json.loads(path.read_text(encoding='utf-8'))
     except (json.JSONDecodeError, OSError):
         return {}
+    return snapshots_from_rows(raw)
+
+
+def snapshots_from_rows(raw):
+    """Keyed snapshot store from a list of rows (JSON file or database)."""
     if not isinstance(raw, list):
         return {}
     out = {}
@@ -336,6 +341,12 @@ def save_snapshots(path, snapshot_rows):
 def upsert_month_snapshots(path, report_month, students, lessons, build_ctx):
     """Persist composite scores for each student for this reporting month."""
     store = load_snapshots(path)
+    upsert_month_snapshot_store(store, report_month, students, lessons, build_ctx)
+    save_snapshots(path, list(store.values()))
+
+
+def upsert_month_snapshot_store(store, report_month, students, lessons, build_ctx):
+    """Add or replace this month's composite scores in an in-memory snapshot store."""
     for student in students:
         turma = student.get('turma', '').strip()
         name = student.get('student_name', '').strip()
@@ -354,7 +365,7 @@ def upsert_month_snapshots(path, report_month, students, lessons, build_ctx):
             'comp_overall': ctx['comp_overall'],
             'pres_score': ctx['pres_score'],
         }
-    save_snapshots(path, list(store.values()))
+    return store
 
 
 def individual_report_filename(turma, student_name, report_month=None):

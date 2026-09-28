@@ -230,7 +230,7 @@ Attendance % is calculated as `(total_lessons - faltas) / total_lessons × 100`.
 | < 65% | 1 |
 | no lessons | unscored |
 
-A blank skill stays blank. It prints — and is left out of that section's average, the composite, and the radar. Teamwork, organization, punctuality, and respect still fall back to `comportamento` when their own cell is empty and `comportamento` is filled. If both are blank, that criterion stays unscored.
+New students and months with no saved review start with every score blank ("not assessed"); the teacher picks 1–5, and the — button clears a score again. A blank skill stays blank. It prints — and is left out of that section's average, the composite, and the radar. Teamwork, organization, punctuality, and respect still fall back to `comportamento` when their own cell is empty and `comportamento` is filled. If both are blank, that criterion stays unscored.
 
 ### Participação
 
@@ -330,6 +330,12 @@ Copy `.env.example` for local development.
 3. Redeploy. Tables are created automatically on startup.
 
 With `DATABASE_URL` set, uploads and student edits persist in the database.
+
+Month-to-month trends (report snapshots) and the student transfer history are stored
+in the database too, so they survive redeploys. If `student_snapshots.json` or
+`student_transfers.json` exist in `DATA_DIR` from before, they are imported once on
+first use. Generated report files still live in `OUT_DIR`; without a volume they are
+cleared on redeploy and one click on **Gerar relatórios** rebuilds them from the database.
 
 ### 4. Persistent files (optional)
 
