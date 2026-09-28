@@ -1,5 +1,7 @@
 output/*.html
+output/preview/
 data/users.json
+data/login_events.json
 data/student_snapshots.json
 data/student_monthly_reviews.json
 data/students.csv

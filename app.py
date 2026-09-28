@@ -360,6 +360,21 @@ app.config.update(
 if PRODUCTION_ENV:
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
+# A week of caching for CSS, fonts, and images. The ?v= mtime on static URLs
+# busts this when a file changes. Do not set SEND_FILE_MAX_AGE_DEFAULT: Flask
+# applies that to every send_file, and Werkzeug then marks the response
+# Cache-Control: public. Student CSVs and report downloads would be cacheable.
+STATIC_CACHE_MAX_AGE = 60 * 60 * 24 * 7
+
+
+def _send_file_max_age(filename):
+    if request.endpoint == 'static':
+        return STATIC_CACHE_MAX_AGE
+    return None
+
+
+app.get_send_file_max_age = _send_file_max_age
+
 csrf = CSRFProtect(app)
 
 # Pages use inline <script>/<style> and on* handlers, so 'unsafe-inline' stays;
@@ -2415,9 +2430,32 @@ def _delete_csv_dataset(name, user):
 
 # ── Auth ─────────────────────────────────────────────────────────────────────────────
 
+def _static_asset_version(filename):
+    """Return the file mtime so static URLs change when the asset changes."""
+    if not filename or not app.static_folder:
+        return None
+    root = Path(app.static_folder).resolve()
+    path = (root / filename).resolve()
+    if not path.is_relative_to(root) or not path.is_file():
+        return None
+    return str(int(path.stat().st_mtime))
+
+
+@app.url_defaults
+def _cache_bust_static(endpoint, values):
+    if endpoint != 'static':
+        return
+    version = _static_asset_version(values.get('filename', ''))
+    if version:
+        values['v'] = version
+
+
 @app.before_request
 def _ensure_services_before_request():
-    if request.endpoint == 'health':
+    # brand.css, fonts, and images must not wait on Postgres. The browser
+    # requests them in parallel with the page, and a failure leaves the HTML
+    # unstyled even when the page itself loaded.
+    if request.endpoint in ('health', 'static'):
         return
     _init_application_services()
     if request.endpoint == 'health_db':

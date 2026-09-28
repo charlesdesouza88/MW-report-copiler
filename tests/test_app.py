@@ -85,6 +85,52 @@ def _init_teacher_store(monkeypatch, data_dir, teacher_name="Chuck"):
     monkeypatch.setattr(web_app, "TEACHER_CLASSES_PATH", classes_path)
 
 
+def test_static_css_does_not_wait_on_database(monkeypatch):
+    called = []
+    monkeypatch.setattr(web_app, "_init_application_services", lambda: called.append(1))
+
+    client = web_app.app.test_client()
+    css = client.get("/static/css/brand.css")
+    icon = client.get("/static/img/favicon.png")
+
+    assert css.status_code == 200
+    assert "text/css" in css.content_type
+    assert "max-age=604800" in css.headers.get("Cache-Control", "")
+    assert icon.status_code == 200
+    assert called == []
+
+
+def test_csv_downloads_are_not_publicly_cached(monkeypatch, tmp_path):
+    monkeypatch.setattr(web_app, "DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.DATA_DIR.mkdir()
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, web_app.DATA_DIR)
+
+    client = web_app.app.test_client()
+    _login(client)
+    response = client.get("/upload/template/students")
+
+    assert response.status_code == 200
+    cache = response.headers.get("Cache-Control", "")
+    assert "no-cache" in cache
+    assert "max-age" not in cache
+    assert "public" not in cache
+
+
+def test_page_requests_still_initialize_services(monkeypatch):
+    called = []
+    monkeypatch.setattr(web_app, "_init_application_services", lambda: called.append(1))
+
+    client = web_app.app.test_client()
+    response = client.get("/login")
+
+    assert response.status_code == 200
+    assert called == [1]
+    html = response.get_data(as_text=True)
+    assert "css/brand.css?v=" in html
+
+
 def test_health_returns_ok():
     client = web_app.app.test_client()
     response = client.get("/health")
