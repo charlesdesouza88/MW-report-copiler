@@ -404,6 +404,30 @@ limiter = Limiter(
 )
 
 
+@app.errorhandler(403)
+def handle_forbidden(e):
+    return render_template(
+        'error.html', code=403, title='Acesso não permitido',
+        message='Esta página é restrita. Se você precisa deste acesso, fale com a coordenação.',
+    ), 403
+
+
+@app.errorhandler(429)
+def handle_too_many_requests(e):
+    return render_template(
+        'error.html', code=429, title='Muitas tentativas',
+        message='Foram muitas tentativas de login em pouco tempo. Aguarde um minuto e tente novamente.',
+    ), 429
+
+
+@app.errorhandler(404)
+def handle_not_found(e):
+    return render_template(
+        'error.html', code=404, title='Página não encontrada',
+        message='O endereço não existe ou o item não está disponível para a sua conta.',
+    ), 404
+
+
 @app.errorhandler(CSRFError)
 def handle_csrf_error(e):
     logger.warning('CSRF validation failed: %s', e.description)
@@ -2330,6 +2354,12 @@ def _ensure_services_before_request():
         return Response('Database unavailable.', status=503, mimetype='text/plain')
 
 
+@app.route('/favicon.ico')
+def favicon():
+    """Browsers ask for /favicon.ico on pages without an icon link (e.g. report previews)."""
+    return send_file(Path(app.static_folder) / 'img' / 'favicon.png', mimetype='image/png', max_age=86400)
+
+
 @app.route('/health')
 def health():
     """Railway healthcheck — no auth, always 200 when the app is up."""
@@ -2371,7 +2401,8 @@ def health_auth():
 
 
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit('10 per minute')
+# Only sign-in attempts count: a school shares one IP, so page loads must not lock teachers out.
+@limiter.limit('10 per minute', methods=['POST'])
 def login():
     error = None
     user_count = len(user_store.list_users())

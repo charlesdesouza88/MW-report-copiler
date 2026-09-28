@@ -28,6 +28,8 @@
 <div class="alert alert-warning" style="margin-bottom:16px;">⚠ {{ generate_warning }}</div>
 {% endif %}
 
+{# Storage status is operational detail for admins; teachers only see their own data. #}
+{% if can_manage_teachers %}
 {% if db_status.configured %}
 <div class="alert {% if db_status.connected %}alert-success{% else %}alert-warning{% endif %}" style="margin-bottom:16px;">
   {% if db_status.connected %}
@@ -43,6 +45,7 @@
 <div class="alert alert-info" style="margin-bottom:16px;">
   ℹ Modo CSV — para persistência em produção, defina <code>DATABASE_URL</code> no Railway.
 </div>
+{% endif %}
 {% endif %}
 
 <div class="stat-grid">

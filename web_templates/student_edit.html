@@ -255,12 +255,16 @@
       <div class="score-row">
         <span class="score-label">{{ label }}</span>
         <div class="score-picker" id="picker-{{ field }}">
+          {% set current = (student.get(field) or '')|string|trim %}
           {% for v in range(1,6) %}
-          <button type="button" class="score-btn {% if (student.get(field) or '3')|int == v %}active{% endif %}"
+          <button type="button" class="score-btn {% if current == v|string %}active{% endif %}"
                   data-val="{{ v }}">{{ v }}</button>
           {% endfor %}
+          {# Blank = not assessed: stays out of averages and prints as "—". #}
+          <button type="button" class="score-btn score-btn-clear {% if not current %}active{% endif %}"
+                  data-val="" title="Sem nota (não avaliado)" aria-label="Sem nota">—</button>
         </div>
-        <input type="hidden" name="{{ field }}" id="val-{{ field }}" value="{{ student.get(field) or '3' }}">
+        <input type="hidden" name="{{ field }}" id="val-{{ field }}" value="{{ current }}">
       </div>
       {% endfor %}
     </div>
@@ -279,12 +283,16 @@
       <div class="score-row">
         <span class="score-label">{{ label }}</span>
         <div class="score-picker" id="picker-{{ field }}">
+          {% set current = (student.get(field) or '')|string|trim %}
           {% for v in range(1,6) %}
-          <button type="button" class="score-btn {% if (student.get(field) or '3')|int == v %}active{% endif %}"
+          <button type="button" class="score-btn {% if current == v|string %}active{% endif %}"
                   data-val="{{ v }}">{{ v }}</button>
           {% endfor %}
+          {# Blank = not assessed: stays out of averages and prints as "—". #}
+          <button type="button" class="score-btn score-btn-clear {% if not current %}active{% endif %}"
+                  data-val="" title="Sem nota (não avaliado)" aria-label="Sem nota">—</button>
         </div>
-        <input type="hidden" name="{{ field }}" id="val-{{ field }}" value="{{ student.get(field) or '3' }}">
+        <input type="hidden" name="{{ field }}" id="val-{{ field }}" value="{{ current }}">
       </div>
       {% endfor %}
     </div>
@@ -318,12 +326,16 @@
       <div class="score-row">
         <span class="score-label">{{ label }}</span>
         <div class="score-picker" id="picker-{{ field }}">
+          {% set current = (student.get(field) or '')|string|trim %}
           {% for v in range(1,6) %}
-          <button type="button" class="score-btn {% if (student.get(field) or '3')|int == v %}active{% endif %}"
+          <button type="button" class="score-btn {% if current == v|string %}active{% endif %}"
                   data-val="{{ v }}">{{ v }}</button>
           {% endfor %}
+          {# Blank = not assessed: stays out of averages and prints as "—". #}
+          <button type="button" class="score-btn score-btn-clear {% if not current %}active{% endif %}"
+                  data-val="" title="Sem nota (não avaliado)" aria-label="Sem nota">—</button>
         </div>
-        <input type="hidden" name="{{ field }}" id="val-{{ field }}" value="{{ student.get(field) or '3' }}">
+        <input type="hidden" name="{{ field }}" id="val-{{ field }}" value="{{ current }}">
       </div>
       {% endfor %}
     </div>
