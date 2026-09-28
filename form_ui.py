@@ -65,6 +65,9 @@ def _capitalize_word(word):
     return word[0].upper() + word[1:].casefold()
 
 
+MIN_YEAR, MAX_YEAR = 2000, 2099
+
+
 def parse_storage_date(value):
     """
     Normalize a date to DD/MM/YYYY (Brazilian day-first).
@@ -76,14 +79,12 @@ def parse_storage_date(value):
 
     iso_match = _ISO_DATE.match(raw)
     if iso_match:
-        year, month, day = iso_match.group(1), iso_match.group(2), iso_match.group(3)
-        return f'{int(day):02d}/{int(month):02d}/{year}'
-
-    match = _STORAGE_DATE.match(raw)
-    if not match:
-        return ''
-
-    day_s, month_s, year_s = match.group(1), match.group(2), match.group(3) or ''
+        year_s, month_s, day_s = iso_match.group(1), iso_match.group(2), iso_match.group(3)
+    else:
+        match = _STORAGE_DATE.match(raw)
+        if not match:
+            return ''
+        day_s, month_s, year_s = match.group(1), match.group(2), match.group(3) or ''
     try:
         day, month = int(day_s), int(month_s)
     except ValueError:
@@ -97,6 +98,9 @@ def parse_storage_date(value):
             year = 2000 + year if year < 100 else year
     else:
         year = datetime.now().year
+    # A typo such as 1966 would open a bogus semester and clone every class into it.
+    if not MIN_YEAR <= year <= MAX_YEAR:
+        return ''
 
     return f'{day:02d}/{month:02d}/{year:04d}'
 
