@@ -314,6 +314,7 @@ def test_class_diagnostic_uses_dashboard_layout():
     assert ctx["class_avgs"]["dev"] is not None
     assert '<b>—</b><span class="skill-label">Audição</span>' in html
     assert "@page { size: A4 landscape; margin: 0; }" in html
+    assert ".page { width: 297mm; min-height: 210mm; background: #fff; }" in html.split("@media print", 1)[1]
 
 
 def test_individual_report_embeds_attendance_calendar_in_presenca():

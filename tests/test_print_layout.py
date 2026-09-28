@@ -134,6 +134,8 @@ def test_print_css_fits_sheet_to_a4():
     html = _render_busy_report()
     print_css = html.split("@media print", 1)[1]
     assert "width: 297mm; height: 210mm" in print_css
+    # Printed page is white (saves ink); only cards keep a hairline border.
+    assert ".sheet { width: 297mm; height: 210mm; overflow: hidden; background: #fff; }" in print_css
     assert "print-color-adjust: exact" in print_css
     assert "Recomendações do professor" in html
     assert html.count('class="bar-note"') == 3
