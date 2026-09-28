@@ -251,6 +251,7 @@ def test_group_by_turma_groups_students():
 
 
 def test_individual_report_matches_stakeholder_layout():
+    """Dashboard-style sheet: purple header band, 4 stat tiles, 3-column grid."""
     from pathlib import Path
 
     from compiler import build_student_ctx
@@ -258,54 +259,33 @@ def test_individual_report_matches_stakeholder_layout():
     base = Path(__file__).resolve().parent.parent
     env = create_report_environment(base / "templates")
     html = env.get_template("individual_report.html").render(
-        **build_student_ctx(_student(), _lessons())
+        **build_student_ctx(_student(
+            feedback_participacao="Fala bastante.",
+            feedback_foco="Atenta.",
+            feedback_trabalho_equipe="Ajuda os colegas.",
+        ), _lessons())
     )
 
-    assert html.count('class="bubble bubble-abs') == 4
-    assert "score-1" in html or "score-2" in html or "score-3" in html or "score-4" in html or "score-5" in html
-    assert html.count('class="card-title"') == 4
-    assert "Presença" in html
-    assert "Participação" in html
-    assert "Desenvolvimento" in html
-    assert "Comportamento" in html
-    assert "Recomendações:" in html
-    assert "Frequência" in html
-    assert "Nível de presença do aluno" in html
-    assert "aulas totais" in html
-    assert "Critérios:" in html
-    assert ">Fala<" in html
-    assert ">Audição<" in html
-    assert ">Leitura<" in html
-    assert ">Escrita<" in html
-    assert "card-header" not in html
-    assert "overall-score-label" not in html
-    assert "dimension-rings" not in html
-    assert "Gráfico de colunas" not in html
-    assert "Comparativo Mensal" not in html
-    assert 'class="pie-cal"' not in html
-    assert "grid-template-columns: 1fr 1fr" in html
-    assert "grid-template-columns: auto minmax(0, 1fr) auto" in html
-    assert "aspect-ratio: 297 / 210" not in html
-    assert "overflow: visible" in html
-    assert "padding-top: 18px" not in html
-    assert 'class="logo-wordmark"' in html
-    assert "data:image/png;base64," in html
-    assert "W✦Z" not in html
-    assert "logo-mister" not in html
+    assert html.count('class="sheet-head"') == 1
+    assert "Relatório de desempenho" in html
+    assert html.count('class="stat"') == 4
+    for label in ("Frequência", "Desenvolvimento", "Participação", "Comportamento"):
+        assert f'<div class="stat-label">{label}</div>' in html
+    assert 'class="card pres"' in html
+    assert 'class="card dev"' in html
+    assert 'class="card part"' in html
+    assert 'class="card comp"' in html
+    assert "Recomendações do professor" in html
+    assert "Sem observações." in html
+    # Teacher feedback stays on the report, under each Participação bar.
+    assert html.count('class="bar-note"') == 3
     assert "Adults Book 4" in html
     assert "Tue/Thu 19:00" in html
-    assert "Período:" not in html
-    assert 'class="part-scores-row"' in html
-    assert '"scale feedback"' in html
-    assert ".part-scores-row .bubble" in html
-    assert "Feedback do professor" in html
-    assert "--type-scale: 1.2" in html
-    assert "pie-legend-item" in html
-    assert "flex-direction: column" in html
-    print_css = html.split("@media print", 1)[1]
-    assert '"scores feedback"' in print_css
-    assert '"scale feedback"' in print_css
-    assert ".part-scores-row .bubble" in print_css
+    assert 'class="logo-white"' in html
+    assert "data:image/png;base64," in html
+    assert "Comparativo Mensal" not in html
+    assert "dimension-rings" not in html
+    assert "@page { size: A4 landscape; margin: 0; }" in html
 
 
 def test_class_diagnostic_combines_medias_into_one_row():
@@ -341,17 +321,13 @@ def test_individual_report_embeds_attendance_calendar_in_presenca():
     html = env.get_template("individual_report.html").render(
         **build_student_ctx(_student(), _lessons(), report_month="2026-01")
     )
-    assert "pie-cal" in html
-    assert "has-cal" in html
-    assert "padding-top: 18px" not in html
+    assert html.count('class="cal-grid"') == 1
     assert "Janeiro 2026" in html
-    assert "Período: Janeiro 2026" in html
+    assert "<b>Período</b>Janeiro 2026" in html
     assert "Primeiro período" in html
     assert "Tue/Thu 19:00" in html
-    assert html.count('class="att-cal"') == 1
-    assert "att-present" in html or "att-absent" in html or "att-noclass" in html
+    assert "d-present" in html or "d-absent" in html or "d-noclass" in html
     assert "Comparativo Mensal" not in html
-    assert "dimension-rings" not in html
 
 
 def test_individual_report_shows_month_calendar_without_class_days():
@@ -364,8 +340,8 @@ def test_individual_report_shows_month_calendar_without_class_days():
     html = env.get_template("individual_report.html").render(
         **build_student_ctx(_student(), [], report_month="2026-07")
     )
-    assert "0 aulas totais" in html
-    assert "pie-cal" in html
+    assert "Sem aulas neste período" in html
+    assert 'class="cal-grid"' in html
     assert "Julho 2026" in html
 
 
@@ -465,7 +441,7 @@ def test_individual_report_omits_comparison_section():
     assert 'Comparativo Mensal' not in html
     assert 'Visão Geral (7 eixos)' not in html
     assert 'Presença' in html
-    assert 'Recomendações:' in html
+    assert 'Recomendações do professor' in html
 
 
 def test_prior_month_snapshot_lookup():
@@ -531,11 +507,13 @@ def test_blank_listening_stays_out_of_average():
     assert ctx["dev_scores"][0] is None
     # speaking 4, gramatica 2, writing 3, reading 4 → 13/4 = 3.25 → 3
     assert ctx["dev_overall"] == 3
+    # The tile shows one decimal of the scored skills only (3.25 → 3.3, not 2.6).
+    assert ctx["dev_avg"] == 3.3
     html = create_report_environment(
         Path(__file__).resolve().parent.parent / "templates"
     ).get_template("individual_report.html").render(**ctx)
-    assert "score-empty" in html
-    assert "—" in html
+    assert '<b>—</b><span class="skill-label">Audição</span>' in html
+    assert '<div class="stat-value">3.3</div>' in html
 
 
 def test_zero_lessons_do_not_score_presence():

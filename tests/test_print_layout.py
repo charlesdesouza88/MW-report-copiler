@@ -19,7 +19,7 @@ CHROME_MAC = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 PRINT_PROBE_JS = """
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const page = document.body.getBoundingClientRect();
+  const page = document.querySelector('.sheet').getBoundingClientRect();
   function clips(box, nodes) {
     return nodes.map(el => {
       const r = el.getBoundingClientRect();
@@ -33,10 +33,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const cards = [...document.querySelectorAll('.card')];
   const report = {
     pageH: +page.height.toFixed(1),
-    pageClipped: clips(page, [...document.querySelectorAll('.header, .card, .recomendacoes')]),
+    pageClipped: clips(page, [...document.querySelectorAll('.sheet-head, .stat, .card')]),
     cards: cards.map((card, i) => {
       const kids = [...card.querySelectorAll(
-        '.part-scores-row, .scale-item, .fb-item, .fb-heading, .no-makeup, .comp-criteria-item, .bar-label, .pie-cal'
+        '.bar, .bar-note, .missed-line, .makeup, .cal, .radar, .skill-chips, .recs p'
       )];
       return {i, clipped: clips(card.getBoundingClientRect(), kids)};
     }),
@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Text blocks inside a card must not overlap each other (clipping alone misses this).
   report.overlaps = [];
   cards.forEach((card, i) => {
-    const blocks = [...card.querySelectorAll('.missed-heading, .missed-total, .missed-io-line, .no-makeup, .bar-row, .radar-caption')];
+    const blocks = [...card.querySelectorAll('.pres-top, .cal, .missed-title, .missed-line, .makeup, .bar, .radar, .skill-chips')];
     for (let a = 0; a < blocks.length; a++) {
       for (let b = a + 1; b < blocks.length; b++) {
         const r1 = blocks[a].getBoundingClientRect(), r2 = blocks[b].getBoundingClientRect();
@@ -125,20 +125,18 @@ def _render_sample_report_with_photo() -> str:
 def _force_print_css(html: str) -> str:
     return (
         html.replace("@media screen {", "@media screen and (min-width: 100000px) {")
-        .replace("@media screen and (max-width: 980px)", "@media not all")
-        .replace("@media screen and (max-width: 720px)", "@media not all")
+        .replace("@media screen and (max-width: 860px)", "@media not all")
         .replace("@media print {", "@media all {")
     )
 
 
-def test_print_css_places_feedback_beside_scores():
+def test_print_css_fits_sheet_to_a4():
     html = _render_busy_report()
     print_css = html.split("@media print", 1)[1]
-    assert '"scores feedback"' in print_css
-    assert '"scale feedback"' in print_css
-    assert "width: 42px" in print_css
-    assert "Com excelência" in html
-    assert "Feedback do professor" in html
+    assert "width: 297mm; height: 210mm" in print_css
+    assert "print-color-adjust: exact" in print_css
+    assert "Recomendações do professor" in html
+    assert html.count('class="bar-note"') == 3
 
 
 @pytest.mark.skipif(_chrome_bin() is None, reason="Chrome is required to measure print overflow")

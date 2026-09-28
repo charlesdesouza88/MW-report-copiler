@@ -100,12 +100,12 @@ def test_report_without_photo_has_no_img(tmp_path):
     assert 'class="student-photo"' not in html
 
 
-def test_report_shows_all_five_skill_bars(tmp_path):
+def test_report_shows_all_five_skills(tmp_path):
     env = create_report_environment(web_app.TMPL_DIR)
     generate_individual_reports([_report_student()], [], env, tmp_path)
     html = next(tmp_path.glob("*_report.html")).read_text(encoding="utf-8")
     for label in ("Fala", "Audição", "Leitura", "Escrita", "Gramática"):
-        assert f'<div class="bar-label">{label}</div>' in html
+        assert f'<span class="skill-label">{label}</span>' in html
 
 
 # ── web routes ───────────────────────────────────────────────────────────────

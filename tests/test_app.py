@@ -535,9 +535,9 @@ def test_reports_preview_live_renders_individual_report(monkeypatch, tmp_path):
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert "Presença" in html
-    assert "bubble-abs" in html
-    assert "pie-cal" in html
-    assert "Período:" in html
+    assert 'class="sheet-head"' in html
+    assert 'class="cal-grid"' in html
+    assert "<b>Período</b>" in html
     assert "stale report without layout" not in html
 
 

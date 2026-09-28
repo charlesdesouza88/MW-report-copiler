@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Mister Wiz Report Compiler — generates student and class reports from CSV data."""
 
+import base64
 import calendar as _calendar
 import csv
 import math
@@ -604,6 +605,29 @@ def avg_score(scores):
     return round_half_up(sum(vals) / len(vals)) if vals else None
 
 
+def avg_decimal(scores):
+    """Average of the scored values to one decimal (e.g. 3.8), or None if all blank."""
+    vals = [float(v) for v in scores if v is not None and not (isinstance(v, str) and not v.strip())]
+    if not vals:
+        return None
+    return math.floor(sum(vals) / len(vals) * 10 + 0.5) / 10
+
+
+_WHITE_LOGO_CACHE = {}
+
+
+def white_logo_data_url():
+    """White knockout wordmark for the purple report header, embedded so reports stay self-contained."""
+    if 'url' not in _WHITE_LOGO_CACHE:
+        path = Path(__file__).parent / 'static' / 'img' / 'logo-primary-white.png'
+        try:
+            data = base64.b64encode(path.read_bytes()).decode('ascii')
+            _WHITE_LOGO_CACHE['url'] = f'data:image/png;base64,{data}'
+        except OSError:
+            _WHITE_LOGO_CACHE['url'] = ''
+    return _WHITE_LOGO_CACHE['url']
+
+
 def presence_pct(faltas, total_lessons):
     if not total_lessons:
         return None
@@ -923,6 +947,13 @@ def build_student_ctx(s, all_lessons, report_month=None, trend=None, snapshots=N
             dict(label='Comport.', score=comp_overall),
         ]),
         composite_score=composite_score,
+        dev_avg=avg_decimal(dev_scores),
+        part_avg=avg_decimal(part_scores),
+        comp_avg=avg_decimal(comp_scores),
+        absences=min(faltas, total) if total else 0,
+        # Vertex dots for the scored skills only (blank skills have no point).
+        radar_dots=[tuple(pt.split(',')) for pt in pentagon_polygon(dev_scores).split()],
+        logo_white=white_logo_data_url(),
         student_photo=photo_data_url(find_photo(photos, turma, s.get('student_name', ''))),
         comp_scores=comp_scores,
         comp_overall=comp_overall,
