@@ -383,6 +383,46 @@ def test_generate_reports_writes_html_files(monkeypatch, tmp_path):
     assert any("class_diagnostic" in name for name in generated)
 
 
+def test_generate_blocks_class_with_lessons_only_in_other_months(monkeypatch, tmp_path):
+    """Spark has August lessons but none in September: its September reports would show no attendance."""
+    data_dir = tmp_path / "data"
+    out_dir = tmp_path / "output"
+    data_dir.mkdir()
+    out_dir.mkdir()
+    header, jane = _students_csv().strip().split("\n")
+    bob = jane.replace("MASTER,Masters", "SPARK,Spark").replace("Jane Doe", "Bob Smith")
+    (data_dir / "students.csv").write_text(f"{header}\n{jane}\n{bob}\n", encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,08/09/2026,Lesson 1,,\n"
+        "SPARK,1,11/08/2026,Lesson 1,,\n",
+        encoding="utf-8",
+    )
+    _init_user_store(monkeypatch, data_dir)
+    monkeypatch.setattr(web_app, "BASE", Path(web_app.__file__).parent)
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "TMPL_DIR", Path(web_app.__file__).parent / "templates")
+    monkeypatch.setattr(web_app, "OUT_DIR", out_dir)
+    monkeypatch.setattr(web_app, "SNAPSHOTS_PATH", data_dir / "student_snapshots.json")
+
+    client = web_app.app.test_client()
+    _login(client)
+
+    blocked = client.post("/generate", data={"report_month": "2026-09"})
+    assert "/reports" not in blocked.headers["Location"]
+    with client.session_transaction() as sess:
+        assert "Spark" in sess["generate_error"]
+        assert "Masters" not in sess["generate_error"]
+        assert sess["generate_error_skippable"]
+    assert not list(out_dir.glob("*.html"))
+
+    skipped = client.post("/generate", data={"report_month": "2026-09", "skip_incomplete": "1"})
+    assert "/reports" in skipped.headers["Location"]
+    generated = sorted(p.name for p in out_dir.glob("*.html"))
+    assert "MASTER_Jane_Doe_2026-09_report.html" in generated
+    assert not [name for name in generated if name.startswith("SPARK")]
+
+
 def test_reports_page_with_null_prior_snapshot(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     out_dir = tmp_path / "output"

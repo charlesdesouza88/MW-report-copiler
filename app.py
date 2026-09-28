@@ -69,7 +69,7 @@ from teacher_classes import (add_class as register_teacher_class,
                              apply_registry_to_students,
                              class_display_from_student_rows,
                              count_students_in_turma, dedupe_class_options,
-                             ensure_semester_ids,
+                             drop_implausible_semesters, ensure_semester_ids,
                              find_class, list_for_teacher, load_registry,
                              registry_from_rows, registry_to_rows,
                              remove_class as delete_teacher_class,
@@ -1049,17 +1049,21 @@ def _load_teacher_class_registry(*, migrate=True):
 
 
 def _migrate_registry_semesters(data):
-    """Backfill semester_id; return True when the registry was changed."""
+    """Backfill semester_id and drop impossible-year copies; True when the registry changed."""
     lessons = []
     try:
         lessons = _load_lessons()
     except Exception:
         pass
-    return bool(ensure_semester_ids(
+    backfilled = ensure_semester_ids(
         data,
         lessons=lessons,
         default_semester=default_semester(lessons),
-    ))
+    )
+    dropped = drop_implausible_semesters(data)
+    if dropped:
+        logger.info('Removed %d class registry entries filed under an impossible semester', dropped)
+    return bool(backfilled or dropped)
 
 
 def _save_teacher_class_registry(data):
@@ -4068,6 +4072,9 @@ def generate():
     report_month = _report_month_from_request(lessons)
     _, students = _scoped_students(review_month=report_month, apply_attendance=True)
     skip_incomplete = request.form.get('skip_incomplete') == '1'
+    # Reports cover one month: a class with lessons only in other months of the
+    # semester would otherwise print "Sem aulas neste período" for every student.
+    month_lessons = filter_lessons_by_month(lessons, report_month)
 
     if has_full_data_access(user['role']) and not db_store:
         students_file = DATA_DIR / 'students.csv'
@@ -4099,7 +4106,7 @@ def generate():
 
     skipped_names = []
     if skip_incomplete:
-        turmas_sem_aula = turmas_without_lessons(students, lessons)
+        turmas_sem_aula = turmas_without_lessons(students, month_lessons)
         if turmas_sem_aula:
             skipped_names = _turma_display_names_for_codes(students, turmas_sem_aula)
             students = [
@@ -4113,10 +4120,10 @@ def generate():
                 )
                 return redirect(url_for('dashboard'))
 
-    input_error = _validate_generation_inputs(students, lessons, skip_incomplete=skip_incomplete)
+    input_error = _validate_generation_inputs(students, month_lessons, skip_incomplete=skip_incomplete)
     if input_error:
         session['generate_error'] = input_error
-        if not skip_incomplete and turmas_without_lessons(students, lessons):
+        if not skip_incomplete and turmas_without_lessons(students, month_lessons):
             session['generate_error_skippable'] = True
         return redirect(url_for('dashboard'))
 

@@ -338,3 +338,21 @@ def test_remove_class_blocked_when_students_linked():
     assert ok is False
     assert 'aluno' in err
     assert len(list_for_teacher(data, 'Chuck')) == 1
+
+
+def test_drop_implausible_semesters_removes_typo_copies_only():
+    from teacher_classes import drop_implausible_semesters
+
+    data = {
+        'Chuck': [
+            {'turma': 'BEYOND', 'turma_display': 'Beyond', 'semester_id': '2026-S2'},
+            {'turma': 'BEYOND', 'turma_display': 'Beyond', 'semester_id': '1966-S2'},
+            {'turma': 'BEYOND', 'turma_display': 'Beyond', 'semester_id': '2026-S1'},
+            # Only entry for this class: kept even though its year is wrong.
+            {'turma': 'SOLO', 'turma_display': 'Solo', 'semester_id': '1966-S2'},
+        ],
+    }
+    assert drop_implausible_semesters(data) == 1
+    assert [r['semester_id'] for r in data['Chuck'] if r['turma'] == 'BEYOND'] == ['2026-S2', '2026-S1']
+    assert any(r['turma'] == 'SOLO' for r in data['Chuck'])
+    assert drop_implausible_semesters(data) == 0

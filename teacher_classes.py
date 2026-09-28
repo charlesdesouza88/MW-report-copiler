@@ -631,6 +631,39 @@ def ensure_semester_ids(data, lessons=None, default_semester=None):
     return updated
 
 
+def drop_implausible_semesters(data, min_year=2000, max_year=2099):
+    """
+    Remove registry copies filed under an impossible semester (e.g. "1966-S2" from a
+    mistyped lesson date). A row is only dropped when the same teacher still has
+    another entry for that turma, so a class can never disappear entirely.
+    Returns number of rows removed.
+    """
+    if not isinstance(data, dict):
+        return 0
+
+    def bogus(row):
+        parsed = parse_semester_id(row.get('semester_id'))
+        return bool(parsed) and not min_year <= parsed[0] <= max_year
+
+    removed = 0
+    for teacher_name, bucket in list(data.items()):
+        if not isinstance(bucket, list):
+            continue
+        keep_codes = {
+            (row.get('turma') or '').strip()
+            for row in bucket
+            if isinstance(row, dict) and not bogus(row)
+        }
+        kept = [
+            row for row in bucket
+            if not (isinstance(row, dict) and bogus(row)
+                    and (row.get('turma') or '').strip() in keep_codes)
+        ]
+        removed += len(bucket) - len(kept)
+        data[teacher_name] = kept
+    return removed
+
+
 def apply_registry_to_students(students, data, semester_id=None):
     """
     Re-join turma_display / horario from the registry (source of truth).

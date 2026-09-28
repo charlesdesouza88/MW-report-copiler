@@ -114,7 +114,7 @@ body {
   box-shadow: var(--card-shadow);
   display: flex; flex-direction: column; min-height: 0; min-width: 0;
 }
-.col .card { flex: 1; }
+.col .card { flex: 1 0 auto; } /* grow to fill, never shrink below the feedback notes */
 .card-title {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
   font-size: 14px; font-weight: 700; color: var(--mw-ink); margin-bottom: 8px;

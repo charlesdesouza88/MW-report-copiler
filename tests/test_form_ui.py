@@ -60,6 +60,16 @@ def test_parse_storage_date_brazilian_day_first():
     assert parse_storage_date('not-a-date') == ''
 
 
+def test_parse_storage_date_rejects_implausible_years():
+    # A 1966 typo used to open a "2º semestre 1966" and clone every class into it.
+    assert parse_storage_date('15/09/1966') == ''
+    assert parse_storage_date('1966-09-15') == ''
+    assert parse_storage_date('15/09/2126') == ''
+    assert parse_storage_date('2026-13-01') == ''
+    assert parse_storage_date('15/09/2000') == '15/09/2000'
+    assert parse_storage_date('15/09/66') == '15/09/2066'
+
+
 def test_format_date_for_input():
     assert format_date_for_input('01/02/2026') == '01/02/2026'
     assert format_date_for_input('2026-02-01') == '01/02/2026'
