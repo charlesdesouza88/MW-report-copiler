@@ -1089,6 +1089,52 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
     assert blocked.status_code == 403
 
 
+def test_new_lesson_menu_shows_class_name(monkeypatch, tmp_path):
+    """Legacy ids stay in the option value. Teachers see the class name."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "db_store", None)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_teacher_store(monkeypatch, data_dir, teacher_name="Chuck")
+    _seed_teacher_classes(
+        data_dir,
+        "Chuck",
+        ("teens 01", "Impact", "Terça-feira", "Quinta-feira", "14:00", "15:30"),
+    )
+
+    client = web_app.app.test_client()
+    client.post("/login", data={"email": "teacher@test.local", "password": "teachpass"})
+    html = client.get("/lessons/new").get_data(as_text=True)
+    assert 'value="teens 01">Impact — Terça-feira e Quinta-feira 14:00 - 15:30' in html
+    assert ">teens 01<" not in html
+
+    saved = client.post(
+        "/lessons/new",
+        data={
+            "turma": "teens 01",
+            "aula_num": "1",
+            "date": "02/09/2026",
+            "licao_conteudo": "Lição 1",
+            "atividade_extra": "",
+            "habilidades": "Nenhuma",
+        },
+        follow_redirects=True,
+    )
+    assert saved.status_code == 200
+    stored = (data_dir / "lessons.csv").read_text(encoding="utf-8")
+    assert "teens 01" in stored
+
+    client.post("/logout")
+    _login(client)
+    admin_html = client.get("/lessons/new").get_data(as_text=True)
+    assert 'value="teens 01">Impact — Terça-feira e Quinta-feira 14:00 - 15:30' in admin_html
+    assert 'list="turma-list"' not in admin_html
+
+
 def test_lessons_page_lists_dashboard_turma_without_lessons(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()

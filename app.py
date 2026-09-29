@@ -1206,6 +1206,56 @@ def _allowed_turmas(all_students, user):
     )
 
 
+def _lesson_registry_by_code(user):
+    """One registry row per turma code, preferring the current semester."""
+    rows_by_code = {}
+    if not user:
+        return rows_by_code
+    if not has_full_data_access(user['role']):
+        for row in _teacher_class_options(user.get('teacher_name', ''), all_semesters=True):
+            rows_by_code[row['turma']] = row
+        return rows_by_code
+
+    registry = _load_teacher_class_registry()
+    prefer = _get_review_semester()
+    for teacher_name in registry:
+        for row in dedupe_class_options(
+            list_for_teacher(registry, teacher_name, semester_id=None),
+            prefer_semester=prefer,
+        ):
+            code = row['turma']
+            current = rows_by_code.get(code)
+            if current is None:
+                rows_by_code[code] = row
+                continue
+            current_name = (current.get('turma_display') or code).strip()
+            new_name = (row.get('turma_display') or code).strip()
+            if current_name.casefold() == code.casefold() and new_name.casefold() != code.casefold():
+                rows_by_code[code] = row
+    return rows_by_code
+
+
+def _lesson_turma_choices(all_students, user):
+    """Options for the lesson form: saved code, visible class name."""
+    names = _turma_display_map(all_students, user)
+    registry_rows = _lesson_registry_by_code(user)
+    review = _get_review_semester()
+    choices = []
+    for code in _allowed_turmas(all_students, user):
+        entry = registry_rows.get(code) or {}
+        display = (entry.get('turma_display') or names.get(code) or code).strip() or code
+        label = display
+        horario = (entry.get('horario') or '').strip()
+        if horario and horario.casefold() not in label.casefold():
+            label = f'{label} — {horario}'
+        sid = (entry.get('semester_id') or '').strip()
+        if sid and review and sid != review:
+            label = f'{label} — {semester_label(sid)}'
+        choices.append({'code': code, 'label': label})
+    choices.sort(key=lambda item: (item['label'].casefold(), item['code'].casefold()))
+    return choices
+
+
 def _teacher_may_use_turma(turma, all_students, user):
     if has_full_data_access(user['role']):
         return True
@@ -3446,7 +3496,7 @@ def lesson_edit(idx):
         'lesson_edit.html',
         idx=idx,
         is_new=False,
-        allowed_turmas=allowed_turmas,
+        turma_choices=_lesson_turma_choices(all_students, user),
         lesson_field_labels=LESSON_FIELD_LABELS,
         **ctx,
     )
@@ -3489,7 +3539,7 @@ def lesson_new():
         'lesson_edit.html',
         idx=None,
         is_new=True,
-        allowed_turmas=allowed_turmas,
+        turma_choices=_lesson_turma_choices(all_students, user),
         lesson_field_labels=LESSON_FIELD_LABELS,
         **ctx,
     )
