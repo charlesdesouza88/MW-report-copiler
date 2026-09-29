@@ -183,8 +183,7 @@ def whatsapp_digits(raw_phone):
     digits = _DIGITS_RE.sub('', raw_phone or '')
     if not digits:
         return ''
-    if digits.startswith('00'):
-        digits = digits[2:]
+    digits = digits.removeprefix('00')
     if len(digits) in (10, 11) and not digits.startswith('55'):
         digits = '55' + digits
     return digits
