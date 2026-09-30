@@ -3182,7 +3182,7 @@ def test_student_edit_form_keeps_blank_scores_blank(monkeypatch, tmp_path):
 
     assert 'id="val-listening" value=""' in html
     assert 'id="val-speaking" value="4"' in html
-    picker = re.search(r'id="picker-listening">(.*?)</div>', html, re.S).group(1)
+    picker = re.search(r'id="picker-listening">(.*?)</div>', html, re.DOTALL).group(1)
     assert 'class="score-btn score-btn-clear active"' in picker
     assert 'score-btn active' not in picker
 

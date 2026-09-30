@@ -1,7 +1,6 @@
 """Per-month student review scores (separate from roster profile)."""
 
 import json
-from pathlib import Path
 
 from report_periods import student_snapshot_id
 

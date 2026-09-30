@@ -2,13 +2,20 @@ import base64
 import io
 import json
 
+from test_app import _init_teacher_store, _login, _students_csv
+
 import app as web_app
 from auth import UserStore
 from compiler import create_report_environment, generate_individual_reports
 from db_store import DatabaseStore
-from student_photos import (find_photo, move_photo, photo_data_url, photo_key,
-                            remove_photo, set_photo)
-from test_app import _init_teacher_store, _login, _students_csv
+from student_photos import (
+    find_photo,
+    move_photo,
+    photo_data_url,
+    photo_key,
+    remove_photo,
+    set_photo,
+)
 
 # Smallest valid PNG header is enough for the magic-byte check.
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
