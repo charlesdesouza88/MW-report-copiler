@@ -85,6 +85,30 @@ def _csrf_from_html(html: str) -> str:
     return match.group(1) if match else ''
 
 
+def _class_choice_from_html(html: str) -> str:
+    """First registered class on the new-student form, if the picker is shown."""
+    select = re.search(
+        r'<select[^>]*\bname="class_choice"[^>]*>(.*?)</select>',
+        html,
+        re.DOTALL,
+    )
+    if not select:
+        return ''
+    for value in re.findall(r'<option\b[^>]*\bvalue="([^"]*)"', select.group(1)):
+        if value.strip():
+            return value.strip()
+    return ''
+
+
+def _delete_path_for_student(html: str, name: str) -> str:
+    match = re.search(
+        re.escape(name) + r'.{0,8000}?action="([^"]*?/students/\d+/delete[^"]*)"',
+        html,
+        re.DOTALL,
+    )
+    return match.group(1) if match else ''
+
+
 class FlowRunner:
     def __init__(self, label: str):
         self.label = label
@@ -157,9 +181,11 @@ def run_inprocess():
         )
 
         new_name = f'Flow Test Kid {os.getpid()}'
+        create_form = _student_form(new_name, 'MASTER')
+        create_form['class_choice'] = 'MASTER'
         r = client.post(
             '/students/new',
-            data=_student_form(new_name, 'MASTER'),
+            data=create_form,
             follow_redirects=False,
         )
         loc = r.headers.get('Location', '')
@@ -268,8 +294,14 @@ def run_live(base: str):
     runner.check('New student validation', 'Informe o nome do aluno e a turma' in bad_body)
 
     new_name = f'Live Flow Kid {os.getpid()}'
+    class_choice = _class_choice_from_html(new_student_html)
+    # A registered class is required when the dashboard picker is on the form.
+    # Without one, use a throwaway code so this check never lands in a real class.
+    turma = class_choice or f'AUDIT {os.getpid()}'
     try:
-        form_data = _student_form(new_name, 'MASTER')
+        form_data = _student_form(new_name, turma)
+        if class_choice:
+            form_data['class_choice'] = class_choice
         form_data['csrf_token'] = _csrf_from_html(new_student_html)
         post('/students/new', form_data, allow_redirect=False)
         create_ok = False
@@ -281,6 +313,17 @@ def run_live(base: str):
 
     html = get('/students').read().decode('utf-8', errors='replace')
     runner.check('Students list', new_name in html)
+    delete_path = _delete_path_for_student(html, new_name)
+    removed = False
+    if delete_path:
+        try:
+            post(delete_path, {'csrf_token': _csrf_from_html(html)})
+        except urllib.error.HTTPError:
+            removed = False
+        else:
+            after = get('/students').read().decode('utf-8', errors='replace')
+            removed = new_name not in after
+    runner.check('Remove flow-test student', removed, delete_path or 'delete form not found')
 
     try:
         dash_html = get('/').read().decode('utf-8', errors='replace')
