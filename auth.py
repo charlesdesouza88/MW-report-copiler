@@ -222,6 +222,8 @@ class UserStore:
     def list_users(self):
         if self.db_store:
             return self.db_store.load_users()
+        if not self.json_path.exists():
+            self.initialize()
         return json.loads(self.json_path.read_text(encoding='utf-8'))
 
     def _save_all(self, users):
