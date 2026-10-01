@@ -3,6 +3,7 @@ from teacher_classes import (
     add_class,
     apply_registry_to_students,
     count_students_in_turma,
+    collapse_identical_class_copies,
     dedupe_class_options,
     ensure_semester_ids,
     find_class,
@@ -85,6 +86,65 @@ def test_dedupe_class_options_prefers_review_semester():
     deduped = dedupe_class_options(options, prefer_semester='2026-S2')
     assert len(deduped) == 1
     assert deduped[0]['turma_display'] == 'root evening'
+
+
+def test_collapse_identical_semester_copies_keeps_schedule_changes():
+    rows = [
+        {
+            'turma': 'BEYOND',
+            'turma_display': 'Beyond',
+            'teacher': 'Chuck',
+            'horario': 'Segunda e quarta, 19:00 - 20:00',
+            'semester_id': '2026-S1',
+        },
+        {
+            'turma': 'BEYOND',
+            'turma_display': 'Beyond',
+            'teacher': 'Chuck',
+            'horario': 'Segunda e quarta, 19:00 - 20:00',
+            'semester_id': '2026-S2',
+        },
+        {
+            'turma': 'MASTER',
+            'turma_display': 'Masters',
+            'teacher': 'Chuck',
+            'horario': 'Terça-feira e Sexta-feira 13:00 - 14:00',
+            'semester_id': '2026-S1',
+        },
+        {
+            'turma': 'MASTER',
+            'turma_display': 'Masters',
+            'teacher': 'Chuck',
+            'horario': 'Terça-feira e Quinta-feira 18:45 - 20:00',
+            'semester_id': '2026-S2',
+        },
+        {
+            'turma': 'SPARK',
+            'turma_display': 'Spark',
+            'teacher': 'Amanda',
+            'horario': 'Segunda-feira e Quarta-feira 08:00 - 09:30',
+            'semester_id': '2026-S1',
+        },
+        {
+            'turma': 'SPARK',
+            'turma_display': 'Scout',
+            'teacher': 'Amanda',
+            'horario': 'Segunda-feira e Quarta-feira 08:00 - 09:30',
+            'semester_id': '2026-S2',
+        },
+    ]
+    collapsed = collapse_identical_class_copies(rows, prefer_semester='2026-S2')
+    identity = {
+        (row['turma'], row['turma_display'], row['semester_id'])
+        for row in collapsed
+    }
+    assert ('BEYOND', 'Beyond', '2026-S2') in identity
+    assert ('BEYOND', 'Beyond', '2026-S1') not in identity
+    assert ('MASTER', 'Masters', '2026-S1') in identity
+    assert ('MASTER', 'Masters', '2026-S2') in identity
+    assert ('SPARK', 'Spark', '2026-S1') in identity
+    assert ('SPARK', 'Scout', '2026-S2') in identity
+    assert len(collapsed) == 5
 
 
 def test_duplicate_turma_rejected_same_semester():

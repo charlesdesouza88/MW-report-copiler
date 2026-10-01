@@ -2892,6 +2892,73 @@ def test_admin_dashboard_lists_spark_and_renamed_scout(monkeypatch, tmp_path):
     assert "Scout" in create_html
 
 
+def test_admin_dashboard_hides_identical_semester_copies(monkeypatch, tmp_path):
+    """The same class copied into both semesters is listed once.
+
+    A schedule change stays visible so the admin can tell the semesters apart.
+    """
+    from teacher_classes import add_class, save_registry
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+
+    registry = {}
+    for semester_id in ("2026-S1", "2026-S2"):
+        _, err = add_class(
+            registry,
+            "Chuck",
+            turma="BEYOND",
+            turma_display="Beyond",
+            class_weekdays=["Segunda-feira", "Quarta-feira"],
+            class_time_start="19:00",
+            class_time_end="20:00",
+            semester_id=semester_id,
+        )
+        assert err is None
+    _, err = add_class(
+        registry,
+        "Chuck",
+        turma="MASTER",
+        turma_display="Masters",
+        class_weekdays=["Terça-feira", "Sexta-feira"],
+        class_time_start="13:00",
+        class_time_end="14:00",
+        semester_id="2026-S1",
+    )
+    assert err is None
+    _, err = add_class(
+        registry,
+        "Chuck",
+        turma="MASTER",
+        turma_display="Masters",
+        class_weekdays=["Terça-feira", "Quinta-feira"],
+        class_time_start="18:45",
+        class_time_end="20:00",
+        semester_id="2026-S2",
+    )
+    assert err is None
+    save_registry(data_dir / "teacher_classes.json", registry)
+
+    client = web_app.app.test_client()
+    _login(client)
+    with client.session_transaction() as sess:
+        sess["review_semester"] = "2026-S2"
+        sess["review_month"] = "2026-09"
+
+    html = client.get("/?semester=2026-S2&month=2026-09").get_data(as_text=True)
+    assert html.count(">Beyond<") == 1
+    assert "1º semestre 2026" in html
+    assert html.count(">Masters<") == 1
+    assert "Masters — 1º semestre 2026" in html
+
+
 def test_admin_can_edit_turma(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()

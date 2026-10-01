@@ -209,6 +209,7 @@ from teacher_classes import add_class as register_teacher_class
 from teacher_classes import (
     apply_registry_to_students,
     class_display_from_student_rows,
+    collapse_identical_class_copies,
     count_students_in_turma,
     dedupe_class_options,
     drop_implausible_semesters,
@@ -2783,8 +2784,11 @@ def dashboard():
                 )
         teacher_classes = [
             _with_turma_code_hint(row)
-            for row in _teacher_class_options(
-                user.get('teacher_name', ''), all_semesters=True, collapse=False,
+            for row in collapse_identical_class_copies(
+                _teacher_class_options(
+                    user.get('teacher_name', ''), all_semesters=True, collapse=False,
+                ),
+                prefer_semester=review_semester,
             )
         ]
         turma_list = [c['turma'] for c in teacher_classes]
@@ -3181,8 +3185,8 @@ def _admin_dashboard_turmas(all_students, semester_id=None):
 
     Teachers already see every semester; admins must too, otherwise a class like
     Spark from 1º semestre disappears when the review month is in 2º semestre.
-    Keep one row per teacher + code + semester so a rename in the current
-    semester (Spark → Scout) does not hide the earlier semester's name.
+    Keep a rename (Spark → Scout) and a real schedule change. Identical copies
+    of the same class in two semesters collapse to the review semester.
     """
     sid = semester_id or _get_review_semester()
     by_key = {}
@@ -3252,8 +3256,11 @@ def _admin_dashboard_turmas(all_students, semester_id=None):
             semester=sid,
         )
 
+    collapsed = collapse_identical_class_copies(
+        by_key.values(), prefer_semester=sid,
+    )
     return sorted(
-        by_key.values(),
+        collapsed,
         key=lambda row: (
             row['turma_display'].casefold(),
             row['teacher'].casefold(),

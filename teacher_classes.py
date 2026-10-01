@@ -164,6 +164,71 @@ def list_for_teacher(data, teacher_name, semester_id=None):
     )
 
 
+def _schedule_key(horario):
+    return ' '.join((horario or '').casefold().split())
+
+
+def _copy_rank(row, prefer_semester):
+    sid = _normalize_semester_id(row.get('semester_id'))
+    parsed = parse_semester_id(sid)
+    year, half = parsed or (0, 0)
+    return (1 if prefer_semester and sid == prefer_semester else 0, year, half)
+
+
+def collapse_identical_class_copies(rows, prefer_semester=''):
+    """Hide semester copies that repeat the same class name and schedule.
+
+    A rename (Spark in 1º semestre, Scout in 2º) or a real schedule change
+    stays as its own row. An empty schedule is dropped when the same class
+    already has one filled schedule.
+    """
+    prefer = _normalize_semester_id(prefer_semester)
+    groups = {}
+    order = []
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        key = (
+            (row.get('teacher') or '').strip().casefold(),
+            (row.get('turma') or '').strip().casefold(),
+        )
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(row)
+
+    collapsed = []
+    for key in order:
+        by_display = {}
+        display_order = []
+        for row in groups[key]:
+            display = (row.get('turma_display') or row.get('turma') or '').strip().casefold()
+            if display not in by_display:
+                by_display[display] = []
+                display_order.append(display)
+            by_display[display].append(row)
+        for display in display_order:
+            copies = by_display[display]
+            filled = [row for row in copies if _schedule_key(row.get('horario'))]
+            if not filled:
+                collapsed.append(max(copies, key=lambda row: _copy_rank(row, prefer)))
+                continue
+            by_schedule = {}
+            schedule_order = []
+            for row in filled:
+                schedule = _schedule_key(row.get('horario'))
+                if schedule not in by_schedule:
+                    by_schedule[schedule] = []
+                    schedule_order.append(schedule)
+                by_schedule[schedule].append(row)
+            for schedule in schedule_order:
+                collapsed.append(max(
+                    by_schedule[schedule],
+                    key=lambda row: _copy_rank(row, prefer),
+                ))
+    return collapsed
+
+
 def dedupe_class_options(options, prefer_semester=''):
     """Keep one row per turma code; prefer the entry for prefer_semester when duplicated."""
     prefer = _normalize_semester_id(prefer_semester)
