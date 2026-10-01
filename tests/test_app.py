@@ -333,6 +333,8 @@ def test_users_page_shows_last_access_and_contact_actions(monkeypatch, tmp_path)
     assert "user-row-actions" in html
     assert "btn-perfil" in html
     assert "user-row-toggles" in html
+    assert 'class="user-panel user-edit-panel"' in html
+    assert 'colspan="6"' in html
     assert "Último acesso" in html
     assert "Histórico de acessos" in html
     assert "Nunca" in html  # idle teacher never logged in

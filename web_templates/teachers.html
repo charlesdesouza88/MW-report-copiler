@@ -4,9 +4,29 @@
 {% block page_title %}Usuários{% endblock %}
 {% block content %}
 <style>
+.teachers-table,
+.teachers-table th,
+.teachers-table td,
+.user-panel,
+.user-panel label,
+.user-panel input,
+.user-panel button,
+.user-panel a,
+.user-panel textarea {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.teachers-table td.col-actions {
+  white-space: nowrap;
+  vertical-align: middle;
+}
 .user-contact-box {
-  margin-top:10px; padding:12px; background:#F9F7FC; border-radius:8px;
-  display:flex; flex-direction:column; gap:8px; max-width:320px;
+  padding: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 420px;
 }
 .user-contact-box label {
   font-size:10px; font-weight:700; color:#666; text-transform:uppercase;
@@ -28,11 +48,6 @@
   font-size:10px; font-weight:700; text-transform:uppercase;
   letter-spacing:0.4px;
 }
-.data-table td.col-actions {
-  white-space: normal;
-  text-align: right;
-  vertical-align: middle;
-}
 .user-row-actions {
   display: flex;
   align-items: center;
@@ -48,40 +63,74 @@
 }
 .user-row-toggles {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  min-width: 5.75em;
+  align-items: center;
+  gap: 12px;
 }
-.user-row-toggles details {
-  display: block;
-  margin: 0;
-}
-.user-row-toggles summary {
+.user-toggle {
+  border: 0;
+  background: transparent;
+  padding: 0;
   cursor: pointer;
+  font: inherit;
   font-weight: 700;
   color: var(--purple);
-  list-style: none;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   line-height: 1.2;
 }
-.user-row-toggles summary::-webkit-details-marker,
-.user-row-toggles summary::marker {
-  display: none;
-  content: '';
-}
-.user-row-toggles summary::before {
+.user-toggle::before {
   content: '▸';
   font-size: 11px;
-  line-height: 1;
   width: 0.8em;
-  flex-shrink: 0;
   text-align: center;
 }
-.user-row-toggles details[open] > summary::before {
+.user-toggle[aria-expanded="true"]::before {
   content: '▾';
+}
+.user-panel-row td {
+  background: #F9F7FC;
+  padding: 0;
+  text-align: left;
+}
+.user-panel-row:hover td {
+  background: #F9F7FC;
+}
+.user-panel {
+  padding: 14px 16px 16px;
+}
+.user-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.5fr) minmax(150px, 1fr) minmax(170px, 1fr);
+  gap: 12px 16px;
+  align-items: end;
+}
+.user-field label,
+.user-contact-box label {
+  display: block;
+  margin-bottom: 6px;
+}
+.user-field input,
+.user-contact-box textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #DDD;
+  border-radius: 6px;
+  font: inherit;
+}
+.user-edit-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+.user-edit-footer form {
+  margin: 0;
+}
+@media (max-width: 860px) {
+  .user-edit-grid { grid-template-columns: 1fr; }
 }
 </style>
 <h1 class="page-heading" style="font-size:22px;font-weight:900;margin-bottom:8px;">Usuários e professores</h1>
@@ -165,7 +214,7 @@
   {% endif %}
 
   <div class="table-wrap" style="overflow-x:auto;">
-    <table class="data-table" style="width:100%;border-collapse:collapse;font-size:13px;">
+    <table class="data-table teachers-table" style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
         <tr style="border-bottom:2px solid #E2E2E2;text-align:left;">
           <th style="padding:10px 8px;">E-mail</th>
@@ -180,6 +229,7 @@
         {% for u in users %}
         <tr class="user-row filter-row-item"
             style="--filter-i: {{ loop.index0 % 12 }}; border-bottom:1px solid #EEE;"
+            data-filter-id="{{ u.id }}"
             data-role="{{ u.role }}"
             data-search="{{ (u.email ~ ' ' ~ (u.teacher_name or '') ~ ' ' ~ role_labels.get(u.role, u.role) ~ ' ' ~ (u.last_login_label or ''))|lower }}">
           <td style="padding:12px 8px;">{{ u.email }}</td>
@@ -191,8 +241,18 @@
             <div class="user-row-actions">
             <a href="{{ url_for('teacher_profile', user_id=u.id) }}" class="btn btn-ghost btn-perfil">Perfil</a>
             <div class="user-row-toggles">
-            <details>
-              <summary>Contato</summary>
+              <button type="button" class="user-toggle" data-user-panel="contact-{{ u.id }}" aria-expanded="false" aria-controls="contact-{{ u.id }}">Contato</button>
+              <button type="button" class="user-toggle" data-user-panel="edit-{{ u.id }}" aria-expanded="false" aria-controls="edit-{{ u.id }}">Editar</button>
+            </div>
+            </div>
+          </td>
+        </tr>
+        <tr class="user-panel-row user-row filter-row-item" id="contact-{{ u.id }}" hidden
+            data-filter-id="{{ u.id }}"
+            data-role="{{ u.role }}"
+            data-search="{{ (u.email ~ ' ' ~ (u.teacher_name or '') ~ ' ' ~ role_labels.get(u.role, u.role) ~ ' ' ~ (u.last_login_label or ''))|lower }}">
+          <td colspan="6">
+            <div class="user-panel">
               <div class="user-contact-box" data-contact-box
                    data-mailto-base="{{ u.mailto_href or '' }}"
                    data-wa-base="{{ u.whatsapp_href or '' }}"
@@ -218,45 +278,53 @@
                 <p class="user-contact-hint">Sem e-mail disponível para este usuário.</p>
                 {% endif %}
               </div>
-            </details>
-            <details>
-              <summary>Editar</summary>
-              <form method="post" style="margin-top:10px;padding:12px;background:#F9F7FC;border-radius:8px;">
+            </div>
+          </td>
+        </tr>
+        <tr class="user-panel-row user-row filter-row-item" id="edit-{{ u.id }}" hidden
+            data-filter-id="{{ u.id }}"
+            data-role="{{ u.role }}"
+            data-search="{{ (u.email ~ ' ' ~ (u.teacher_name or '') ~ ' ' ~ role_labels.get(u.role, u.role) ~ ' ' ~ (u.last_login_label or ''))|lower }}">
+          <td colspan="6">
+            <div class="user-panel user-edit-panel">
+              <form method="post">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="user_id" value="{{ u.id }}">
-                <div style="margin-bottom:8px;">
-                  <label style="font-size:10px;font-weight:700;color:#666;">E-mail</label>
-                  <input type="email" name="email" value="{{ u.email }}" required style="width:100%;padding:8px;border:1px solid #DDD;border-radius:6px;">
+                <div class="user-edit-grid">
+                  <div class="user-field">
+                    <label for="edit-email-{{ u.id }}">E-mail</label>
+                    <input id="edit-email-{{ u.id }}" type="email" name="email" value="{{ u.email }}" required>
+                  </div>
+                  {% if u.role == 'teacher' %}
+                  <div class="user-field">
+                    <label for="edit-teacher-{{ u.id }}">Nome professor</label>
+                    <input id="edit-teacher-{{ u.id }}" type="text" name="teacher_name" value="{{ u.teacher_name }}" list="teacher-names">
+                  </div>
+                  {% else %}
+                  <input type="hidden" name="teacher_name" value="">
+                  {% endif %}
+                  <div class="user-field">
+                    <label for="edit-password-{{ u.id }}">Nova senha (opcional)</label>
+                    <input id="edit-password-{{ u.id }}" type="password" name="password" placeholder="Deixe em branco para manter" autocomplete="new-password">
+                  </div>
                 </div>
-                {% if u.role == 'teacher' %}
-                <div style="margin-bottom:8px;">
-                  <label style="font-size:10px;font-weight:700;color:#666;">Nome professor</label>
-                  <input type="text" name="teacher_name" value="{{ u.teacher_name }}" list="teacher-names" style="width:100%;padding:8px;border:1px solid #DDD;border-radius:6px;">
+                <div class="user-edit-footer">
+                  <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:0;">
+                    <input type="checkbox" name="active" value="1" {% if u.active %}checked{% endif %}>
+                    Conta ativa
+                  </label>
+                  <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
                 </div>
-                {% else %}
-                <input type="hidden" name="teacher_name" value="">
-                {% endif %}
-                <div style="margin-bottom:8px;">
-                  <label style="font-size:10px;font-weight:700;color:#666;">Nova senha (opcional)</label>
-                  <input type="password" name="password" placeholder="Deixe em branco para manter" style="width:100%;padding:8px;border:1px solid #DDD;border-radius:6px;">
-                </div>
-                <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:10px;">
-                  <input type="checkbox" name="active" value="1" {% if u.active %}checked{% endif %}>
-                  Conta ativa
-                </label>
-                <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
               </form>
               {% if u.id != current_user.id %}
-              <form method="post" style="margin-top:8px;" onsubmit="return confirm('Remover este usuário?');">
+              <form method="post" class="user-edit-footer" style="justify-content:flex-end;margin-top:8px;" onsubmit="return confirm('Remover este usuário?');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="delete">
                 <input type="hidden" name="user_id" value="{{ u.id }}">
                 <button type="submit" class="btn btn-sm" style="color:#E24B4A;border-color:#F1948A;">Remover</button>
               </form>
               {% endif %}
-            </details>
-            </div>
             </div>
           </td>
         </tr>
@@ -338,6 +406,25 @@
       return baseHref;
     }
   }
+
+  document.querySelectorAll('[data-user-panel]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var panelId = btn.getAttribute('data-user-panel');
+      var panel = document.getElementById(panelId);
+      if (!panel) return;
+      var willOpen = panel.hidden;
+      var group = btn.closest('.user-row-actions');
+      if (group) {
+        group.querySelectorAll('[data-user-panel]').forEach(function (other) {
+          var otherPanel = document.getElementById(other.getAttribute('data-user-panel'));
+          if (otherPanel) otherPanel.hidden = true;
+          other.setAttribute('aria-expanded', 'false');
+        });
+      }
+      panel.hidden = !willOpen;
+      btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+  });
 
   document.querySelectorAll('[data-contact-box]').forEach(function (box) {
     var message = box.querySelector('[data-contact-message]');
