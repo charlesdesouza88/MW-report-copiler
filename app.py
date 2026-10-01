@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+import sys
 import tempfile
 import threading
 import time
@@ -236,10 +237,24 @@ from teacher_profiles import (
 )
 
 try:
-    from db_store import DatabaseStore, StaleDataError
+    from db_store import (
+        DatabaseStore,
+        RemoteDatabaseBlocked,
+        StaleDataError,
+        database_hostname,
+        refuse_remote_database,
+    )
 except Exception as exc:
     DatabaseStore = None
     StaleDataError = Exception
+    RemoteDatabaseBlocked = Exception
+
+    def database_hostname(_url):
+        return ''
+
+    def refuse_remote_database(env=None, under_test=None):
+        return ''
+
     DB_IMPORT_ERROR = exc
 else:
     DB_IMPORT_ERROR = None
@@ -326,9 +341,17 @@ _handler.setFormatter(_JsonFormatter())
 logging.basicConfig(handlers=[_handler], level=logging.INFO, force=True)
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
-if not DATABASE_URL:
-    DATABASE_URL = os.environ.get('DATABASE_PRIVATE_URL', '').strip()
+_raw_database_url = (
+    os.environ.get('DATABASE_URL', '').strip()
+    or os.environ.get('DATABASE_PRIVATE_URL', '').strip()
+)
+if DatabaseStore is not None:
+    # A laptop, pytest, or `railway run` must not open the production database.
+    # The Railway replica sets RAILWAY_DEPLOYMENT_ID, RAILWAY_REPLICA_ID, or
+    # RAILWAY_SNAPSHOT_ID. A copied .env and `railway run` do not.
+    DATABASE_URL = refuse_remote_database(under_test='pytest' in sys.modules)
+else:
+    DATABASE_URL = _raw_database_url
 DB_ENABLED = bool(DATABASE_URL) and DatabaseStore is not None
 db_store = None
 DB_STARTUP_ERROR = None
@@ -339,6 +362,13 @@ _services_ready = False
 if DATABASE_URL and DB_IMPORT_ERROR is not None:
     logger.error('DATABASE_URL is set but database dependencies failed to import: %s', DB_IMPORT_ERROR)
     DB_STARTUP_ERROR = f'Database dependencies failed to import: {DB_IMPORT_ERROR}'
+elif _raw_database_url and not DATABASE_URL:
+    logger.error(
+        'Refusing remote database host=%s. This process is not a Railway deployment, '
+        'so development stays on local CSV files. Set MW_ALLOW_REMOTE_DB=1 only for '
+        'intentional maintenance.',
+        database_hostname(_raw_database_url) or 'unknown',
+    )
 
 
 def _init_application_services():
@@ -360,6 +390,12 @@ def _init_application_services():
                     db_store.initialize()
                     last_exc = None
                     logger.info('Database connected on attempt %s', attempt)
+                    break
+                except RemoteDatabaseBlocked as exc:
+                    logger.error('%s', exc)
+                    db_store = None
+                    DB_UNAVAILABLE = True
+                    DB_STARTUP_ERROR = 'Database unavailable.'
                     break
                 except Exception as exc:
                     last_exc = exc

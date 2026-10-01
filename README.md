@@ -321,7 +321,7 @@ On the **web service**, set:
 | `DATA_DIR` | Optional | Path on a mounted volume for CSV files |
 | `OUT_DIR` | Optional | Path on a mounted volume for generated reports |
 
-Copy `.env.example` for local development.
+Copy `.env.example` for local development. Leave `DATABASE_URL` unset, or point it at localhost. The app will not open a remote database from a laptop, a test run, or `railway run`. Production connects because the Railway replica sets `RAILWAY_DEPLOYMENT_ID`. Set `MW_ALLOW_REMOTE_DB=1` only for a one-off maintenance command that must use the remote database.
 
 ### 3. PostgreSQL (recommended)
 
