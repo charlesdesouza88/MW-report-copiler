@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import tempfile
+from html import unescape
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -101,12 +102,31 @@ def _class_choice_from_html(html: str) -> str:
 
 
 def _delete_path_for_student(html: str, name: str) -> str:
-    match = re.search(
-        re.escape(name) + r'.{0,8000}?action="([^"]*?/students/\d+/delete[^"]*)"',
-        html,
-        re.DOTALL,
-    )
-    return match.group(1) if match else ''
+    wanted = (name or '').strip()
+    if not wanted:
+        return ''
+
+    for match in re.finditer(r'<form\b(?P<attrs>[^>]*)>(?P<body>.*?)</form>', html, re.DOTALL | re.IGNORECASE):
+        attrs = match.group('attrs')
+        action = re.search(r'\baction="([^"]*?/students/\d+/delete[^"]*)"', attrs)
+        if action and wanted in unescape(attrs + ' ' + match.group('body')):
+            return unescape(action.group(1))
+
+    for match in re.finditer(r'<tr\b[^>]*\bstudent-row\b[^>]*>.*?</tr>', html, re.DOTALL | re.IGNORECASE):
+        row_html = match.group(0)
+        action = re.search(r'\baction="([^"]*?/students/\d+/delete[^"]*)"', row_html)
+        if action and wanted in unescape(row_html):
+            return unescape(action.group(1))
+
+    return ''
+
+
+def _lesson_turma_from_html(html: str) -> str:
+    for value in re.findall(r'\bdata-turma="([^"]+)"', html):
+        turma = unescape(value).strip()
+        if turma:
+            return turma
+    return ''
 
 
 class FlowRunner:
@@ -295,9 +315,10 @@ def run_live(base: str):
 
     new_name = f'Live Flow Kid {os.getpid()}'
     class_choice = _class_choice_from_html(new_student_html)
-    # A registered class is required when the dashboard picker is on the form.
-    # Without one, use a throwaway code so this check never lands in a real class.
-    turma = class_choice or f'AUDIT {os.getpid()}'
+    lessons_html = get('/lessons').read().decode('utf-8', errors='replace')
+    # Admin CSV-mode forms may not show a class picker. Use an existing lesson-backed
+    # turma so the later report-generation check exercises the happy path.
+    turma = class_choice or _lesson_turma_from_html(lessons_html) or 'MASTER'
     try:
         form_data = _student_form(new_name, turma)
         if class_choice:
