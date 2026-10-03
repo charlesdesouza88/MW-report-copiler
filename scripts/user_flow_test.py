@@ -101,12 +101,23 @@ def _class_choice_from_html(html: str) -> str:
 
 
 def _delete_path_for_student(html: str, name: str) -> str:
-    match = re.search(
-        re.escape(name) + r'.{0,8000}?action="([^"]*?/students/\d+/delete[^"]*)"',
+    for block in re.findall(r'<tr\b[^>]*>.*?</tr>', html, re.DOTALL):
+        if name in block:
+            match = re.search(r'action="([^"]*?/students/\d+/delete[^"]*)"', block)
+            if match:
+                return match.group(1)
+
+    cards = re.split(
+        r'(?=<div\b[^>]*class="[^"]*\bstudent-card\b[^"]*\bstudent-card-item\b)',
         html,
-        re.DOTALL,
     )
-    return match.group(1) if match else ''
+    for block in cards[1:]:
+        if name in block:
+            match = re.search(r'action="([^"]*?/students/\d+/delete[^"]*)"', block)
+            if match:
+                return match.group(1)
+
+    return ''
 
 
 class FlowRunner:

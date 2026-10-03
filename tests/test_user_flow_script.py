@@ -33,13 +33,47 @@ def test_class_choice_is_empty_without_a_picker():
 def test_delete_path_is_tied_to_the_named_student():
     script = _script()
     html = '''
-    <strong>Jane Doe</strong>
-    <form method="post" action="/students/0/delete?month=2026-02">
-      <button>Excluir</button>
-    </form>
-    <strong>Live Flow Kid 99</strong>
-    <form method="post" action="/students/4/delete">
-      <button>Excluir</button>
-    </form>
+    <tr class="student-row">
+      <td><strong>Jane Doe</strong></td>
+      <td>
+        <form method="post" action="/students/0/delete?month=2026-02">
+          <button>Excluir</button>
+        </form>
+      </td>
+    </tr>
+    <tr class="student-row">
+      <td><strong>Live Flow Kid 99</strong></td>
+      <td>
+        <form method="post" action="/students/4/delete">
+          <button>Excluir</button>
+        </form>
+      </td>
+    </tr>
     '''
     assert script._delete_path_for_student(html, 'Live Flow Kid 99') == '/students/4/delete'
+
+
+def test_delete_path_ignores_flash_message_with_student_name():
+    script = _script()
+    html = '''
+    <div class="alert alert-success">✓ &nbsp;Aluno "Live Flow Kid 99" cadastrado.</div>
+    <tr class="student-row">
+      <td><strong>Jane Doe</strong></td>
+      <td>
+        <form method="post" action="/students/0/delete?month=2026-02">
+          <button>✕</button>
+        </form>
+      </td>
+    </tr>
+    <tr class="student-row">
+      <td><strong>Live Flow Kid 99</strong></td>
+      <td>
+        <form method="post" action="/students/1/delete?month=2026-02">
+          <button>✕</button>
+        </form>
+      </td>
+    </tr>
+    '''
+    assert script._delete_path_for_student(html, 'Live Flow Kid 99') == (
+        '/students/1/delete?month=2026-02'
+    )
