@@ -33,13 +33,44 @@ def test_class_choice_is_empty_without_a_picker():
 def test_delete_path_is_tied_to_the_named_student():
     script = _script()
     html = '''
-    <strong>Jane Doe</strong>
-    <form method="post" action="/students/0/delete?month=2026-02">
-      <button>Excluir</button>
-    </form>
-    <strong>Live Flow Kid 99</strong>
-    <form method="post" action="/students/4/delete">
-      <button>Excluir</button>
-    </form>
+    <div class="alert alert-success">Aluno "Live Flow Kid 99" cadastrado.</div>
+    <div class="student-card">
+      <strong>Jane Doe</strong>
+      <form method="post" action="/students/0/delete?month=2026-02">
+        <button>Excluir</button>
+      </form>
+    </div>
+    <div class="student-card">
+      <strong>Live Flow Kid 99</strong>
+      <form method="post" action="/students/4/delete?month=2026-02">
+        <button>Excluir</button>
+      </form>
+    </div>
     '''
-    assert script._delete_path_for_student(html, 'Live Flow Kid 99') == '/students/4/delete'
+    assert script._delete_path_for_student(html, 'Live Flow Kid 99') == '/students/4/delete?month=2026-02'
+
+
+def test_delete_path_reads_table_row_for_named_student():
+    script = _script()
+    html = '''
+    <table><tbody>
+      <tr>
+        <td>Jane Doe</td>
+        <td><form method="post" action="/students/0/delete"><button>✕</button></form></td>
+      </tr>
+      <tr>
+        <td>Live Flow Kid 99</td>
+        <td><form method="post" action="/students/1/delete"><button>✕</button></form></td>
+      </tr>
+    </tbody></table>
+    '''
+    assert script._delete_path_for_student(html, 'Live Flow Kid 99') == '/students/1/delete'
+
+
+def test_lesson_turma_reads_first_lesson_backed_class():
+    script = _script()
+    html = '''
+    <div class="student-card lesson-card-item" data-turma="MASTER"></div>
+    <div class="student-card lesson-card-item" data-turma="TEENS 1"></div>
+    '''
+    assert script._lesson_turma_from_html(html) == 'MASTER'

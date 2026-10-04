@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import tempfile
+from html.parser import HTMLParser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -100,13 +101,60 @@ def _class_choice_from_html(html: str) -> str:
     return ''
 
 
+class _StudentDeleteParser(HTMLParser):
+    def __init__(self, name: str):
+        super().__init__(convert_charrefs=True)
+        self.name = name
+        self.blocks: list[dict[str, object]] = []
+        self._active: list[dict[str, object]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]):
+        for block in self._active:
+            block['depth'] = int(block['depth']) + 1
+        attrs_dict = dict(attrs)
+        classes = set((attrs_dict.get('class') or '').split())
+        if tag == 'tr' or (tag == 'div' and 'student-card' in classes):
+            self._active.append({'depth': 1, 'text': [], 'actions': []})
+        if tag == 'form' and self._active:
+            action = attrs_dict.get('action') or ''
+            if re.search(r'/students/\d+/delete(?:\?|$)', action):
+                self._active[-1]['actions'].append(action)
+
+    def handle_data(self, data: str):
+        if self._active:
+            self._active[-1]['text'].append(data)
+
+    def handle_endtag(self, tag: str):
+        finished = []
+        for block in self._active:
+            block['depth'] = int(block['depth']) - 1
+            if int(block['depth']) == 0:
+                finished.append(block)
+        if finished:
+            self.blocks.extend(finished)
+            self._active = [block for block in self._active if int(block['depth']) > 0]
+
+    def delete_path(self) -> str:
+        for block in self.blocks:
+            text = ' '.join(''.join(block['text']).split())
+            actions = block['actions']
+            if self.name in text and actions:
+                return str(actions[0])
+        return ''
+
+
 def _delete_path_for_student(html: str, name: str) -> str:
-    match = re.search(
-        re.escape(name) + r'.{0,8000}?action="([^"]*?/students/\d+/delete[^"]*)"',
-        html,
-        re.DOTALL,
-    )
-    return match.group(1) if match else ''
+    parser = _StudentDeleteParser(name)
+    parser.feed(html)
+    return parser.delete_path()
+
+
+def _lesson_turma_from_html(html: str) -> str:
+    for value in re.findall(r'\bdata-turma="([^"]+)"', html):
+        value = value.strip()
+        if value:
+            return value
+    return ''
 
 
 class FlowRunner:
@@ -295,9 +343,12 @@ def run_live(base: str):
 
     new_name = f'Live Flow Kid {os.getpid()}'
     class_choice = _class_choice_from_html(new_student_html)
-    # A registered class is required when the dashboard picker is on the form.
-    # Without one, use a throwaway code so this check never lands in a real class.
-    turma = class_choice or f'AUDIT {os.getpid()}'
+    lesson_turma = ''
+    if not class_choice:
+        lesson_turma = _lesson_turma_from_html(get('/lessons').read().decode('utf-8', errors='replace'))
+    # CSV/live audit mode may expose lessons before the class picker exists.
+    # Use a lesson-backed class so report generation exercises the happy path.
+    turma = class_choice or lesson_turma or 'MASTER'
     try:
         form_data = _student_form(new_name, turma)
         if class_choice:
