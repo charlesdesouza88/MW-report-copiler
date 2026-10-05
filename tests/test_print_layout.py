@@ -166,16 +166,22 @@ def test_print_layout_does_not_clip_participacao(tmp_path: Path, render):
             report.resolve().as_uri(),
         ],
         stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
     )
+    # A cold headless Chrome on a busy CI runner can take well over 15 s to start.
+    timed_out = False
     try:
-        stdout, _ = proc.communicate(timeout=15)
+        stdout, stderr = proc.communicate(timeout=60)
     except subprocess.TimeoutExpired:
+        timed_out = True
         proc.kill()
-        stdout, _ = proc.communicate()
+        stdout, stderr = proc.communicate()
     text = (stdout or b"").decode("utf-8", "replace")
     match = re.search(r'data-print-check="([^"]*)"', text)
-    assert match, "print probe script did not run"
+    assert match, (
+        f"print probe script did not run (timed out={timed_out}, exit={proc.returncode}, "
+        f"stdout={len(text)} chars, stderr tail={(stderr or b'').decode('utf-8', 'replace')[-400:]!r})"
+    )
     result = json.loads(htmlmod.unescape(match.group(1)))
     assert result["pageClipped"] == []
     assert result["overlaps"] == []
