@@ -33,13 +33,55 @@ def test_class_choice_is_empty_without_a_picker():
 def test_delete_path_is_tied_to_the_named_student():
     script = _script()
     html = '''
-    <strong>Jane Doe</strong>
-    <form method="post" action="/students/0/delete?month=2026-02">
-      <button>Excluir</button>
-    </form>
-    <strong>Live Flow Kid 99</strong>
-    <form method="post" action="/students/4/delete">
-      <button>Excluir</button>
-    </form>
+    <div class="student-card student-card-item">
+      <strong>Jane Doe</strong>
+      <form method="post" action="/students/0/delete?month=2026-02">
+        <button>Excluir</button>
+      </form>
+    </div>
+    <tr class="student-row">
+      <td><strong>Live Flow Kid 99</strong></td>
+      <td>
+        <form method="post" action="/students/4/delete">
+          <button>Excluir</button>
+        </form>
+      </td>
+    </tr>
     '''
     assert script._delete_path_for_student(html, 'Live Flow Kid 99') == '/students/4/delete'
+
+
+def test_delete_path_ignores_success_flash_with_student_name():
+    script = _script()
+    html = '''
+    <div class="alert alert-success">Aluno "Live Flow Kid 99" cadastrado.</div>
+    <div class="student-card student-card-item">
+      <img src="/students/0/photo" alt="">
+      <strong>Jane Doe</strong>
+      <form method="post" action="/students/0/delete?month=2026-02">
+        <input type="hidden" name="csrf_token" value="token">
+        <button>Excluir</button>
+      </form>
+    </div>
+    <div class="student-card student-card-item">
+      <strong>Live Flow Kid 99</strong>
+      <form method="post" action="/students/1/delete?month=2026-02">
+        <input type="hidden" name="csrf_token" value="token">
+        <button>Excluir</button>
+      </form>
+    </div>
+    '''
+    assert (
+        script._delete_path_for_student(html, 'Live Flow Kid 99')
+        == '/students/1/delete?month=2026-02'
+    )
+
+
+def test_lesson_turmas_from_html_preserves_first_lesson_backed_class():
+    script = _script()
+    html = '''
+    <div class="student-card lesson-card-item" data-turma="MASTER"></div>
+    <tr class="lesson-row" data-turma="MASTER"></tr>
+    <tr class="lesson-row" data-turma="TEENS 1"></tr>
+    '''
+    assert script._lesson_turmas_from_html(html) == ['MASTER', 'TEENS 1']

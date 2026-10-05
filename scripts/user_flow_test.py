@@ -12,7 +12,9 @@ import os
 import re
 import sys
 import tempfile
+from html.parser import HTMLParser
 from pathlib import Path
+from typing import ClassVar
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -100,13 +102,85 @@ def _class_choice_from_html(html: str) -> str:
     return ''
 
 
+class _StudentDeletePathParser(HTMLParser):
+    _VOID_TAGS: ClassVar[frozenset[str]] = frozenset({
+        'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+        'link', 'meta', 'param', 'source', 'track', 'wbr',
+    })
+
+    def __init__(self, name: str):
+        super().__init__(convert_charrefs=True)
+        self.name = name
+        self.path = ''
+        self._block_depth = 0
+        self._block_text: list[str] = []
+        self._block_delete_path = ''
+
+    @staticmethod
+    def _attrs(attrs):
+        return {key: value or '' for key, value in attrs}
+
+    @staticmethod
+    def _is_student_block(tag: str, attrs: dict[str, str]) -> bool:
+        classes = set(attrs.get('class', '').split())
+        return (
+            tag == 'tr' and 'student-row' in classes
+            or tag == 'div' and 'student-card-item' in classes
+        )
+
+    def handle_starttag(self, tag: str, attrs):
+        attr_map = self._attrs(attrs)
+        if self._block_depth:
+            if tag not in self._VOID_TAGS:
+                self._block_depth += 1
+            if tag == 'form':
+                action = attr_map.get('action', '')
+                if '/students/' in action and '/delete' in action and not self._block_delete_path:
+                    self._block_delete_path = action
+            return
+        if self._is_student_block(tag, attr_map):
+            self._block_depth = 1
+            self._block_text = []
+            self._block_delete_path = ''
+
+    def handle_startendtag(self, tag: str, attrs):
+        self.handle_starttag(tag, attrs)
+
+    def handle_data(self, data: str):
+        if self._block_depth:
+            self._block_text.append(data)
+
+    def handle_endtag(self, tag: str):
+        if not self._block_depth:
+            return
+        self._block_depth -= 1
+        if self._block_depth == 0 and not self.path:
+            block_text = ' '.join(part.strip() for part in self._block_text if part.strip())
+            if self.name in block_text and self._block_delete_path:
+                self.path = self._block_delete_path
+
+
 def _delete_path_for_student(html: str, name: str) -> str:
-    match = re.search(
-        re.escape(name) + r'.{0,8000}?action="([^"]*?/students/\d+/delete[^"]*)"',
-        html,
-        re.DOTALL,
-    )
-    return match.group(1) if match else ''
+    parser = _StudentDeletePathParser(name)
+    parser.feed(html)
+    return parser.path
+
+
+class _LessonTurmaParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.turmas: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs):
+        for key, value in attrs:
+            if key == 'data-turma' and value and value.strip() not in self.turmas:
+                self.turmas.append(value.strip())
+
+
+def _lesson_turmas_from_html(html: str) -> list[str]:
+    parser = _LessonTurmaParser()
+    parser.feed(html)
+    return parser.turmas
 
 
 class FlowRunner:
@@ -295,9 +369,16 @@ def run_live(base: str):
 
     new_name = f'Live Flow Kid {os.getpid()}'
     class_choice = _class_choice_from_html(new_student_html)
+    lesson_turmas = []
+    if not class_choice:
+        try:
+            lessons_html = get('/lessons').read().decode('utf-8', errors='replace')
+            lesson_turmas = _lesson_turmas_from_html(lessons_html)
+        except (urllib.error.HTTPError, OSError):
+            lesson_turmas = []
     # A registered class is required when the dashboard picker is on the form.
-    # Without one, use a throwaway code so this check never lands in a real class.
-    turma = class_choice or f'AUDIT {os.getpid()}'
+    # Admin/manual forms still need a lesson-backed turma so generation stays valid.
+    turma = class_choice or (lesson_turmas[0] if lesson_turmas else f'AUDIT {os.getpid()}')
     try:
         form_data = _student_form(new_name, turma)
         if class_choice:
