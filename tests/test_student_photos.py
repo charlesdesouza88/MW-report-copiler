@@ -207,7 +207,7 @@ def test_deleting_student_removes_photo(monkeypatch, tmp_path):
     _login(client)
     _upload(client)
 
-    client.post("/students/0/delete")
+    client.post("/students/0/delete", data={"orig_turma": "MASTER", "orig_student_name": "Jane Doe"})
     rows = json.loads((data_dir / "student_photos.json").read_text(encoding="utf-8"))
     assert rows == []
 

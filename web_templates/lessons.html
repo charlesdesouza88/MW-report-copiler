@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% from '_macros/list_filters.html' import filter_panel, filter_turma_group, filter_group, filter_month_group, list_filter_script %}
 {% from '_macros/page_toolbar.html' import page_toolbar %}
+{% from '_macros/identity.html' import identity_fields %}
 {% set return_turma = request.args.get('turma', '') %}
 {% block title %}Aulas{% endblock %}
 {% block page_title %}Detalhes das aulas{% endblock %}
@@ -8,6 +9,9 @@
 {% block topbar_actions %}{% endblock %}
 
 {% block content %}
+{% if lesson_flash_error %}
+<div class="alert" style="background:#FADBD8; color:#E24B4A; border:1px solid #F1948A; margin-bottom:14px;">✕ &nbsp;{{ lesson_flash_error }}</div>
+{% endif %}
 
 <p class="text-gray font-sm" style="margin-bottom:16px;">
   Cadastre o conteúdo de cada aula por turma — os mesmos dados do arquivo <code>lessons.csv</code>.
@@ -58,6 +62,7 @@
       <form method="post" action="{{ url_for('lesson_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('lesson_delete', idx=loop.index0) }}"
             onsubmit="return confirm({{ ('Excluir aula ' ~ lesson.aula_num ~ ' da turma ' ~ lesson.turma ~ '?')|tojson }})">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {{ identity_fields(lesson, LESSON_IDENTITY) }}
         <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
       </form>
     </div>
@@ -101,6 +106,7 @@
             <form method="post" action="{{ url_for('lesson_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('lesson_delete', idx=loop.index0) }}"
                   onsubmit="return confirm('Excluir esta aula?')">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {{ identity_fields(lesson, LESSON_IDENTITY) }}
               <button type="submit" class="btn btn-danger btn-xs">✕</button>
             </form>
           </div>

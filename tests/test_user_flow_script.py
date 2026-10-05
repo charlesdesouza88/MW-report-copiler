@@ -43,3 +43,21 @@ def test_delete_path_is_tied_to_the_named_student():
     </form>
     '''
     assert script._delete_path_for_student(html, 'Live Flow Kid 99') == '/students/4/delete'
+
+
+def test_delete_identity_comes_from_the_named_students_form():
+    script = _script()
+    html = '''
+    <strong>Jane Doe</strong>
+    <form method="post" action="/students/0/delete">
+      <input type="hidden" name="orig_turma" value="MASTER"><input type="hidden" name="orig_student_name" value="Jane Doe">
+    </form>
+    <strong>Live Flow Kid 99</strong>
+    <form method="post" action="/students/4/delete">
+      <input type="hidden" name="orig_turma" value="FLOW"><input type="hidden" name="orig_student_name" value="Live Flow Kid 99">
+    </form>
+    '''
+    assert script._delete_identity_for_student(html, 'Live Flow Kid 99') == {
+        'orig_turma': 'FLOW', 'orig_student_name': 'Live Flow Kid 99',
+    }
+    assert script._delete_identity_for_student(html, 'Nobody') == {}
