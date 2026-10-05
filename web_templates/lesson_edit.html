@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_macros/identity.html' import identity_fields %}
 {% from '_macros/datetime_fields.html' import date_picker %}
 {% set return_turma = request.args.get('turma', '') %}
 {% block title %}{{ 'Nova aula' if is_new else 'Editar aula' }}{% endblock %}
@@ -12,6 +13,7 @@
 {% block content %}
 <form method="post" style="max-width: 720px;">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if not is_new %}{{ identity_fields(lesson, LESSON_IDENTITY) }}{% endif %}
   {% if return_turma %}
   <input type="hidden" name="return_turma" value="{{ return_turma }}">
   {% endif %}

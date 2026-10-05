@@ -563,7 +563,15 @@ def handle_csrf_error(e):
     return render_template('login.html', error='Sessão expirada. Por favor, tente novamente.',
                            bootstrap_email='', accounts_configured=True), 400
 
+# Identity of a row for orig_* form checks — see _locate_by_identity.
+STUDENT_IDENTITY = ('turma', 'student_name')
+LESSON_IDENTITY = ('turma', 'aula_num', 'date')
+EXTRA_SESSION_IDENTITY = ('student_name', 'turma', 'date', 'session_type')
+
 app.jinja_env.globals.update(
+    STUDENT_IDENTITY=STUDENT_IDENTITY,
+    LESSON_IDENTITY=LESSON_IDENTITY,
+    EXTRA_SESSION_IDENTITY=EXTRA_SESSION_IDENTITY,
     storage_date_to_iso=storage_date_to_iso,
     format_date_for_input=format_date_for_input,
     storage_time_to_input=storage_time_to_input,
@@ -1490,6 +1498,38 @@ def _student_identity_conflict(visible_row, form):
     )
 
 
+# Rows are addressed by their position in the user's list (identity fields:
+# STUDENT_IDENTITY etc., defined beside the template globals). Forms carry hidden
+# orig_<field> copies of these fields (see _macros/identity.html) so a POST can be
+# matched to the row the user actually saw, even if the list shifted meanwhile.
+
+LIST_CHANGED_MESSAGE = (
+    'A lista mudou desde que você abriu esta página (outra pessoa pode ter editado ao mesmo tempo). '
+    'Nada foi alterado — recarregue a página e tente novamente.'
+)
+
+
+def _locate_by_identity(visible, idx, form, fields, *, required):
+    """Index in `visible` of the row this form was opened for, or None.
+
+    Uses idx when that row still matches the orig_* fields, otherwise the row's
+    new position. Forms without orig_* fields (pages loaded before this check
+    existed) fall back to idx unless `required` — destructive actions refuse them.
+    """
+    wanted = {f: (form.get(f'orig_{f}') or '').strip().casefold() for f in fields}
+    if not any(wanted.values()):
+        if required:
+            return None
+        return idx if 0 <= idx < len(visible) else None
+
+    def matches(row):
+        return all((row.get(f) or '').strip().casefold() == v for f, v in wanted.items())
+
+    if 0 <= idx < len(visible) and matches(visible[idx]):
+        return idx
+    return next((i for i, row in enumerate(visible) if matches(row)), None)
+
+
 STUDENT_LIST_CHANGED_MESSAGE = (
     'A lista de alunos mudou desde que você abriu esta página. '
     'Recarregue a página e tente novamente.'
@@ -1800,7 +1840,9 @@ def _redirect_students(flash_ok=None, flash_error=None):
     return _redirect_with_list_params('students')
 
 
-def _redirect_lessons():
+def _redirect_lessons(flash_error=None):
+    if flash_error:
+        session['lesson_flash_error'] = flash_error
     return _redirect_with_list_params('lessons')
 
 
@@ -3459,6 +3501,9 @@ def student_new():
 @login_required
 def student_delete(idx):
     all_rows, visible = _scoped_students()
+    idx = _locate_by_identity(visible, idx, request.form, STUDENT_IDENTITY, required=True)
+    if idx is None:
+        return _redirect_students(flash_error=LIST_CHANGED_MESSAGE)
     if 0 <= idx < len(visible):
         global_idx = find_student_global_index(all_rows, visible, idx)
         if global_idx is not None:
@@ -3568,6 +3613,7 @@ def lessons():
     return render_template(
         'lessons.html',
         lessons=rows,
+        lesson_flash_error=session.pop('lesson_flash_error', None),
         turma_filters=turma_filters,
         habilidades=habilidades,
         lesson_field_labels=LESSON_FIELD_LABELS,
@@ -3583,6 +3629,11 @@ def lesson_edit(idx):
     user = _current_user()
     allowed_turmas = _allowed_turmas(all_students, user)
 
+    if request.method == 'POST':
+        located = _locate_by_identity(visible, idx, request.form, LESSON_IDENTITY, required=False)
+        if located is None:
+            return _redirect_lessons(flash_error=LIST_CHANGED_MESSAGE)
+        idx = located
     if idx < 0 or idx >= len(visible):
         abort(404)
 
@@ -3725,6 +3776,12 @@ def extra_session_new():
 def extra_session_edit(idx):
     all_rows, visible = _scoped_extra_sessions()
     user = _current_user()
+    if request.method == 'POST':
+        located = _locate_by_identity(visible, idx, request.form, EXTRA_SESSION_IDENTITY, required=False)
+        if located is None:
+            session['extra_session_flash_error'] = LIST_CHANGED_MESSAGE
+            return redirect(url_for('extra_sessions'))
+        idx = located
     if idx < 0 or idx >= len(visible):
         abort(404)
 
@@ -3757,6 +3814,10 @@ def extra_session_edit(idx):
 @login_required
 def extra_session_delete(idx):
     all_rows, visible = _scoped_extra_sessions()
+    idx = _locate_by_identity(visible, idx, request.form, EXTRA_SESSION_IDENTITY, required=True)
+    if idx is None:
+        session['extra_session_flash_error'] = LIST_CHANGED_MESSAGE
+        return redirect(url_for('extra_sessions'))
     if 0 <= idx < len(visible):
         global_idx = find_extra_session_global_index(all_rows, visible, idx)
         if global_idx is not None:
@@ -3836,6 +3897,9 @@ def _teacher_names_from_students():
 def lesson_delete(idx):
     all_students, _ = _scoped_students()
     all_rows, visible = _scoped_lessons(all_students)
+    idx = _locate_by_identity(visible, idx, request.form, LESSON_IDENTITY, required=True)
+    if idx is None:
+        return _redirect_lessons(flash_error=LIST_CHANGED_MESSAGE)
     if 0 <= idx < len(visible):
         global_idx = find_lesson_global_index(all_rows, visible, idx)
         if global_idx is not None:

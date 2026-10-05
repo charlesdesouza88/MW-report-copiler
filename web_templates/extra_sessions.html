@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% from '_macros/list_filters.html' import filter_panel, filter_group, filter_month_group, list_filter_script %}
 {% from '_macros/page_toolbar.html' import page_toolbar %}
+{% from '_macros/identity.html' import identity_fields %}
 {% block title %}Reforço e Reposições{% endblock %}
 {% block page_title %}Atendimentos — reforço, reposição e aulas extras{% endblock %}
 
@@ -104,6 +105,7 @@
       <form method="post" action="{{ url_for('extra_session_delete', idx=loop.index0) }}"
             onsubmit="return confirm('Excluir este atendimento?')">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {{ identity_fields(row, EXTRA_SESSION_IDENTITY) }}
         <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
       </form>
     </div>
@@ -175,6 +177,7 @@
             <form method="post" action="{{ url_for('extra_session_delete', idx=loop.index0) }}"
                   onsubmit="return confirm('Excluir este atendimento?')">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {{ identity_fields(row, EXTRA_SESSION_IDENTITY) }}
               <button type="submit" class="btn btn-danger btn-xs">✕</button>
             </form>
           </div>

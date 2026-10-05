@@ -22,6 +22,10 @@ def _lessons_csv():
     )
 
 
+# What the delete form on the students page sends along (see _macros/identity.html).
+JANE_IDENTITY = {"orig_turma": "MASTER", "orig_student_name": "Jane Doe"}
+
+
 def _init_user_store(monkeypatch, data_dir):
     from auth import UserStore
 
@@ -2177,7 +2181,7 @@ def test_student_delete_cascades_related_records(monkeypatch, tmp_path):
     with client.session_transaction() as sess:
         sess["review_month"] = "2026-02"
 
-    response = client.post("/students/0/delete", follow_redirects=True)
+    response = client.post("/students/0/delete", data=JANE_IDENTITY, follow_redirects=True)
     assert response.status_code == 200
     assert "Jane Doe" not in (data_dir / "students.csv").read_text(encoding="utf-8")
     assert "Jane Doe" not in (data_dir / "lesson_attendance.csv").read_text(encoding="utf-8")
@@ -2325,7 +2329,7 @@ def test_admin_delete_student_with_merged_monthly_data(monkeypatch, tmp_path):
     with client.session_transaction() as sess:
         sess["review_month"] = "2026-05"
 
-    response = client.post("/students/0/delete", follow_redirects=True)
+    response = client.post("/students/0/delete", data=JANE_IDENTITY, follow_redirects=True)
 
     assert response.status_code == 200
     remaining = (data_dir / "students.csv").read_text(encoding="utf-8")

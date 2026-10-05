@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% from '_macros/list_filters.html' import filter_panel, filter_turma_group, filter_group_extra, list_filter_script %}
 {% from '_macros/page_toolbar.html' import page_toolbar %}
+{% from '_macros/identity.html' import identity_fields %}
 {% from '_macros/icons.html' import icon %}
 {% set return_turma = request.args.get('turma', '') %}
 {% set return_month = review_month or request.args.get('month', '') %}
@@ -78,6 +79,7 @@
       <form method="post" action="{{ url_with_month('student_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_delete', idx=loop.index0, month=return_month) }}"
             onsubmit="return confirm({{ ('Excluir ' ~ s.student_name ~ '?')|tojson }})">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {{ identity_fields(s, STUDENT_IDENTITY) }}
         <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
       </form>
     </div>
@@ -134,6 +136,7 @@
             <form method="post" action="{{ url_with_month('student_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_delete', idx=loop.index0, month=return_month) }}"
                   onsubmit="return confirm({{ ('Excluir ' ~ s.student_name ~ '?')|tojson }})">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {{ identity_fields(s, STUDENT_IDENTITY) }}
               <button type="submit" class="btn btn-danger btn-xs">✕</button>
             </form>
           </div>

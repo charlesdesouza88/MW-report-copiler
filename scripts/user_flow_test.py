@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import tempfile
+from html import unescape
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -107,6 +108,21 @@ def _delete_path_for_student(html: str, name: str) -> str:
         re.DOTALL,
     )
     return match.group(1) if match else ''
+
+
+def _delete_identity_for_student(html: str, name: str) -> dict:
+    """Hidden orig_* fields of that student's delete form (the server refuses deletes without them)."""
+    match = re.search(
+        re.escape(name) + r'.{0,8000}?(<form[^>]*/students/\d+/delete.*?</form>)',
+        html,
+        re.DOTALL,
+    )
+    if not match:
+        return {}
+    return {
+        key: unescape(value)
+        for key, value in re.findall(r'name="(orig_[a-z_]+)" value="([^"]*)"', match.group(1))
+    }
 
 
 class FlowRunner:
@@ -317,7 +333,8 @@ def run_live(base: str):
     removed = False
     if delete_path:
         try:
-            post(delete_path, {'csrf_token': _csrf_from_html(html)})
+            post(delete_path, {'csrf_token': _csrf_from_html(html),
+                               **_delete_identity_for_student(html, new_name)})
         except urllib.error.HTTPError:
             removed = False
         else:

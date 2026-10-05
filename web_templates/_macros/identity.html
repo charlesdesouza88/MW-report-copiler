@@ -1,0 +1,4 @@
+{#- Hidden copies of a row's identity, so a POST by list position can be checked against what the user saw. -#}
+{% macro identity_fields(row, fields) -%}
+{% for f in fields %}<input type="hidden" name="orig_{{ f }}" value="{{ row.get(f, '') }}">{% endfor %}
+{%- endmacro %}
