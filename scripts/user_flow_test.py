@@ -12,8 +12,9 @@ import os
 import re
 import sys
 import tempfile
-from html import unescape
+from html.parser import HTMLParser
 from pathlib import Path
+from typing import ClassVar
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -101,28 +102,104 @@ def _class_choice_from_html(html: str) -> str:
     return ''
 
 
+class _StudentDeleteFormParser(HTMLParser):
+    """Find the delete form inside the named student's own row or card.
+
+    Searching the raw HTML for the name is unsafe: the success banner
+    ("Aluno … cadastrado") sits above the list, so the first form after the
+    name belongs to whichever real student is listed first.
+    """
+
+    _VOID_TAGS: ClassVar[frozenset[str]] = frozenset({
+        'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+        'link', 'meta', 'param', 'source', 'track', 'wbr',
+    })
+
+    def __init__(self, name: str):
+        super().__init__(convert_charrefs=True)
+        self.name = name
+        self.path = ''
+        self.identity: dict[str, str] = {}
+        self._depth = 0
+        self._text: list[str] = []
+        self._form_path = ''
+        self._form_identity: dict[str, str] = {}
+        self._in_delete_form = False
+
+    @staticmethod
+    def _is_student_block(tag: str, attrs: dict[str, str]) -> bool:
+        classes = set(attrs.get('class', '').split())
+        return (tag == 'tr' and 'student-row' in classes) or (
+            tag == 'div' and 'student-card-item' in classes
+        )
+
+    def handle_starttag(self, tag, attrs):
+        attr_map = {key: value or '' for key, value in attrs}
+        if not self._depth:
+            if self._is_student_block(tag, attr_map):
+                self._depth = 1
+                self._text, self._form_path, self._form_identity = [], '', {}
+            return
+        if tag not in self._VOID_TAGS:
+            self._depth += 1
+        if tag == 'form':
+            action = attr_map.get('action', '')
+            self._in_delete_form = '/students/' in action and '/delete' in action and not self._form_path
+            if self._in_delete_form:
+                self._form_path = action
+        elif tag == 'input' and self._in_delete_form and attr_map.get('name', '').startswith('orig_'):
+            self._form_identity[attr_map['name']] = attr_map.get('value', '')
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+
+    def handle_data(self, data):
+        if self._depth:
+            self._text.append(data)
+
+    def handle_endtag(self, tag):
+        if not self._depth:
+            return
+        if tag == 'form':
+            self._in_delete_form = False
+        self._depth -= 1
+        if self._depth == 0 and not self.path:
+            text = ' '.join(part.strip() for part in self._text if part.strip())
+            if self.name in text and self._form_path:
+                self.path, self.identity = self._form_path, self._form_identity
+
+
+def _delete_form_for_student(html: str, name: str) -> tuple[str, dict]:
+    """(action, orig_* identity) of the delete form in that student's own row; ('', {}) if none."""
+    parser = _StudentDeleteFormParser(name)
+    parser.feed(html)
+    return parser.path, parser.identity
+
+
 def _delete_path_for_student(html: str, name: str) -> str:
-    match = re.search(
-        re.escape(name) + r'.{0,8000}?action="([^"]*?/students/\d+/delete[^"]*)"',
-        html,
-        re.DOTALL,
-    )
-    return match.group(1) if match else ''
+    return _delete_form_for_student(html, name)[0]
 
 
 def _delete_identity_for_student(html: str, name: str) -> dict:
     """Hidden orig_* fields of that student's delete form (the server refuses deletes without them)."""
-    match = re.search(
-        re.escape(name) + r'.{0,8000}?(<form[^>]*/students/\d+/delete.*?</form>)',
-        html,
-        re.DOTALL,
-    )
-    if not match:
-        return {}
-    return {
-        key: unescape(value)
-        for key, value in re.findall(r'name="(orig_[a-z_]+)" value="([^"]*)"', match.group(1))
-    }
+    return _delete_form_for_student(html, name)[1]
+
+
+class _LessonTurmaParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.turmas: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        for key, value in attrs:
+            if key == 'data-turma' and value and value.strip() not in self.turmas:
+                self.turmas.append(value.strip())
+
+
+def _lesson_turmas_from_html(html: str) -> list[str]:
+    parser = _LessonTurmaParser()
+    parser.feed(html)
+    return parser.turmas
 
 
 class FlowRunner:
@@ -311,9 +388,16 @@ def run_live(base: str):
 
     new_name = f'Live Flow Kid {os.getpid()}'
     class_choice = _class_choice_from_html(new_student_html)
+    lesson_turmas = []
+    if not class_choice:
+        try:
+            lessons_html = get('/lessons').read().decode('utf-8', errors='replace')
+            lesson_turmas = _lesson_turmas_from_html(lessons_html)
+        except (urllib.error.HTTPError, OSError):
+            lesson_turmas = []
     # A registered class is required when the dashboard picker is on the form.
-    # Without one, use a throwaway code so this check never lands in a real class.
-    turma = class_choice or f'AUDIT {os.getpid()}'
+    # Admin/manual forms still need a lesson-backed turma so generation stays valid.
+    turma = class_choice or (lesson_turmas[0] if lesson_turmas else f'AUDIT {os.getpid()}')
     try:
         form_data = _student_form(new_name, turma)
         if class_choice:
@@ -329,18 +413,22 @@ def run_live(base: str):
 
     html = get('/students').read().decode('utf-8', errors='replace')
     runner.check('Students list', new_name in html)
-    delete_path = _delete_path_for_student(html, new_name)
+    delete_path, identity = _delete_form_for_student(html, new_name)
     removed = False
-    if delete_path:
+    # Never post a delete unless the form is provably the test student's own:
+    # on a live server a wrong match would erase a real student.
+    if delete_path and identity.get('orig_student_name') == new_name:
         try:
-            post(delete_path, {'csrf_token': _csrf_from_html(html),
-                               **_delete_identity_for_student(html, new_name)})
+            post(delete_path, {'csrf_token': _csrf_from_html(html), **identity})
         except urllib.error.HTTPError:
             removed = False
         else:
             after = get('/students').read().decode('utf-8', errors='replace')
             removed = new_name not in after
-    runner.check('Remove flow-test student', removed, delete_path or 'delete form not found')
+    detail = delete_path or 'delete form not found'
+    if delete_path and identity.get('orig_student_name') != new_name:
+        detail = f'refused: form identity {identity!r} is not {new_name!r}'
+    runner.check('Remove flow-test student', removed, detail)
 
     try:
         dash_html = get('/').read().decode('utf-8', errors='replace')
