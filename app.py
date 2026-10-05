@@ -1265,11 +1265,8 @@ def _teacher_class_registry_map(teacher_name, *, all_semesters=False):
 
 
 def _teacher_class_options_for_form(teacher_name, student=None, *, is_new=False):
-    """Registry turmas plus the student's current turma when editing legacy rows."""
-    if is_new:
-        options = _teacher_class_options(teacher_name, all_semesters=True)
-    else:
-        options = _teacher_class_options(teacher_name)
+    """Selected semester's registry turmas, plus the student's current turma when editing."""
+    options = _teacher_class_options(teacher_name)
     if not student:
         return options
     code = (student.get('turma') or '').strip()
@@ -2824,13 +2821,11 @@ def dashboard():
                     'Revise dias e horário abaixo se precisar; você pode seguir usando '
                     'Alunos e Relatórios normalmente.'
                 )
+        # Only the semester picked at the top of the page; switch it to see others.
         teacher_classes = [
             _with_turma_code_hint(row)
-            for row in collapse_identical_class_copies(
-                _teacher_class_options(
-                    user.get('teacher_name', ''), all_semesters=True, collapse=False,
-                ),
-                prefer_semester=review_semester,
+            for row in _teacher_class_options(
+                user.get('teacher_name', ''), semester_id=review_semester,
             )
         ]
         turma_list = [c['turma'] for c in teacher_classes]
@@ -3223,12 +3218,11 @@ def _registry_turma_codes():
 
 
 def _admin_dashboard_turmas(all_students, semester_id=None):
-    """Active classes for superadmin/admin dashboard (registry + student rows).
+    """Classes of one semester for the superadmin/admin dashboard (registry + student rows).
 
-    Teachers already see every semester; admins must too, otherwise a class like
-    Spark from 1º semestre disappears when the review month is in 2º semestre.
-    Keep a rename (Spark → Scout) and a real schedule change. Identical copies
-    of the same class in two semesters collapse to the review semester.
+    Like the teacher dashboard, only the semester picked at the top of the page is
+    listed; a class kept from another semester shows there once its semester is picked.
+    Classes known only from student rows (never registered) are listed in every semester.
     """
     sid = semester_id or _get_review_semester()
     by_key = {}
@@ -3266,7 +3260,7 @@ def _admin_dashboard_turmas(all_students, semester_id=None):
     registry = _load_teacher_class_registry()
     for teacher_name in registry:
         owner = normalize_teacher_name(teacher_name) or teacher_name
-        for entry in list_for_teacher(registry, teacher_name, semester_id=None):
+        for entry in list_for_teacher(registry, teacher_name, semester_id=sid):
             _upsert(
                 entry['turma'],
                 display=entry.get('turma_display') or entry['turma'],

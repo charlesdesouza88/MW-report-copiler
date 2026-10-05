@@ -1612,7 +1612,7 @@ def test_teacher_edits_csv_student_with_turma_dropdown(monkeypatch, tmp_path):
     assert "Selecione a turma" not in client.get("/students/0/edit").get_data(as_text=True)
 
 
-def test_teacher_new_student_lists_class_from_other_semester(monkeypatch, tmp_path):
+def test_teacher_new_student_lists_classes_of_selected_semester(monkeypatch, tmp_path):
     from teacher_classes import add_class, save_registry
 
     data_dir = tmp_path / "data"
@@ -1646,11 +1646,17 @@ def test_teacher_new_student_lists_class_from_other_semester(monkeypatch, tmp_pa
         sess["review_month"] = "2026-03"
 
     html = client.get("/students/new").get_data(as_text=True)
+    assert 'value="ROOT"' not in html  # ROOT belongs to 2º semestre
+
+    with client.session_transaction() as sess:
+        sess["review_semester"] = "2026-S2"
+        sess["review_month"] = "2026-09"
+    html = client.get("/students/new").get_data(as_text=True)
     assert 'value="ROOT"' in html
     assert ">root" in html or "root —" in html
 
 
-def test_teacher_dashboard_lists_class_after_semester_switch(monkeypatch, tmp_path):
+def test_teacher_dashboard_lists_only_selected_semester(monkeypatch, tmp_path):
     from teacher_classes import add_class, save_registry
 
     data_dir = tmp_path / "data"
@@ -1691,10 +1697,17 @@ def test_teacher_dashboard_lists_class_after_semester_switch(monkeypatch, tmp_pa
         sess["review_month"] = "2026-03"
 
     dash = client.get("/").get_data(as_text=True)
-    assert ">root" in dash.lower() or "root —" in dash
+    assert ">root<" not in dash.lower()  # created in 2º semestre
 
     students = client.get("/students").get_data(as_text=True)
-    assert 'data-filter-value="ROOT"' in students
+    assert 'data-filter-value="ROOT"' in students  # access is not limited by semester
+
+    with client.session_transaction() as sess:
+        sess["review_semester"] = "2026-S2"
+        sess["review_month"] = "2026-09"
+    dash = client.get("/").get_data(as_text=True)
+    assert ">root<" in dash.lower()
+    assert "— 1º semestre" not in dash and "— 2º semestre" not in dash  # no semester copies listed
 
 
 def _student_form_payload(**overrides):
@@ -2754,8 +2767,8 @@ def test_superadmin_dashboard_includes_registry_only_class(monkeypatch, tmp_path
     assert 'href="/students?turma=MASTER' in html
 
 
-def test_admin_dashboard_lists_spark_from_other_semester(monkeypatch, tmp_path):
-    """Admin must see Spark even when the review semester is not the class semester."""
+def test_admin_dashboard_lists_class_in_its_own_semester(monkeypatch, tmp_path):
+    """Spark (1º semestre only) is listed when that semester is picked, not in the 2º."""
     from teacher_classes import add_class, save_registry
 
     data_dir = tmp_path / "data"
@@ -2811,6 +2824,13 @@ def test_admin_dashboard_lists_spark_from_other_semester(monkeypatch, tmp_path):
         sess["review_month"] = "2026-08"
 
     html = client.get("/?semester=2026-S2&month=2026-08").get_data(as_text=True)
+    assert "Spark" not in html
+    assert "Masters" in html
+
+    with client.session_transaction() as sess:
+        sess["review_semester"] = "2026-S1"
+        sess["review_month"] = "2026-03"
+    html = client.get("/?semester=2026-S1&month=2026-03").get_data(as_text=True)
     assert "Spark" in html
     assert "Amanda" in html
     assert 'href="/students?turma=SPARK' in html
@@ -2820,7 +2840,7 @@ def test_admin_dashboard_lists_spark_from_other_semester(monkeypatch, tmp_path):
 
 
 def test_admin_dashboard_lists_spark_and_renamed_scout(monkeypatch, tmp_path):
-    """A Spark→Scout rename in S2 must not hide S1 Spark or swallow the SPARK code."""
+    """A Spark→Scout rename in S2: S2 lists Scout, S1 still lists Spark, same SPARK code."""
     from teacher_classes import add_class, save_registry, update_class
 
     data_dir = tmp_path / "data"
@@ -2875,9 +2895,20 @@ def test_admin_dashboard_lists_spark_and_renamed_scout(monkeypatch, tmp_path):
         sess["review_month"] = "2026-09"
 
     html = client.get("/?semester=2026-S2&month=2026-09").get_data(as_text=True)
-    assert "Spark" in html
-    assert "Scout" in html
+    assert ">Scout<" in html
+    assert ">Spark<" not in html
     assert "código SPARK" in html
+
+    with client.session_transaction() as sess:
+        sess["review_semester"] = "2026-S1"
+        sess["review_month"] = "2026-03"
+    html = client.get("/?semester=2026-S1&month=2026-03").get_data(as_text=True)
+    assert ">Spark<" in html
+    assert ">Scout<" not in html
+
+    with client.session_transaction() as sess:
+        sess["review_semester"] = "2026-S2"
+        sess["review_month"] = "2026-09"
 
     create = client.post(
         "/turmas/create",
@@ -2896,11 +2927,8 @@ def test_admin_dashboard_lists_spark_and_renamed_scout(monkeypatch, tmp_path):
     assert "Scout" in create_html
 
 
-def test_admin_dashboard_hides_identical_semester_copies(monkeypatch, tmp_path):
-    """The same class copied into both semesters is listed once.
-
-    A schedule change stays visible so the admin can tell the semesters apart.
-    """
+def test_admin_dashboard_lists_each_class_once_per_semester(monkeypatch, tmp_path):
+    """A class kept in both semesters is listed once, with the picked semester's schedule."""
     from teacher_classes import add_class, save_registry
 
     data_dir = tmp_path / "data"
@@ -2958,9 +2986,16 @@ def test_admin_dashboard_hides_identical_semester_copies(monkeypatch, tmp_path):
 
     html = client.get("/?semester=2026-S2&month=2026-09").get_data(as_text=True)
     assert html.count(">Beyond<") == 1
-    assert "1º semestre 2026" in html
     assert html.count(">Masters<") == 1
-    assert "Masters — 1º semestre 2026" in html
+    assert "Masters — 1º semestre" not in html
+    assert "18:45" in html and "13:00" not in html
+
+    with client.session_transaction() as sess:
+        sess["review_semester"] = "2026-S1"
+        sess["review_month"] = "2026-03"
+    html = client.get("/?semester=2026-S1&month=2026-03").get_data(as_text=True)
+    assert html.count(">Masters<") == 1
+    assert "13:00" in html and "18:45" not in html
 
 
 def test_admin_can_edit_turma(monkeypatch, tmp_path):
