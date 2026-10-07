@@ -21,3 +21,4 @@ static/img/_official_source/
 
 # Local debugging scratch (screenshots, dumps)
 .tmp-*/
+.DS_Store

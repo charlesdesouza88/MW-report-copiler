@@ -17,11 +17,10 @@ SUPERADMIN_EMAIL/SUPERADMIN_PASSWORD) and are never written to disk.
 IMPORTANT — this covers only what the app exposes over HTTP:
   - students.csv, lessons.csv (superadmin view = all rows)
   - generated report HTML (mister_wiz_reports.zip)
-It does NOT cover:
-  - the Postgres database as a whole (use `railway run pg_dump`)
-  - student_snapshots.json (trend history) and teacher_classes.json, which are
-    file-only with no download route (copy them off the Railway volume).
-See the printed summary for the exact follow-up commands.
+For a complete backup, dump the Postgres database too. It holds everything
+teachers enter: users, classes, students, lessons, sessions, photos, monthly
+reviews, trend history, chat and profiles. Copy DATABASE_PUBLIC_URL from the
+Railway Postgres service, then run `pg_dump "$DATABASE_PUBLIC_URL" > prod.sql`.
 """
 
 import argparse
@@ -131,15 +130,10 @@ def main():
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
 
     print(f'\nHTTP-reachable backup written to {dest_dir}/')
-    print('NOT covered by this backup — do these on the Railway side:')
     if db_status.get('mode') == 'postgresql':
-        print('  • Full DB dump:  railway run pg_dump "$DATABASE_URL" > '
-              f'{dest_dir}/prod.sql')
-    print('  • File-only stores (trend history + class map), from a Railway shell:')
-    print('      railway run sh -c \'cat $DATA_DIR/student_snapshots.json\' > '
-          f'{dest_dir}/student_snapshots.json')
-    print('      railway run sh -c \'cat $DATA_DIR/teacher_classes.json\' > '
-          f'{dest_dir}/teacher_classes.json')
+        print('For a complete backup, also dump the database (all teacher data lives there).')
+        print('Copy DATABASE_PUBLIC_URL from the Railway Postgres service, then run:')
+        print(f'  pg_dump "$DATABASE_PUBLIC_URL" > {dest_dir}/prod.sql')
 
 
 if __name__ == '__main__':
