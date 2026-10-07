@@ -17,6 +17,9 @@
   #autosave-status[data-kind="error"] { color:#E24B4A; }
   #autosave-status[data-kind="dirty"] { color:#5A1A64; }
   #autosave-status[data-kind="pending"] { color:#5A1A64; opacity:0.8; }
+  /* A select is as wide as its longest option; keep the three feedback columns equal. */
+  .form-group:has(> .feedback-select) { min-width: 0; }
+  .feedback-select { width: 100%; min-width: 0; text-overflow: ellipsis; }
 </style>
 {% if review_month %}
 <div class="review-banner">
@@ -297,18 +300,28 @@
       {% endfor %}
     </div>
     <div class="form-grid form-grid-3">
+      {# Ready-made comments (feedback_options.py); only Recomendações / Observação are typed. #}
+      {% for field, label in [('feedback_participacao', 'Contribuição oral'),
+                              ('feedback_foco', 'Foco e atenção'),
+                              ('feedback_trabalho_equipe', 'Trabalho em equipe')] %}
+      {% set current = (student.get(field) or '')|trim %}
       <div class="form-group">
-        <label>Feedback — Contribuição oral</label>
-        <textarea name="feedback_participacao">{{ student.feedback_participacao or '' }}</textarea>
+        <label for="fb-{{ field }}">Feedback — {{ label }}</label>
+        <select name="{{ field }}" id="fb-{{ field }}" class="feedback-select">
+          <option value="" {% if not current %}selected{% endif %}>— Sem comentário —</option>
+          {% if is_legacy_feedback(field, current) %}
+          <option value="{{ current }}" selected>Texto anterior: {{ current }}</option>
+          {% endif %}
+          {% for group, phrases in FEEDBACK_OPTIONS[field] %}
+          <optgroup label="{{ group }}">
+            {% for phrase in phrases %}
+            <option value="{{ phrase }}" {% if current == phrase %}selected{% endif %}>{{ phrase }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
       </div>
-      <div class="form-group">
-        <label>Feedback — Foco e atenção</label>
-        <textarea name="feedback_foco">{{ student.feedback_foco or '' }}</textarea>
-      </div>
-      <div class="form-group">
-        <label>Feedback — Trabalho em equipe</label>
-        <textarea name="feedback_trabalho_equipe">{{ student.feedback_trabalho_equipe or '' }}</textarea>
-      </div>
+      {% endfor %}
     </div>
   </div>
 
@@ -370,11 +383,11 @@
     <div class="form-grid form-grid-2">
       <div class="form-group">
         <label>Recomendações</label>
-        <textarea name="recomendacoes">{{ student.recomendacoes or '' }}</textarea>
+        <textarea name="recomendacoes" placeholder="Escreva as recomendações para a família (aparece no relatório).">{{ student.recomendacoes or '' }}</textarea>
       </div>
       <div class="form-group">
         <label>Observação geral</label>
-        <textarea name="observacao">{{ student.observacao or '' }}</textarea>
+        <textarea name="observacao" placeholder="Observações gerais sobre o aluno no mês.">{{ student.observacao or '' }}</textarea>
       </div>
     </div>
   </div>

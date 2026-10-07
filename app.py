@@ -90,6 +90,7 @@ from extra_sessions import (
     row_from_form,
     sync_student_extra_sessions,
 )
+from feedback_options import FEEDBACK_OPTIONS, is_legacy_feedback
 from form_ui import (
     HABILIDADES_CHOICES,
     LICAO_CONTEUDO_CHOICES,
@@ -569,6 +570,8 @@ LESSON_IDENTITY = ('turma', 'aula_num', 'date')
 EXTRA_SESSION_IDENTITY = ('student_name', 'turma', 'date', 'session_type')
 
 app.jinja_env.globals.update(
+    FEEDBACK_OPTIONS=FEEDBACK_OPTIONS,
+    is_legacy_feedback=is_legacy_feedback,
     STUDENT_IDENTITY=STUDENT_IDENTITY,
     LESSON_IDENTITY=LESSON_IDENTITY,
     EXTRA_SESSION_IDENTITY=EXTRA_SESSION_IDENTITY,
