@@ -594,6 +594,32 @@ def handle_not_found(e):
     ), 404
 
 
+def _error_response(code, title, message):
+    if request.accept_mimetypes.best == 'application/json':
+        return jsonify(ok=False, error=message), code
+    # Skip context processors: they read request.form, which re-raises on an oversized body.
+    page = app.jinja_env.get_template('error.html').render(code=code, title=title, message=message)
+    return page, code
+
+
+@app.errorhandler(413)
+def handle_too_large(e):
+    limit_mb = app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024)
+    return _error_response(
+        413, 'Arquivo muito grande',
+        f'O arquivo enviado passa do limite de {limit_mb} MB. Reduza o tamanho e tente novamente.',
+    )
+
+
+@app.errorhandler(500)
+def handle_server_error(e):
+    return _error_response(
+        500, 'Algo deu errado',
+        'Ocorreu um erro inesperado. Seus dados salvos não foram perdidos. '
+        'Tente novamente e, se o erro continuar, avise a coordenação.',
+    )
+
+
 @app.errorhandler(CSRFError)
 def handle_csrf_error(e):
     logger.warning('CSRF validation failed: %s', e.description)
