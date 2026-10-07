@@ -32,6 +32,18 @@ if env_path.exists():
         k, v = line.split('=', 1)
         os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
+from db_store import database_hostname, is_local_database_url
+
+raw_db = (os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PRIVATE_URL') or '').strip()
+if raw_db and not is_local_database_url(raw_db):
+    host = database_hostname(raw_db) or 'unknown'
+    print(f'  Database: local CSV files — remote host {host} is ignored')
+    print('            Production data stays on Railway. Remove that URL from .env.')
+elif raw_db:
+    print(f'  Database: local Postgres ({database_hostname(raw_db) or "localhost"})')
+else:
+    print('  Database: local CSV files in data/')
+
 email = os.environ.get('SUPERADMIN_EMAIL', 'admin@misterwiz.local')
 has_pw = bool(os.environ.get('SUPERADMIN_PASSWORD') or os.environ.get('ADMIN_PASSWORD'))
 users = base / 'data' / 'users.json'

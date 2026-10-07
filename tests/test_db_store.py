@@ -22,6 +22,83 @@ def test_prepare_database_url_leaves_sqlite_untouched():
     assert prepare_database_url(url) == url
 
 
+def test_prepare_database_url_skips_ssl_for_localhost():
+    url = prepare_database_url("postgresql://postgres:postgres@localhost:5432/misterwiz")
+    assert "sslmode=" not in url
+
+
+def test_development_ignores_production_database_url():
+    from db_store import refuse_remote_database, select_database_url
+
+    env = {
+        "DATABASE_URL": "postgres://app-user:secret-pass@containers.railway.app:5432/railway",
+        "RAILWAY_ENVIRONMENT_NAME": "production",
+        "RAILWAY_SERVICE_ID": "svc-123",
+        "SECRET_KEY": "local",
+    }
+    assert select_database_url(env, under_test=False) == ""
+    assert refuse_remote_database(dict(env), under_test=False) == ""
+    cleaned = dict(env)
+    refuse_remote_database(cleaned, under_test=False)
+    assert "DATABASE_URL" not in cleaned
+    assert cleaned["SECRET_KEY"] == "local"
+
+
+def test_tests_ignore_remote_database_even_with_override():
+    from db_store import select_database_url
+
+    env = {
+        "DATABASE_URL": "postgres://app-user:secret-pass@postgres.railway.internal:5432/railway",
+        "RAILWAY_DEPLOYMENT_ID": "dep-live",
+        "RAILWAY_REPLICA_ID": "rep-live",
+        "MW_ALLOW_REMOTE_DB": "1",
+    }
+    assert select_database_url(env, under_test=True) == ""
+
+
+def test_deployed_replica_keeps_its_database_url():
+    from db_store import select_database_url
+
+    url = "postgres://app-user:secret-pass@postgres.railway.internal:5432/railway"
+    env = {"DATABASE_URL": url, "RAILWAY_DEPLOYMENT_ID": "dep-live"}
+    assert select_database_url(env, under_test=False) == url
+
+
+def test_explicit_override_keeps_remote_database_url():
+    from db_store import select_database_url
+
+    url = "postgresql://app-user:secret-pass@db.example.com:5432/railway"
+    env = {"DATABASE_PRIVATE_URL": url, "MW_ALLOW_REMOTE_DB": "1"}
+    assert select_database_url(env, under_test=False) == url
+
+
+def test_localhost_database_stays_available_during_tests():
+    from db_store import select_database_url
+
+    url = "postgresql://postgres:postgres@127.0.0.1:5432/misterwiz"
+    assert select_database_url({"DATABASE_URL": url}, under_test=True) == url
+
+
+def test_remote_database_error_hides_credentials():
+    from db_store import RemoteDatabaseBlocked, assert_database_allowed
+
+    url = "postgresql://secret-user:secret-pass@db.example.com:5432/railway"
+    with pytest.raises(RemoteDatabaseBlocked) as caught:
+        assert_database_allowed(url, env={}, under_test=False)
+    message = str(caught.value)
+    assert "secret-user" not in message
+    assert "secret-pass" not in message
+    assert "db.example.com" in message
+
+
+def test_database_store_refuses_remote_url_without_connecting():
+    from db_store import RemoteDatabaseBlocked
+
+    url = "postgresql://secret-user:secret-pass@db.example.com:5432/railway"
+    with pytest.raises(RemoteDatabaseBlocked):
+        DatabaseStore(url)
+
+
 def test_database_store_round_trip(tmp_path):
     db_path = tmp_path / "app.db"
     store = DatabaseStore(f"sqlite:///{db_path}")
