@@ -340,6 +340,16 @@ in the database too, so they survive redeploys. If `student_snapshots.json` or
 first use. Generated report files still live in `OUT_DIR`; without a volume they are
 cleared on redeploy and one click on **Gerar relatórios** rebuilds them from the database.
 
+### Backups and restore points
+
+Admins have a **Backups** page (`/admin/backups`):
+
+- **Baixar backup completo** downloads one ZIP with every dataset (`mister_wiz_dados.json`, no password hashes) plus `alunos.csv` and `aulas.csv`. Download it regularly and keep it off the server.
+- **Restore points.** Every write to the database replaces a whole dataset, so `db_store` keeps the previous contents first (table `store_backups`). It always does this before rows disappear and inside any upload, import, transfer or delete. Otherwise it saves at most every 30 minutes. It keeps the newest 10 per dataset plus one per day for 30 days. Photos are copied only before one disappears, with 3 copies kept. Login history is not copied.
+- **Restaurar** puts back one dataset. **Desfazer ação inteira** puts back everything one action changed. A restore first saves the current data as a new point, so it can be undone too.
+
+These restore points live in the same database. For protection against losing the database itself, also enable Railway's Postgres backups and keep the downloaded ZIPs elsewhere.
+
 ### 4. Persistent files (optional)
 
 For CSV-on-disk mode or keeping generated HTML between deploys:

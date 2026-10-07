@@ -3,6 +3,7 @@
 
 import base64
 import csv
+import contextlib
 import functools
 import io
 import json
@@ -14,7 +15,7 @@ import tempfile
 import threading
 import time
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 
@@ -243,6 +244,7 @@ try:
         DatabaseStore,
         RemoteDatabaseBlocked,
         StaleDataError,
+        backup_reason,
         database_hostname,
         refuse_remote_database,
     )
@@ -256,6 +258,10 @@ except Exception as exc:
 
     def refuse_remote_database(env=None, under_test=None):
         return ''
+
+    @contextlib.contextmanager
+    def backup_reason(_reason):
+        yield
 
     DB_IMPORT_ERROR = exc
 else:
@@ -1150,6 +1156,19 @@ def role_required(*roles):
             if user['role'] not in roles:
                 abort(403)
             return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+
+def backup_on_post(reason):
+    """Bulk actions: every store a POST overwrites gets a restore point labelled `reason` first."""
+    def decorator(f):
+        @functools.wraps(f)
+        def wrapped(*args, **kwargs):
+            if request.method != 'POST':
+                return f(*args, **kwargs)
+            with backup_reason(reason):
+                return f(*args, **kwargs)
         return wrapped
     return decorator
 
@@ -3066,6 +3085,7 @@ def turma_create():
 
 @app.route('/turmas/delete', methods=['POST'])
 @login_required
+@backup_on_post('Exclusão de turma')
 def turma_delete():
     user = _current_user()
     if not _may_manage_turmas(user):
@@ -3558,6 +3578,7 @@ def student_new():
 
 @app.route('/students/<int:idx>/delete', methods=['POST'])
 @login_required
+@backup_on_post('Exclusão de aluno')
 def student_delete(idx):
     all_rows, visible = _scoped_students()
     idx = _locate_by_identity(visible, idx, request.form, STUDENT_IDENTITY, required=True)
@@ -3871,6 +3892,7 @@ def extra_session_edit(idx):
 
 @app.route('/extra-sessions/<int:idx>/delete', methods=['POST'])
 @login_required
+@backup_on_post('Exclusão de atendimento')
 def extra_session_delete(idx):
     all_rows, visible = _scoped_extra_sessions()
     idx = _locate_by_identity(visible, idx, request.form, EXTRA_SESSION_IDENTITY, required=True)
@@ -3887,6 +3909,7 @@ def extra_session_delete(idx):
 
 @app.route('/extra-sessions/import', methods=['POST'])
 @role_required(ROLE_SUPERADMIN, ROLE_ADMIN)
+@backup_on_post('Importação de atendimentos')
 def extra_sessions_import():
     f = request.files.get('file')
     if not f or not f.filename:
@@ -3953,6 +3976,7 @@ def _teacher_names_from_students():
 
 @app.route('/lessons/<int:idx>/delete', methods=['POST'])
 @login_required
+@backup_on_post('Exclusão de aula')
 def lesson_delete(idx):
     all_students, _ = _scoped_students()
     all_rows, visible = _scoped_lessons(all_students)
@@ -3996,6 +4020,7 @@ def lesson_delete(idx):
 
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
+@backup_on_post('Upload de CSV')
 def upload():
     user = _current_user()
     messages, errors = _pull_upload_notices()
@@ -4056,6 +4081,7 @@ def upload():
 
 @app.route('/upload/delete/<name>', methods=['POST'])
 @login_required
+@backup_on_post('Remoção de CSV')
 def delete_csv(name):
     user = _current_user()
     removed, full_delete = _delete_csv_dataset(name, user)
@@ -4448,6 +4474,134 @@ def _reject_admin_editing_superadmin(actor, user_id):
         raise ValueError('Somente um superadmin pode alterar esta conta.')
 
 
+BACKUP_STORE_LABELS = {
+    'students': 'Alunos',
+    'lessons': 'Aulas',
+    'extra_sessions': 'Atendimentos',
+    'lesson_attendance': 'Presenças',
+    'monthly_reviews': 'Avaliações mensais',
+    'teacher_classes': 'Turmas',
+    'chat_messages': 'Chat',
+    'teacher_profiles': 'Perfis',
+    'student_photos': 'Fotos',
+    'student_snapshots': 'Histórico de relatórios',
+    'student_transfers': 'Transferências',
+}
+BACKUP_REASON_LABELS = {
+    'auto': 'Automático',
+    'removal': 'Antes de remover registros',
+    'restore': 'Antes de restaurar',
+}
+# Brazil has had no daylight saving time since 2019.
+_BRASILIA = timezone(timedelta(hours=-3))
+
+
+def _backup_time_label(iso_utc):
+    try:
+        return datetime.fromisoformat(iso_utc).astimezone(_BRASILIA).strftime('%d/%m/%Y %H:%M')
+    except ValueError:
+        return iso_utc
+
+
+@app.route('/admin/backups')
+@role_required(ROLE_SUPERADMIN, ROLE_ADMIN)
+def backups_page():
+    points = []
+    if db_store is not None:
+        for b in db_store.list_backups():
+            points.append({
+                **b,
+                'store_label': BACKUP_STORE_LABELS.get(b['store'], b['store']),
+                'reason_label': BACKUP_REASON_LABELS.get(b['reason'], b['reason']),
+                'when': _backup_time_label(b['created_at']),
+                'group': [],
+            })
+    # One bulk action (upload, transfer, ...) can change several kinds of data at once.
+    # Its points share reason and second; the first row offers to undo all of them together.
+    groups = {}
+    for p in points:
+        if p['reason'] not in BACKUP_REASON_LABELS:
+            groups.setdefault((p['reason'], p['created_at']), []).append(p)
+    for members in groups.values():
+        if len(members) > 1:
+            members[0]['group'] = members
+    return render_template(
+        'backups.html',
+        points=points,
+        db_mode=db_store is not None,
+        message=session.pop('backup_message', None),
+        error=session.pop('backup_error', None),
+    )
+
+
+@app.route('/admin/backups/download')
+@role_required(ROLE_SUPERADMIN, ROLE_ADMIN)
+def backups_download():
+    """Everything teachers entered, in one ZIP, to keep off the server."""
+    stamp = datetime.now(_BRASILIA).strftime('%Y-%m-%d_%H%M')
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        if db_store is not None:
+            data = db_store.export_all()
+            zf.writestr('mister_wiz_dados.json', json.dumps(data, ensure_ascii=False, indent=1))
+            zf.writestr('alunos.csv', _rows_to_csv_text('students', data['students']))
+            zf.writestr('aulas.csv', _rows_to_csv_text('lessons', data['lessons']))
+        else:
+            for path in sorted(Path(DATA_DIR).glob('*')):
+                if path.is_file() and path.name != 'users.json':  # never ship password hashes
+                    zf.write(path, path.name)
+        zf.writestr('LEIA-ME.txt', (
+            f'Backup Mister Wiz gerado em {stamp.replace("_", " ")} (horário de Brasília).\n'
+            'mister_wiz_dados.json contém todos os dados: alunos, aulas, atendimentos, presenças, '
+            'avaliações, turmas, fotos, histórico, chat, perfis e usuários (sem senhas).\n'
+            'alunos.csv e aulas.csv abrem no Excel e podem ser reenviados em Upload CSV.\n'
+        ))
+    logger.info('Full backup downloaded by %s', (_current_user() or {}).get('email'))
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, mimetype='application/zip',
+                     download_name=f'mister_wiz_backup_{stamp}.zip')
+
+
+@app.route('/admin/backups/restore-group', methods=['POST'])
+@role_required(ROLE_SUPERADMIN, ROLE_ADMIN)
+def backups_restore_group():
+    if db_store is None:
+        abort(404)
+    try:
+        ids = [int(v) for v in request.form.getlist('backup_id')]
+        restored = db_store.restore_backups(ids)
+    except (KeyError, ValueError):
+        session['backup_error'] = 'Pontos de restauração não encontrados.'
+    else:
+        logger.warning('Backups %s restored together by %s', ids, (_current_user() or {}).get('email'))
+        done = ', '.join(f'{BACKUP_STORE_LABELS.get(name, name)} ({count})' for name, count in restored)
+        session['backup_message'] = (
+            f'Ação desfeita. Restaurado: {done}. Os dados anteriores foram guardados '
+            'como novos pontos de restauração, caso precise desfazer.'
+        )
+    return redirect(url_for('backups_page'))
+
+
+@app.route('/admin/backups/<int:backup_id>/restore', methods=['POST'])
+@role_required(ROLE_SUPERADMIN, ROLE_ADMIN)
+def backups_restore(backup_id):
+    if db_store is None:
+        abort(404)
+    try:
+        store_name, count = db_store.restore_backup(backup_id)
+    except KeyError:
+        session['backup_error'] = 'Ponto de restauração não encontrado.'
+    else:
+        label = BACKUP_STORE_LABELS.get(store_name, store_name)
+        logger.warning('Backup %s (%s) restored by %s', backup_id, store_name,
+                       (_current_user() or {}).get('email'))
+        session['backup_message'] = (
+            f'{label} restaurado ({count} registro(s)). Os dados anteriores foram guardados '
+            'como um novo ponto de restauração, caso precise desfazer.'
+        )
+    return redirect(url_for('backups_page'))
+
+
 @app.route('/admin/teachers', methods=['GET', 'POST'])
 @role_required(ROLE_SUPERADMIN, ROLE_ADMIN)
 def manage_teachers():
@@ -4540,6 +4694,7 @@ def manage_teachers():
 
 @app.route('/admin/turmas/transfer', methods=['GET', 'POST'])
 @role_required(ROLE_SUPERADMIN, ROLE_ADMIN)
+@backup_on_post('Transferência de turma')
 def turma_transfer():
     students = _load_students()
     lessons = _load_lessons()
@@ -4686,6 +4841,7 @@ def _student_transfer_options(students, registry):
 
 @app.route('/admin/alunos/transfer', methods=['GET', 'POST'])
 @role_required(ROLE_SUPERADMIN, ROLE_ADMIN)
+@backup_on_post('Transferência de alunos')
 def student_transfer_page():
     students = _load_students()
     registry = _load_teacher_class_registry()

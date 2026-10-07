@@ -1,8 +1,10 @@
+import contextvars
 import json
 import logging
 import os
 import sys
 from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
 from sqlalchemy import Integer, Text, create_engine, select, text
@@ -260,6 +262,50 @@ class StoreVersion(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
+class StoreBackup(Base):
+    """A restore point: the full contents of one store just before it was overwritten."""
+
+    __tablename__ = "store_backups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    store_name: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    created_at: Mapped[str] = mapped_column(Text, nullable=False)  # ISO 8601, UTC
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    row_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    data_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+# Restore points. Every overwrite of a store is a full replace, so the previous contents are kept
+# here first: always before rows disappear or inside a bulk action (see backup_reason), otherwise
+# at most every BACKUP_INTERVAL. Retention keeps the newest few plus one per day for a month.
+BACKUP_INTERVAL = timedelta(minutes=30)
+BACKUP_KEEP_RECENT = 10
+BACKUP_KEEP_DAYS = 30
+# Photos are large: copy them only before one disappears, and keep only a few copies.
+BACKUP_PHOTO_STORE = "student_photos"
+BACKUP_PHOTO_KEEP = 3
+BACKUP_SKIP_STORES = frozenset({"login_events"})
+REASON_AUTO = "auto"
+REASON_REMOVAL = "removal"
+
+_backup_context = contextvars.ContextVar("mw_backup_context", default=None)
+
+
+@contextmanager
+def backup_reason(reason: str):
+    """Inside this block, every store that gets overwritten is backed up first (once), labelled `reason`."""
+    # One timestamp for the whole action, so its restore points can be found and undone together.
+    token = _backup_context.set({"reason": reason, "done": set(), "at": _utcnow()})
+    try:
+        yield
+    finally:
+        _backup_context.reset(token)
+
+
+def _utcnow():
+    return datetime.now(timezone.utc)
+
+
 class UserRow(Base):
     __tablename__ = "users"
 
@@ -514,6 +560,7 @@ class DatabaseStore:
             version_row = self._version_row(session, store_name)
             if expected_version is not None and version_row.version != expected_version:
                 raise StaleDataError(store_name)
+            self._backup_before_replace(session, model, store_name, len(rows))
             session.query(model).delete()
             payloads = [
                 model(row_order=i, data_json=json.dumps(row, ensure_ascii=False))
@@ -523,3 +570,108 @@ class DatabaseStore:
             version_row.version += 1
             session.flush()
             return version_row.version
+
+    # ── Restore points ────────────────────────────────────────────────────────────
+
+    def _model_for_store(self, store_name):
+        for model, name in self._STORE_NAMES.items():
+            if name == store_name:
+                return model
+        raise KeyError(store_name)
+
+    def _backup_before_replace(self, session, model, store_name, new_count):
+        if store_name in BACKUP_SKIP_STORES:
+            return
+        old = session.execute(
+            select(model.data_json).order_by(model.row_order.asc(), model.id.asc())
+        ).scalars().all()
+        if not old:
+            return
+        context = _backup_context.get()
+        created_at = _utcnow()
+        if context is not None and store_name not in context["done"]:
+            context["done"].add(store_name)
+            reason, created_at = context["reason"], context["at"]
+        elif new_count < len(old):
+            reason = REASON_REMOVAL
+        elif store_name == BACKUP_PHOTO_STORE or context is not None:
+            return
+        else:
+            last = session.execute(
+                select(StoreBackup.created_at)
+                .where(StoreBackup.store_name == store_name)
+                .order_by(StoreBackup.id.desc()).limit(1)
+            ).scalar()
+            if last and created_at - datetime.fromisoformat(last) < BACKUP_INTERVAL:
+                return
+            reason = REASON_AUTO
+        session.add(StoreBackup(
+            store_name=store_name,
+            created_at=created_at.isoformat(timespec="seconds"),
+            reason=reason,
+            row_count=len(old),
+            data_json="[" + ",".join(old) + "]",
+        ))
+        session.flush()
+        self._prune_backups(session, store_name)
+
+    def _prune_backups(self, session, store_name):
+        photos = store_name == BACKUP_PHOTO_STORE
+        keep_recent = BACKUP_PHOTO_KEEP if photos else BACKUP_KEEP_RECENT
+        oldest_daily = _utcnow() - timedelta(days=0 if photos else BACKUP_KEEP_DAYS)
+        rows = session.execute(
+            select(StoreBackup.id, StoreBackup.created_at)
+            .where(StoreBackup.store_name == store_name)
+            .order_by(StoreBackup.id.desc())
+        ).all()
+        days_kept, drop = set(), []
+        for i, (backup_id, created_at) in enumerate(rows):
+            when = datetime.fromisoformat(created_at)
+            if i < keep_recent:
+                days_kept.add(when.date())
+            elif when >= oldest_daily and when.date() not in days_kept:
+                days_kept.add(when.date())
+            else:
+                drop.append(backup_id)
+        if drop:
+            session.query(StoreBackup).filter(StoreBackup.id.in_(drop)).delete(synchronize_session=False)
+
+    def list_backups(self):
+        """Restore points, newest first, without their contents."""
+        with self.session() as session:
+            rows = session.execute(
+                select(StoreBackup.id, StoreBackup.store_name, StoreBackup.created_at,
+                       StoreBackup.reason, StoreBackup.row_count)
+                .order_by(StoreBackup.id.desc())
+            ).all()
+        return [
+            {"id": r.id, "store": r.store_name, "created_at": r.created_at,
+             "reason": r.reason, "row_count": r.row_count}
+            for r in rows
+        ]
+
+    def restore_backup(self, backup_id, reason="restore"):
+        """Put a restore point back. The current contents become a restore point of their own."""
+        return self.restore_backups([backup_id], reason=reason)[0]
+
+    def restore_backups(self, backup_ids, reason="restore"):
+        """Put several restore points back together (e.g. everything one bulk action changed)."""
+        with self.session() as session:
+            backups = [session.get(StoreBackup, backup_id) for backup_id in backup_ids]
+            if not backups or any(b is None for b in backups):
+                raise KeyError(backup_ids)
+            if len({b.store_name for b in backups}) != len(backups):
+                raise ValueError("one restore point per store")
+            plan = [(b.store_name, json.loads(b.data_json)) for b in backups]
+        with backup_reason(reason):
+            for store_name, rows in plan:
+                self._replace_rows(self._model_for_store(store_name), rows)
+        return [(store_name, len(rows)) for store_name, rows in plan]
+
+    def export_all(self):
+        """Every store's current rows plus user accounts (without password hashes)."""
+        data = {name: self._load_rows(model)[0] for model, name in self._STORE_NAMES.items()}
+        data["users"] = [
+            {k: v for k, v in user.items() if k != "password_hash"} for user in self.load_users()
+        ]
+        return data
