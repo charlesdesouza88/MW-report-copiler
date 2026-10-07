@@ -100,6 +100,25 @@ def _render_busy_report() -> str:
     )
 
 
+def _render_longest_feedback_report() -> str:
+    """The longest ready-made comment in every Participação category (feedback_options.py)."""
+    from feedback_options import FEEDBACK_FIELDS, feedback_phrases
+
+    env = create_report_environment(ROOT / "templates")
+    longest = {field: max(feedback_phrases(field), key=len) for field in FEEDBACK_FIELDS}
+    return env.get_template("individual_report.html").render(
+        **build_student_ctx(
+            _student(
+                **longest,
+                recomendacoes="Ótima evolução na fala. Praticar a escrita em casa com o livro "
+                              "e revisar o vocabulário das lições 5 a 8 antes da prova.",
+            ),
+            _lessons(),
+            report_month="2026-01",
+        )
+    )
+
+
 def _render_sample_report(photos=None) -> str:
     """The repo's sample CSVs: attendance calendar + missed-lesson list in Presença."""
     from compiler import load_csv
@@ -144,8 +163,9 @@ def test_print_css_fits_sheet_to_a4():
 @pytest.mark.skipif(_chrome_bin() is None, reason="Chrome is required to measure print overflow")
 @pytest.mark.parametrize(
     "render",
-    [_render_busy_report, _render_sample_report, _render_sample_report_with_photo],
-    ids=["busy", "sample", "sample-photo"],
+    [_render_busy_report, _render_sample_report, _render_sample_report_with_photo,
+     _render_longest_feedback_report],
+    ids=["busy", "sample", "sample-photo", "longest-feedback"],
 )
 def test_print_layout_does_not_clip_participacao(tmp_path: Path, render):
     html = _force_print_css(render()).replace("</body>", PRINT_PROBE_JS + "\n</body>")
