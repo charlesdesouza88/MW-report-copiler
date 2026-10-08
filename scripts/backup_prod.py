@@ -21,6 +21,8 @@ For a complete backup, dump the Postgres database too. It holds everything
 teachers enter: users, classes, students, lessons, sessions, photos, monthly
 reviews, trend history, chat and profiles. Copy DATABASE_PUBLIC_URL from the
 Railway Postgres service, then run `pg_dump "$DATABASE_PUBLIC_URL" > prod.sql`.
+DATABASE_PUBLIC_URL exists only while the Postgres service has Public Networking
+(a TCP proxy) enabled. Without it, use the admin Backups page download instead.
 """
 
 import argparse
@@ -134,6 +136,8 @@ def main():
         print('For a complete backup, also dump the database (all teacher data lives there).')
         print('Copy DATABASE_PUBLIC_URL from the Railway Postgres service, then run:')
         print(f'  pg_dump "$DATABASE_PUBLIC_URL" > {dest_dir}/prod.sql')
+        print('DATABASE_PUBLIC_URL exists only with Public Networking (TCP proxy) enabled on')
+        print('the Postgres service. Without it, download the admin Backups page ZIP instead.')
 
 
 if __name__ == '__main__':

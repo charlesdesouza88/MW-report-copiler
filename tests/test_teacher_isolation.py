@@ -5,6 +5,7 @@ a logged-in teacher can reach, including forged identity fields and direct URLs.
 """
 
 import csv
+import hashlib
 import io
 import json
 
@@ -57,6 +58,7 @@ def school(monkeypatch, tmp_path):
 
     login("admin@test.local", "testpass").post("/generate", data={"report_month": "2026-09"})
     chuck_id = next(u["id"] for u in store.list_users() if u["email"] == "chuck@test.local")
+    login("chuck@test.local", "chuckpass").post("/profile", data={"bio": "Chuck bio", "whatsapp": "111"})
     return {"data": data, "out": out, "paula": login("paula@test.local", "paulapass"), "chuck_id": chuck_id}
 
 
@@ -68,12 +70,16 @@ def _chuck_state(school):
         return list(csv.DictReader(io.StringIO((data / name).read_text(encoding="utf-8"))))
 
     registry = json.loads((data / "teacher_classes.json").read_text(encoding="utf-8"))
+    profiles_path = data / "teacher_profiles.json"
+    profiles = json.loads(profiles_path.read_text(encoding="utf-8")) if profiles_path.exists() else []
     return {
+        "profile": [p for p in profiles if str(p.get("user_id")) == str(school["chuck_id"])],
         "jane": [r for r in rows("students.csv") if r["turma"] == "MASTER"],
         "lessons": [r for r in rows("lessons.csv") if r["turma"] == "MASTER"],
         "sessions": [r for r in rows("extra_sessions.csv") if r["teacher"] == "Chuck"],
         "classes": [c for c in registry.get("Chuck", []) if c["turma"] == "MASTER"],
-        "reports": sorted(p.name for p in school["out"].glob("MASTER_*")),
+        "reports": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                    for p in school["out"].glob("MASTER_*")},
     }
 
 
@@ -86,14 +92,19 @@ def test_teacher_cannot_read_another_teachers_data(school):
              "/upload/download/students", "/upload/download/lessons"]
     for i in range(4):
         pages += [f"/students/{i}/edit", f"/lessons/{i}/edit", f"/extra-sessions/{i}/edit"]
-    for path in pages:
-        resp = paula.get(path)
-        body = resp.get_data().decode("utf-8", "replace") if resp.status_code < 400 else ""
+    def assert_no_leak(path, resp):
+        assert resp.status_code < 500, (path, resp.status_code)
+        body = resp.get_data().decode("utf-8", "replace")  # error pages too
         assert not [s for s in CHUCK_SECRETS if s in body], path
 
+    for path in pages:
+        assert_no_leak(path, paula.get(path))
+
     for name in master_reports:
-        assert paula.get(f"/reports/preview/{name}").status_code in (403, 404), name
-        assert paula.get(f"/reports/download/{name}").status_code in (403, 404), name
+        for path in (f"/reports/preview/{name}", f"/reports/download/{name}"):
+            resp = paula.get(path)
+            assert resp.status_code in (403, 404), path
+            assert_no_leak(path, resp)
     archive = paula.get("/reports/download-all")
     assert b"MASTER" not in archive.get_data()
     for path in ["/admin/teachers", "/admin/turmas/transfer", "/admin/alunos/transfer"]:
@@ -103,6 +114,7 @@ def test_teacher_cannot_read_another_teachers_data(school):
 def test_teacher_cannot_change_another_teachers_data(school):
     paula = school["paula"]
     before = _chuck_state(school)
+    assert before["profile"] and before["profile"][0]["bio"] == "Chuck bio"
     jane_form = {**JANE_IDENTITY, "student_name": "Jane Doe", "turma": "MASTER", "teacher": "Chuck", "speaking": "1"}
     for i in range(4):
         paula.post(f"/students/{i}/delete", data=JANE_IDENTITY)
@@ -131,7 +143,8 @@ def test_teacher_cannot_change_another_teachers_data(school):
     paula.post("/generate", data={"report_month": "2026-09"})
     paula.post("/admin/alunos/transfer", data={"from_turma": "MASTER", "students": "Jane Doe", "dest": "SPARK"})
     paula.post("/admin/turmas/transfer", data={"turma": "MASTER", "from_teacher": "Chuck", "to_teacher": "Paula"})
-    paula.post(f"/profile/{school['chuck_id']}", data={"bio": "hacked", "whatsapp": "000"})
+    forged_profile = paula.post(f"/profile/{school['chuck_id']}", data={"bio": "hacked", "whatsapp": "000"})
+    assert forged_profile.status_code in (403, 404)
 
     assert _chuck_state(school) == before
 
