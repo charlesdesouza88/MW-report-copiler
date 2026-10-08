@@ -12,6 +12,10 @@
 <style>
   .draft-restore-banner { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; }
   .draft-restore-banner[hidden] { display:none !important; }
+  .presence-note { font-size:12px; color:#666; margin:-4px 0 12px; }
+  .presence-value { min-height:42px; padding:10px 12px; border:1px dashed #E2E2E2; border-radius:8px; background:#FAF7FB; font-size:14px; color:#2D1040; }
+  .presence-value[data-presence="faltas"] { font-weight:800; font-size:16px; }
+  .presence-detail { font-size:13px; line-height:1.5; }
   #autosave-status[data-kind="ok"] { color:#2C7A3F; }
   #autosave-status[data-kind="warn"] { color:#7D6608; }
   #autosave-status[data-kind="error"] { color:#E24B4A; }
@@ -357,14 +361,19 @@
   <!-- Presença -->
   <div class="form-section">
     <div class="form-section-title">Presença</div>
+    {% set missed = (student.missed_aulas or '').split(',') | map('trim') | select | list %}
+    <p class="presence-note">Calculada pela chamada de cada aula em <a href="{{ url_for('lessons') }}">Aulas</a>. Para corrigir uma falta ou atraso, edite a chamada da aula.</p>
     <div class="form-grid form-grid-3">
       <div class="form-group">
-        <label>Faltas</label>
-        <input type="number" name="faltas" value="{{ student.faltas or '0' }}" min="0">
+        <label>Faltas no mês</label>
+        <div class="presence-value" data-presence="faltas">{{ student.faltas or '0' }}</div>
       </div>
       <div class="form-group">
-        <label>Aulas perdidas (números separados por vírgula)</label>
-        <input type="text" name="missed_aulas" value="{{ student.missed_aulas or '' }}" placeholder="ex: 3,7,11">
+        <label>Aulas perdidas / atrasos</label>
+        <div class="presence-value presence-detail" data-presence="detail">
+          {% if missed %}Faltou: aula {{ missed | join(', ') }}{% else %}Nenhuma falta{% endif %}
+          {% if tardy_aulas %}<br>Atrasou: aula {{ tardy_aulas | join(', ') }}{% endif %}
+        </div>
       </div>
       <div class="form-group">
         <label>Aula extra</label>

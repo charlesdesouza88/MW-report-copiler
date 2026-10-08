@@ -189,13 +189,24 @@ def recompute_faltas_from_attendance(students, lessons, attendance_rows, month_k
 
         nums = _sort_aula_nums(result)
         row['missed_aulas'] = ','.join(nums)
-        try:
-            stored_faltas = max(0, int((student.get('faltas') or '0').strip() or 0))
-        except (TypeError, ValueError):
-            stored_faltas = 0
-        row['faltas'] = str(max(stored_faltas, len(nums)))
+        # Faltas come from the attendance taken in Aulas, not from a typed number.
+        row['faltas'] = str(len(nums))
         updated.append(row)
     return updated
+
+
+def tardy_aulas_for_student(lessons, attendance_rows, month_key, turma, student_name):
+    """Aula numbers in the review month where the student was marked late."""
+    turma_key = _turma_key(turma)
+    name = (student_name or '').strip()
+    nums = {
+        _aula_key(row.get('aula_num'))
+        for row in _attendance_rows_for_month(lessons, attendance_rows, month_key)
+        if _turma_key(row.get('turma')) == turma_key
+        and (row.get('student_name') or '').strip() == name
+        and normalize_attendance_status(row.get('status')) == 'tardy'
+    }
+    return _sort_aula_nums(n for n in nums if n)
 
 
 def reconcile_presence_after_lesson_removed(students, lessons, attendance_rows, month_key,
@@ -229,14 +240,15 @@ def reconcile_presence_after_lesson_removed(students, lessons, attendance_rows, 
             for num in (row.get('missed_aulas') or '').split(',')
             if num.strip()
         }
+        if aula not in nums:
+            # The deleted lesson was not one of this student's absences: keep the
+            # count as is (legacy CSV counts have no per-lesson list to recount from).
+            updated.append(row)
+            continue
         nums.discard(aula)
         nums = _sort_aula_nums(nums)
         row['missed_aulas'] = ','.join(nums)
-        try:
-            stored_faltas = max(0, int((row.get('faltas') or '0').strip() or 0))
-        except (TypeError, ValueError):
-            stored_faltas = 0
-        row['faltas'] = str(max(stored_faltas, len(nums)))
+        row['faltas'] = str(len(nums))
         updated.append(row)
     return updated
 
