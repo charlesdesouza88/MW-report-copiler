@@ -821,6 +821,9 @@ input, select, textarea { border-radius: 10px; }
   <a href="{{ url_for('student_transfer_page') }}" class="nav-link {% if request.endpoint == 'student_transfer_page' %}active{% endif %}">
     <span class="nav-icon">{{ icon('arrow-right', 20) }}</span> Transferir alunos
   </a>
+  <a href="{{ url_for('backups_page') }}" class="nav-link {% if request.endpoint == 'backups_page' %}active{% endif %}">
+    <span class="nav-icon">{{ icon('download', 20) }}</span> Backups
+  </a>
   {% endif %}
   <div class="nav-spacer"></div>
   {% if current_user %}

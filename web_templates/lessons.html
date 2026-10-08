@@ -60,7 +60,7 @@
     <div class="student-card-actions" style="margin-top:14px;">
       <a href="{{ url_for('lesson_edit', idx=loop.index0, turma=return_turma) if return_turma else url_for('lesson_edit', idx=loop.index0) }}" class="btn btn-ghost btn-sm">Editar</a>
       <form method="post" action="{{ url_for('lesson_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('lesson_delete', idx=loop.index0) }}"
-            onsubmit="return confirm({{ ('Excluir aula ' ~ lesson.aula_num ~ ' da turma ' ~ lesson.turma ~ '?')|tojson }})">
+            onsubmit='return confirm({{ ('Excluir aula ' ~ lesson.aula_num ~ ' da turma ' ~ lesson.turma ~ '?')|tojson }})'>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {{ identity_fields(lesson, LESSON_IDENTITY) }}
         <button type="submit" class="btn btn-danger btn-sm">Excluir</button>

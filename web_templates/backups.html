@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Backups{% endblock %}
+{% block page_title %}Backups{% endblock %}
+
+{% block content %}
+<h1 class="page-heading" style="font-size:22px;font-weight:900;margin-bottom:8px;">Backups e restauração</h1>
+<p class="text-muted" style="font-size:13px;color:#666;margin-bottom:20px;max-width:760px;">
+  Os dados dos professores são o bem mais valioso da escola. Baixe um backup completo com frequência
+  e guarde-o fora do sistema (Google Drive, por exemplo). Se algo for apagado ou substituído por engano,
+  restaure um ponto abaixo.
+</p>
+
+{% if message %}
+<div class="alert alert-success" style="background:#D5F5E3;border:1px solid #82E0AA;color:#2C7A3F;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;">{{ message }}</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-error" style="background:#FADBD8;border:1px solid #F1948A;color:#E24B4A;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;">{{ error }}</div>
+{% endif %}
+
+<div class="card" style="margin-bottom:20px;">
+  <h2 style="font-size:15px;font-weight:900;margin-bottom:8px;">Backup completo</h2>
+  <p style="font-size:13px;color:#555;margin-bottom:14px;">
+    Um arquivo .zip com alunos, aulas, atendimentos, presenças, avaliações, turmas, fotos, histórico,
+    chat, perfis e usuários (sem senhas). Inclui alunos.csv e aulas.csv, que abrem no Excel.
+  </p>
+  <a href="{{ url_for('backups_download') }}" class="btn btn-primary">Baixar backup completo</a>
+</div>
+
+<div class="card">
+  <h2 style="font-size:15px;font-weight:900;margin-bottom:8px;">Pontos de restauração</h2>
+  {% if not db_mode %}
+  <p style="font-size:13px;color:#555;">Pontos de restauração só existem com o banco de dados (DATABASE_URL) ativo.</p>
+  {% else %}
+  <p style="font-size:13px;color:#555;margin-bottom:14px;">
+    O sistema guarda uma cópia sozinho antes de qualquer remoção, upload de CSV, importação ou
+    transferência, e a cada 30 minutos de edição. Ficam as 10 cópias mais recentes de cada tipo de dado
+    e uma por dia nos últimos 30 dias. «Restaurar» substitui só aquele tipo de dado; «Desfazer ação inteira» volta tudo o que um upload
+    ou transferência alterou. Em ambos os casos os dados atuais viram um novo ponto, para você poder desfazer.
+  </p>
+  {% if points %}
+  <div class="table-wrap" style="overflow-x:auto;">
+  <table class="data-table" style="width:100%;">
+    <thead><tr><th>Quando</th><th>Dados</th><th>Registros</th><th>Motivo</th><th></th></tr></thead>
+    <tbody>
+    {% for p in points %}
+      <tr>
+        <td class="font-sm">{{ p.when }}</td>
+        <td>{{ p.store_label }}</td>
+        <td class="font-sm">{{ p.row_count }}</td>
+        <td class="font-sm text-gray">{{ p.reason_label }}</td>
+        <td class="col-actions">
+          <div class="row-actions">
+          {% if p.group %}
+          <form method="post" action="{{ url_for('backups_restore_group') }}"
+                onsubmit='return confirm({{ ("Desfazer «" ~ p.reason_label ~ "» de " ~ p.when ~ "? Restaura " ~ (p.group|map(attribute="store_label")|join(", ")) ~ " como estavam antes. Os dados atuais serão guardados como novos pontos.")|tojson }})'>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% for m in p.group %}<input type="hidden" name="backup_id" value="{{ m.id }}">{% endfor %}
+            <button type="submit" class="btn btn-primary btn-xs">Desfazer ação inteira</button>
+          </form>
+          {% endif %}
+          <form method="post" action="{{ url_for('backups_restore', backup_id=p.id) }}"
+                onsubmit='return confirm({{ ("Restaurar " ~ p.store_label ~ " como estava em " ~ p.when ~ " (" ~ p.row_count ~ " registros)? Os dados atuais de " ~ p.store_label ~ " serão guardados como novo ponto.")|tojson }})'>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-ghost btn-xs">Restaurar</button>
+          </form>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p style="font-size:13px;color:#555;">Ainda não há pontos. O primeiro é criado na próxima alteração dos dados.</p>
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

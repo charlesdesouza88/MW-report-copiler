@@ -77,7 +77,7 @@
     <div class="student-card-actions">
       <a href="{% if return_month and return_turma %}{{ url_for('student_edit', idx=loop.index0, month=return_month, turma=return_turma) }}{% elif return_month %}{{ url_for('student_edit', idx=loop.index0, month=return_month) }}{% elif return_turma %}{{ url_with_month('student_edit', idx=loop.index0, turma=return_turma) }}{% else %}{{ url_for('student_edit', idx=loop.index0) }}{% endif %}" class="btn btn-ghost btn-sm">Editar</a>
       <form method="post" action="{{ url_with_month('student_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_delete', idx=loop.index0, month=return_month) }}"
-            onsubmit="return confirm({{ ('Excluir ' ~ s.student_name ~ '?')|tojson }})">
+            onsubmit='return confirm({{ ('Excluir ' ~ s.student_name ~ '?')|tojson }})'>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {{ identity_fields(s, STUDENT_IDENTITY) }}
         <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
@@ -134,7 +134,7 @@
           <div class="row-actions">
             <a href="{% if return_month and return_turma %}{{ url_for('student_edit', idx=loop.index0, month=return_month, turma=return_turma) }}{% elif return_month %}{{ url_for('student_edit', idx=loop.index0, month=return_month) }}{% elif return_turma %}{{ url_with_month('student_edit', idx=loop.index0, turma=return_turma) }}{% else %}{{ url_for('student_edit', idx=loop.index0) }}{% endif %}" class="btn btn-ghost btn-xs">Editar</a>
             <form method="post" action="{{ url_with_month('student_delete', idx=loop.index0, turma=return_turma) if return_turma else url_for('student_delete', idx=loop.index0, month=return_month) }}"
-                  onsubmit="return confirm({{ ('Excluir ' ~ s.student_name ~ '?')|tojson }})">
+                  onsubmit='return confirm({{ ('Excluir ' ~ s.student_name ~ '?')|tojson }})'>
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               {{ identity_fields(s, STUDENT_IDENTITY) }}
               <button type="submit" class="btn btn-danger btn-xs">✕</button>

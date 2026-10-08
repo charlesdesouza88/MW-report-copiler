@@ -319,7 +319,10 @@ On the **web service**, set:
 | `SECRET_KEY` | Yes | Long random string for Flask sessions |
 | `DATABASE_URL` | Recommended | From a Railway PostgreSQL service |
 | `DATA_DIR` | Optional | Path on a mounted volume for CSV files |
-| `OUT_DIR` | Optional | Path on a mounted volume for generated reports |
+| `OUT_DIR` | Recommended | Path on a mounted volume for generated reports. Without one, report files are cleared on every deploy and must be regenerated |
+| `MAX_UPLOAD_MB` | Optional | Upload size limit for CSVs and photos (default `5`) |
+| `WEB_CONCURRENCY` | Optional | gunicorn worker count (default `4`) |
+| `MW_ALLOW_REMOTE_DB` | Never in production | `1` lets a local maintenance command use a remote database (see below) |
 
 Copy `.env.example` for local development. Leave `DATABASE_URL` unset, or point it at localhost. The app will not open a remote database from a laptop, a test run, or `railway run`. Production connects because the Railway replica sets `RAILWAY_DEPLOYMENT_ID`. Set `MW_ALLOW_REMOTE_DB=1` only for a one-off maintenance command that must use the remote database.
 
@@ -336,6 +339,16 @@ in the database too, so they survive redeploys. If `student_snapshots.json` or
 `student_transfers.json` exist in `DATA_DIR` from before, they are imported once on
 first use. Generated report files still live in `OUT_DIR`; without a volume they are
 cleared on redeploy and one click on **Gerar relatórios** rebuilds them from the database.
+
+### Backups and restore points
+
+Admins have a **Backups** page (`/admin/backups`):
+
+- **Baixar backup completo** downloads one ZIP with every dataset (`mister_wiz_dados.json`, no password hashes) plus `alunos.csv` and `aulas.csv`. Download it regularly and keep it off the server.
+- **Restore points.** Every write to the database replaces a whole dataset, so `db_store` keeps the previous contents first (table `store_backups`). It always does this before rows disappear and inside any upload, import, transfer or delete. Otherwise it saves at most every 30 minutes. It keeps the newest 10 per dataset plus one per day for 30 days. Photos are copied only before one disappears, with 3 copies kept. Login history is not copied.
+- **Restaurar** puts back one dataset. **Desfazer ação inteira** puts back everything one action changed. A restore first saves the current data as a new point, so it can be undone too.
+
+These restore points live in the same database. For protection against losing the database itself, also enable Railway's Postgres backups and keep the downloaded ZIPs elsewhere.
 
 ### 4. Persistent files (optional)
 
