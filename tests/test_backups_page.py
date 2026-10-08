@@ -108,3 +108,17 @@ def test_deleting_one_student_is_one_undoable_action(school):
     assert "students" in {b["store"] for b in points}
     admin.post("/admin/backups/restore-group", data={"backup_id": [b["id"] for b in points]})
     assert [s["student_name"] for s in store.load_students()] == ["Jane Doe"]
+
+
+def test_csv_mode_backup_has_only_data_files_and_users_without_hashes(school, monkeypatch):
+    data_dir = web_app.DATA_DIR
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "secret_token.txt").write_text("sk-live-123", encoding="utf-8")
+    monkeypatch.setattr(web_app, "db_store", None)
+    zf = zipfile.ZipFile(io.BytesIO(school["admin"].get("/admin/backups/download").get_data()))
+    names = set(zf.namelist())
+    assert "students.csv" in names and "users.json" in names
+    assert "secret_token.txt" not in names
+    users = json.loads(zf.read("users.json"))
+    assert {u["email"] for u in users} >= {"admin@test.local", "teacher@test.local"}
+    assert all("password_hash" not in u for u in users)

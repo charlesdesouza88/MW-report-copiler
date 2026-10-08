@@ -554,22 +554,26 @@ class DatabaseStore:
             return rows, version
 
     def _replace_rows(self, model, rows, expected_version=None):
-        store_name = self._store_name(model)
         with self.session() as session:
-            self._advisory_lock(session, store_name)
-            version_row = self._version_row(session, store_name)
-            if expected_version is not None and version_row.version != expected_version:
-                raise StaleDataError(store_name)
-            self._backup_before_replace(session, model, store_name, len(rows))
-            session.query(model).delete()
-            payloads = [
-                model(row_order=i, data_json=json.dumps(row, ensure_ascii=False))
-                for i, row in enumerate(rows)
-            ]
-            session.add_all(payloads)
-            version_row.version += 1
-            session.flush()
-            return version_row.version
+            return self._replace_rows_in(session, model, rows, expected_version)
+
+    def _replace_rows_in(self, session, model, rows, expected_version=None):
+        """Replace a store inside the caller's transaction (commit happens when it closes)."""
+        store_name = self._store_name(model)
+        self._advisory_lock(session, store_name)
+        version_row = self._version_row(session, store_name)
+        if expected_version is not None and version_row.version != expected_version:
+            raise StaleDataError(store_name)
+        self._backup_before_replace(session, model, store_name, len(rows))
+        session.query(model).delete()
+        payloads = [
+            model(row_order=i, data_json=json.dumps(row, ensure_ascii=False))
+            for i, row in enumerate(rows)
+        ]
+        session.add_all(payloads)
+        version_row.version += 1
+        session.flush()
+        return version_row.version
 
     # ── Restore points ────────────────────────────────────────────────────────────
 
@@ -607,7 +611,8 @@ class DatabaseStore:
             reason = REASON_AUTO
         session.add(StoreBackup(
             store_name=store_name,
-            created_at=created_at.isoformat(timespec="seconds"),
+            # Microseconds keep two quick actions with the same label in separate undo groups.
+            created_at=created_at.isoformat(timespec="microseconds"),
             reason=reason,
             row_count=len(old),
             data_json="[" + ",".join(old) + "]",
@@ -656,16 +661,16 @@ class DatabaseStore:
 
     def restore_backups(self, backup_ids, reason="restore"):
         """Put several restore points back together (e.g. everything one bulk action changed)."""
-        with self.session() as session:
+        # One transaction: either every store in the group is restored or none is.
+        with backup_reason(reason), self.session() as session:
             backups = [session.get(StoreBackup, backup_id) for backup_id in backup_ids]
             if not backups or any(b is None for b in backups):
                 raise KeyError(backup_ids)
             if len({b.store_name for b in backups}) != len(backups):
                 raise ValueError("one restore point per store")
             plan = [(b.store_name, json.loads(b.data_json)) for b in backups]
-        with backup_reason(reason):
             for store_name, rows in plan:
-                self._replace_rows(self._model_for_store(store_name), rows)
+                self._replace_rows_in(session, self._model_for_store(store_name), rows)
         return [(store_name, len(rows)) for store_name, rows in plan]
 
     def export_all(self):

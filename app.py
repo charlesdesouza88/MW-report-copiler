@@ -4487,6 +4487,14 @@ BACKUP_STORE_LABELS = {
     'student_snapshots': 'Histórico de relatórios',
     'student_transfers': 'Transferências',
 }
+# CSV mode: the data files a full backup contains. An allowlist, so nothing else in DATA_DIR
+# (users.json with password hashes, stray secrets) can end up in the ZIP.
+BACKUP_DATA_FILES = (
+    'students.csv', 'lessons.csv', 'extra_sessions.csv', 'lesson_attendance.csv',
+    'student_monthly_reviews.json', 'teacher_classes.json', 'student_photos.json',
+    'student_snapshots.json', 'student_transfers.json', 'teacher_profiles.json',
+    'teacher_chat.json',
+)
 BACKUP_REASON_LABELS = {
     'auto': 'Automático',
     'removal': 'Antes de remover registros',
@@ -4547,9 +4555,12 @@ def backups_download():
             zf.writestr('alunos.csv', _rows_to_csv_text('students', data['students']))
             zf.writestr('aulas.csv', _rows_to_csv_text('lessons', data['lessons']))
         else:
-            for path in sorted(Path(DATA_DIR).glob('*')):
-                if path.is_file() and path.name != 'users.json':  # never ship password hashes
-                    zf.write(path, path.name)
+            for name in BACKUP_DATA_FILES:
+                path = Path(DATA_DIR) / name
+                if path.is_file():
+                    zf.write(path, name)
+            users = [{k: v for k, v in u.items() if k != 'password_hash'} for u in user_store.list_users()]
+            zf.writestr('users.json', json.dumps(users, ensure_ascii=False, indent=1))
         zf.writestr('LEIA-ME.txt', (
             f'Backup Mister Wiz gerado em {stamp.replace("_", " ")} (horário de Brasília).\n'
             'mister_wiz_dados.json contém todos os dados: alunos, aulas, atendimentos, presenças, '

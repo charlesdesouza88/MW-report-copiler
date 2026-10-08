@@ -137,3 +137,38 @@ def test_one_bulk_action_can_be_undone_as_a_whole(store, clock):
     assert len(store.load_lessons()) == 1
     with pytest.raises(ValueError):
         store.restore_backups([points[0]["id"], points[0]["id"]])
+
+
+def test_group_restore_is_all_or_nothing(store, clock, monkeypatch):
+    store.save_students([JANE, JOHN])
+    store.save_lessons([{"turma": "MASTER", "aula_num": "1"}])
+    with backup_reason("Transferência de turma"):
+        store.save_students([])
+        store.save_lessons([])
+    ids = [b["id"] for b in store.list_backups() if b["reason"] == "Transferência de turma"]
+    real = DatabaseStore._replace_rows_in
+    calls = []
+
+    def fail_second(self, session, model, rows, expected_version=None):
+        calls.append(model)
+        if len(calls) == 2:
+            raise RuntimeError("database went away")
+        return real(self, session, model, rows, expected_version)
+
+    monkeypatch.setattr(DatabaseStore, "_replace_rows_in", fail_second)
+    with pytest.raises(RuntimeError):
+        store.restore_backups(ids)
+    monkeypatch.undo()
+    assert store.load_students() == [] and store.load_lessons() == []  # nothing half-restored
+    assert len([b for b in store.list_backups() if b["reason"] == "restore"]) == 0
+
+
+def test_two_quick_actions_with_the_same_label_stay_separate(store, clock):
+    store.save_students([JANE, JOHN])
+    with backup_reason("Exclusão de aluno"):
+        store.save_students([JOHN])
+    clock(microseconds=1)  # same second, a moment later
+    with backup_reason("Exclusão de aluno"):
+        store.save_students([])
+    stamps = [b["created_at"] for b in store.list_backups() if b["reason"] == "Exclusão de aluno"]
+    assert len(stamps) == 2 and len(set(stamps)) == 2
