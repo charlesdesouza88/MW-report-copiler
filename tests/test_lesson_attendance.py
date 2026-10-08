@@ -217,7 +217,7 @@ def test_recompute_faltas_preserves_manual_when_lesson_not_logged():
     assert bob['faltas'] == '2'
 
 
-def test_recompute_preserves_manual_faltas_without_missed_aulas():
+def test_recompute_faltas_follow_attendance_not_typed_count():
     students = [{
         'turma': 'STAR',
         'student_name': 'Ana',
@@ -233,7 +233,7 @@ def test_recompute_preserves_manual_faltas_without_missed_aulas():
     updated = recompute_faltas_from_attendance(
         students, lessons, attendance_rows, '2026-02',
     )
-    assert updated[0]['faltas'] == '3'
+    assert updated[0]['faltas'] == '0'  # present in the only logged lesson
     assert updated[0]['missed_aulas'] == ''
 
 

@@ -57,11 +57,11 @@ def test_absent_lesson_updates_student_faltas(monkeypatch, tmp_path):
     assert 'Faltas</span><strong>1</strong>' in students_html
 
     edit_html = client.get("/students/0/edit?month=2026-05").get_data(as_text=True)
-    assert 'name="faltas" value="1"' in edit_html
-    assert 'name="missed_aulas" value="1"' in edit_html
+    assert 'data-presence="faltas">1<' in edit_html
+    assert 'Faltou: aula 1' in edit_html
 
 
-def test_manual_faltas_without_missed_aulas_persists(monkeypatch, tmp_path):
+def test_typed_faltas_are_ignored_attendance_decides(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
@@ -137,14 +137,14 @@ def test_manual_faltas_without_missed_aulas_persists(monkeypatch, tmp_path):
     assert save.status_code == 200
 
     students_html = client.get("/students?month=2026-05").get_data(as_text=True)
-    assert 'Faltas</span><strong>3</strong>' in students_html
+    assert 'Faltas</span><strong>0</strong>' in students_html  # present in the logged lesson
 
     edit_html = client.get("/students/0/edit?month=2026-05").get_data(as_text=True)
-    assert 'name="faltas" value="3"' in edit_html
+    assert 'data-presence="faltas">0<' in edit_html
 
 
-def test_stored_faltas_not_overridden_on_list_by_attendance(monkeypatch, tmp_path):
-    """List/edit show saved monthly faltas, not a silent in-memory attendance recompute."""
+def test_list_and_edit_show_attendance_faltas_over_stale_saved_value(monkeypatch, tmp_path):
+    """A stale saved count (1) gives way to the attendance taken in Aulas (2 absences)."""
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
@@ -189,8 +189,61 @@ def test_stored_faltas_not_overridden_on_list_by_attendance(monkeypatch, tmp_pat
     client.post("/login", data={"email": "chuck@test.local", "password": "pass1234"})
 
     students_html = client.get("/students?month=2026-05").get_data(as_text=True)
-    assert 'Faltas</span><strong>1</strong>' in students_html
+    assert 'Faltas</span><strong>2</strong>' in students_html
 
     edit_html = client.get("/students/0/edit?month=2026-05").get_data(as_text=True)
-    assert 'name="faltas" value="1"' in edit_html
+    assert 'data-presence="faltas">2<' in edit_html
+    assert 'Faltou: aula 1, 2' in edit_html
 
+
+
+def test_form_shows_late_arrivals_and_autosave_cannot_change_faltas(monkeypatch, tmp_path):
+    """Presence is read-only on the student form: it comes from each lesson's attendance."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "teacher_classes.json").write_text("{}", encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,10/05/2026,Lesson 1,,\n"
+        "MASTER,2,17/05/2026,Lesson 2,,\n",
+        encoding="utf-8",
+    )
+    (data_dir / "lesson_attendance.csv").write_text(
+        "turma,aula_num,student_name,status\n"
+        "MASTER,1,Jane Doe,absent\n"
+        "MASTER,2,Jane Doe,tardy\n",
+        encoding="utf-8",
+    )
+    reviews_path = data_dir / "student_monthly_reviews.json"
+    store = UserStore(db_store=None, json_path=data_dir / "users.json")
+    store.initialize()
+    store.create_teacher("chuck@test.local", "pass1234", "Chuck")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "db_store", None)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    monkeypatch.setattr(web_app, "user_store", store)
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", reviews_path)
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+
+    client = web_app.app.test_client()
+    client.post("/login", data={"email": "chuck@test.local", "password": "pass1234"})
+    with client.session_transaction() as sess:
+        sess["review_month"] = "2026-05"
+
+    html = client.get("/students/0/edit").get_data(as_text=True)
+    assert 'data-presence="faltas">1<' in html
+    assert "Faltou: aula 1" in html and "Atrasou: aula 2" in html
+    assert 'name="faltas"' not in html and 'name="missed_aulas"' not in html
+
+    saved = client.post("/students/0/autosave", data={
+        "orig_turma": "MASTER", "orig_student_name": "Jane Doe",
+        "teacher": "Chuck", "turma": "MASTER", "student_name": "Jane Doe",
+        "speaking": "5", "faltas": "9", "missed_aulas": "1,2,3,4,5,6,7,8,9",
+    }, headers={"Accept": "application/json"})
+    assert saved.get_json()["ok"], saved.get_data(as_text=True)
+    import json
+    may = [r for r in json.loads(reviews_path.read_text()) if r["report_month"] == "2026-05"]
+    assert may[0]["speaking"] == "5"
+    assert may[0]["faltas"] == "1" and may[0]["missed_aulas"] == "1"

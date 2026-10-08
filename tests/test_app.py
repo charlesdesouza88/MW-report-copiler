@@ -1068,18 +1068,21 @@ def test_lessons_page_and_teacher_scope(monkeypatch, tmp_path):
     assert reviews_path.exists()
     reviews_text = reviews_path.read_text(encoding="utf-8")
     assert "99" in reviews_text
-    assert '"faltas": "2"' in reviews_text or '"faltas":"2"' in reviews_text.replace(' ', '')
+    may = [r for r in json.loads(reviews_text) if r["report_month"] == "2026-05"]
+    missed = [n for n in may[0]["missed_aulas"].split(",") if n]
+    assert "99" in missed and may[0]["faltas"] == str(len(missed))  # faltas = counted absences
     attendance_text = (data_dir / "lesson_attendance.csv").read_text(encoding="utf-8")
     assert "Jane Doe" in attendance_text
     assert "absent" in attendance_text
 
     students_html = client.get("/students?month=2026-05").get_data(as_text=True)
     assert "Jane Doe" in students_html
-    assert 'Faltas</span><strong>2</strong>' in students_html
+    assert f'Faltas</span><strong>{len(missed)}</strong>' in students_html
 
     edit_html = client.get("/students/0/edit?month=2026-05").get_data(as_text=True)
-    assert 'name="faltas" value="2"' in edit_html
-    assert 'name="missed_aulas" value="2,99"' in edit_html
+    assert 'name="faltas"' not in edit_html and 'name="missed_aulas"' not in edit_html
+    assert f'data-presence="faltas">{len(missed)}<' in edit_html
+    assert f'Faltou: aula {", ".join(missed)}' in edit_html
 
     blocked = client.post(
         "/lessons/new",
@@ -1853,8 +1856,9 @@ def test_student_new_form_does_not_copy_existing_student(monkeypatch, tmp_path):
     assert 'id="val-speaking" value=""' in html
     assert 'id="val-listening" value=""' in html
     assert 'id="val-gramatica" value=""' in html
-    assert 'name="faltas" value="0"' in html
-    assert 'name="missed_aulas" value=""' in html
+    assert 'data-presence="faltas">0<' in html
+    assert 'name="faltas"' not in html
+    assert 'Nenhuma falta' in html
     assert "Practice speaking" not in html
     assert ">Good</textarea>" not in html
     assert ">Focus</textarea>" not in html
@@ -2066,7 +2070,7 @@ def test_set_review_month_replaces_month_query_on_redirect(monkeypatch, tmp_path
         assert sess.get("review_month") == "2026-05"
 
 
-def test_faltas_saved_to_return_month_when_session_differs(monkeypatch, tmp_path):
+def test_review_saved_to_return_month_when_session_differs(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
@@ -2106,7 +2110,7 @@ def test_faltas_saved_to_return_month_when_session_differs(monkeypatch, tmp_path
         "organizacao": "3",
         "pontualidade": "3",
         "respeito_regras": "3",
-        "faltas": "4",
+        "faltas": "4",  # typed faltas are ignored; attendance decides
         "missed_aulas": "",
         "aula_extra": "",
         "return_month": "2026-05",
@@ -2118,11 +2122,8 @@ def test_faltas_saved_to_return_month_when_session_differs(monkeypatch, tmp_path
     may_rows = [r for r in reviews if r.get("report_month") == "2026-05"]
     july_rows = [r for r in reviews if r.get("report_month") == "2026-07"]
     assert len(may_rows) == 1
-    assert may_rows[0]["faltas"] == "4"
+    assert may_rows[0]["speaking"] == "4" and may_rows[0]["faltas"] != "4"
     assert not july_rows
-
-    may_html = client.get("/students?month=2026-05").get_data(as_text=True)
-    assert 'Faltas</span><strong>4</strong>' in may_html
 
 
 def test_set_review_month_blocks_open_redirect(monkeypatch, tmp_path):

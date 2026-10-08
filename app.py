@@ -128,6 +128,7 @@ from lesson_attendance import (
     students_by_turma,
     students_for_turma,
     students_with_attendance_in_month,
+    tardy_aulas_for_student,
 )
 from login_events import (
     append_login,
@@ -1173,7 +1174,7 @@ def backup_on_post(reason):
     return decorator
 
 
-def _scoped_students(review_month=None, merge=True, apply_attendance=False):
+def _scoped_students(review_month=None, merge=True, apply_attendance=True):
     _ensure_monthly_migration()
     roster = _load_roster_students()
     user = _current_user()
@@ -1481,6 +1482,18 @@ def _teacher_may_use_student_turma(turma, all_students, user, nivel=''):
     return False
 
 
+# Presence comes from the attendance taken in Aulas; the student form shows it read-only.
+ATTENDANCE_DERIVED_FIELDS = ('faltas', 'missed_aulas')
+
+
+def _keep_attendance_presence(row, source=None):
+    """Ignore any posted faltas/missed_aulas; keep the attendance-derived values."""
+    for field in ATTENDANCE_DERIVED_FIELDS:
+        row[field] = ((source or {}).get(field) or '').strip()
+    row['faltas'] = row['faltas'] or '0'
+    return row
+
+
 def _student_row_from_form():
     row = {field: (request.form.get(field, '') or '').strip() for field in STUDENT_FIELDS}
     row['student_name'] = capitalize_student_name(row.get('student_name'))
@@ -1759,14 +1772,21 @@ def _student_form_context(all_rows, user, is_new, student, idx, form_error=None)
         )
 
     photo = None
+    tardy_aulas = []
     if not is_new and student:
         photo = find_student_photo(
             _load_student_photos(), student.get('turma'), student.get('student_name'),
+        )
+        lessons = _load_lessons()
+        tardy_aulas = tardy_aulas_for_student(
+            lessons, _load_lesson_attendance(), _get_review_month(lessons),
+            student.get('turma'), student.get('student_name'),
         )
 
     return dict(
         student=student,
         idx=idx,
+        tardy_aulas=tardy_aulas,
         student_photo=photo,
         student_photo_ok=session.pop('student_photo_ok', None),
         student_photo_error=session.pop('student_photo_error', None),
@@ -3456,7 +3476,7 @@ def student_edit(idx):
     if user and user['role'] == ROLE_TEACHER:
         _sync_teacher_registry(user, all_rows)
     if request.method == 'POST':
-        updated = _student_row_from_form()
+        updated = _keep_attendance_presence(_student_row_from_form(), visible[idx])
         if user['role'] == ROLE_TEACHER:
             updated['teacher'] = user.get('teacher_name') or updated.get('teacher', '')
         form_error = _validate_student_row(updated, all_rows, user)
@@ -3506,7 +3526,7 @@ def student_autosave(idx):
     user = _current_user()
     if user and user['role'] == ROLE_TEACHER:
         _sync_teacher_registry(user, all_rows)
-    updated = _student_row_from_form()
+    updated = _keep_attendance_presence(_student_row_from_form(), visible[idx])
     if user['role'] == ROLE_TEACHER:
         updated['teacher'] = user.get('teacher_name') or updated.get('teacher', '')
     form_error = _validate_student_row(updated, all_rows, user, autosave=True)
@@ -3554,7 +3574,7 @@ def student_new():
     if user and user['role'] == ROLE_TEACHER:
         _sync_teacher_registry(user, all_rows)
     if request.method == 'POST':
-        new_row = _student_row_from_form()
+        new_row = _keep_attendance_presence(_student_row_from_form())
         if user['role'] == ROLE_TEACHER:
             new_row['teacher'] = user.get('teacher_name') or new_row.get('teacher', '')
         form_error = _validate_student_row(new_row, all_rows, user)
