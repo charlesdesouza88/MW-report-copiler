@@ -240,6 +240,11 @@ def reconcile_presence_after_lesson_removed(students, lessons, attendance_rows, 
             for num in (row.get('missed_aulas') or '').split(',')
             if num.strip()
         }
+        if aula not in nums:
+            # The deleted lesson was not one of this student's absences: keep the
+            # count as is (legacy CSV counts have no per-lesson list to recount from).
+            updated.append(row)
+            continue
         nums.discard(aula)
         nums = _sort_aula_nums(nums)
         row['missed_aulas'] = ','.join(nums)

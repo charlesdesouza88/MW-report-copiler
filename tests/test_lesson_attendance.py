@@ -255,3 +255,21 @@ def test_remove_attendance_for_student_and_lesson():
     after_lesson = remove_attendance_for_lesson(rows, 'master', '2')
     assert len(after_lesson) == 1
     assert after_lesson[0]['aula_num'] == '1'
+
+
+def test_deleting_a_lesson_keeps_legacy_count_and_lowers_real_absences():
+    from lesson_attendance import reconcile_presence_after_lesson_removed
+
+    students = [
+        {'turma': 'STAR', 'student_name': 'Ana', 'faltas': '3', 'missed_aulas': ''},  # legacy CSV count
+        {'turma': 'STAR', 'student_name': 'Bia', 'faltas': '2', 'missed_aulas': '1,2'},
+    ]
+    lessons = [{'turma': 'STAR', 'aula_num': '1', 'date': '10/02/2026'}]  # aula 2 was just deleted
+    attendance_rows = [
+        {'turma': 'STAR', 'aula_num': '1', 'student_name': 'Bia', 'status': 'absent'},
+    ]
+    ana, bia = reconcile_presence_after_lesson_removed(
+        students, lessons, attendance_rows, '2026-02', 'STAR', '2',
+    )
+    assert ana['faltas'] == '3' and ana['missed_aulas'] == ''
+    assert bia['faltas'] == '1' and bia['missed_aulas'] == '1'
