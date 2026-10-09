@@ -765,6 +765,16 @@ input, select, textarea { border-radius: 10px; }
   }
   .sidebar { padding-top: 0; }
   .content { padding: 16px; }
+  /* iPhone Safari drags a sticky header along with the scroll bounce and the
+     collapsing address bar, so it shakes. Pin it instead (the script below
+     measures its height and pads the page by the same amount). */
+  html { overscroll-behavior-y: none; }
+  html.header-pinned { scroll-padding-top: var(--page-header-h, 0px); }
+  html.header-pinned .page-header {
+    position: fixed; top: 0; left: 0; right: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  html.header-pinned .main { padding-top: var(--page-header-h, 0px); }
 }
 </style>
 </head>
@@ -893,6 +903,27 @@ input, select, textarea { border-radius: 10px; }
 </div>
 
 <script>
+(function () {
+  // Phones/tablets: keep the header pinned and the page padded by its live height.
+  var root = document.documentElement;
+  var header = document.querySelector('.page-header');
+  var mobile = window.matchMedia('(max-width: 1023px)');
+  if (!header) return;
+  function sync() {
+    if (mobile.matches) {
+      root.style.setProperty('--page-header-h', header.offsetHeight + 'px');
+      root.classList.add('header-pinned');
+    } else {
+      root.classList.remove('header-pinned');
+      root.style.removeProperty('--page-header-h');
+    }
+  }
+  sync();
+  if (window.ResizeObserver) new ResizeObserver(sync).observe(header);
+  if (mobile.addEventListener) mobile.addEventListener('change', sync);
+  window.addEventListener('orientationchange', sync);
+})();
+
 (function () {
   var body = document.body;
   var toggle = document.getElementById('menu-toggle');
