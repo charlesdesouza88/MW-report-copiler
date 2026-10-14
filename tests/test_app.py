@@ -2595,7 +2595,7 @@ def test_responsive_layout_markers(monkeypatch, tmp_path):
     _init_user_store(monkeypatch, data_dir)
 
     web_app._save_extra_sessions([
-        {"teacher": "Chuck", "student_name": "Jane Doe", "turma": "MASTER", "date": "01/05",
+        {"teacher": "Chuck", "student_name": "Jane Doe", "turma": "MASTER", "date": "15/01/2026",
          "horario": "09:00", "turno": "Manhã", "session_type": "Reforço", "assuntos": "Test",
          "observacao": "", "contatado": "ok", "marcado": "ok", "realizado": "ok"},
     ])
