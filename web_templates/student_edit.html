@@ -382,6 +382,7 @@
           <option value="Reforço" {% if student.aula_extra == 'Reforço' %}selected{% endif %}>Reforço</option>
           <option value="Reposição" {% if student.aula_extra in ('Reposição','Reposicao') %}selected{% endif %}>Reposição</option>
         </select>
+        <p class="font-sm text-gray" style="margin-top:6px;">Vira um pedido em <a href="{{ url_for('extra_sessions') }}">Reforço e reposição</a> para a coordenação agendar.</p>
       </div>
     </div>
   </div>

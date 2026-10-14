@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Pedir reforço ou reposição{% endblock %}
+{% block page_title %}Pedir reforço ou reposição{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('extra_sessions') }}" class="btn btn-ghost">← Voltar</a>
+{% endblock %}
+
+{% block content %}
+<style>
+.req-types { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; }
+.req-type { position:relative; display:block; text-transform:none; letter-spacing:normal; font-weight:500; padding:14px; border:1px solid var(--border); border-radius:12px; background:#fff; cursor:pointer; }
+.req-type input { position:absolute; opacity:0; pointer-events:none; }
+.req-type strong { display:block; color:var(--plum); font-size:14px; }
+.req-type span { display:block; margin-top:4px; font-size:12px; font-weight:400; color:var(--gray); line-height:1.35; }
+.req-type:has(input:checked) { border-color:var(--purple); box-shadow:0 0 0 2px rgba(121,45,131,.18); background:#FBF7FD; }
+.req-type:has(input:focus-visible) { outline:2px solid var(--purple); outline-offset:2px; }
+</style>
+
+<form method="post" style="max-width: 640px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  {% if form_error %}
+  <div class="alert" style="background:#FADBD8; color:#E24B4A; border:1px solid #F1948A;">✕ &nbsp;{{ form_error }}</div>
+  {% endif %}
+
+  <div class="form-section">
+    <div class="form-section-title">1. Aluno</div>
+    {% if choices %}
+    <div class="form-group">
+      <label for="student_pick">Aluno *</label>
+      <select id="student_pick" name="student_pick" required>
+        <option value="">Escolha o aluno…</option>
+        {% for value, label in choices %}
+        <option value="{{ value }}" {% if value == picked %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% else %}
+    <p class="text-gray font-sm">Nenhum aluno cadastrado nas suas turmas ainda.</p>
+    {% endif %}
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">2. O que o aluno precisa</div>
+    <div class="req-types" role="radiogroup" aria-label="Tipo">
+      {% set hints = {
+        'Reforço': 'Dificuldade no conteúdo; precisa praticar mais.',
+        'Reposição': 'Faltou e precisa repor as aulas perdidas.',
+        'Nivelamento': 'Precisa alcançar o nível da turma.',
+        'Aula extra': 'Outro motivo combinado com a coordenação.',
+      } %}
+      {% for choice in session_type_choices %}
+      <label class="req-type">
+        <input type="radio" name="session_type" value="{{ choice }}" {% if choice == session_type %}checked{% endif %} required>
+        <strong>{{ choice }}</strong>
+        <span>{{ hints.get(choice, '') }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="form-group" style="margin-top:16px;">
+      <label for="motivo">Motivo / o que trabalhar</label>
+      <textarea id="motivo" name="motivo" rows="3" placeholder="Ex.: dificuldade com o passado simples; faltou às aulas da Unit 4.">{{ motivo }}</textarea>
+      <p class="font-sm text-gray" style="margin-top:6px;">Ajuda o professor da aula extra a preparar o conteúdo. As faltas registradas na chamada aparecem automaticamente.</p>
+    </div>
+  </div>
+
+  <div class="form-actions-bar flex gap-8" style="margin-top:20px;">
+    <button type="submit" class="btn btn-primary" {% if not choices %}disabled{% endif %}>Enviar pedido</button>
+    <a href="{{ url_for('extra_sessions') }}" class="btn btn-ghost">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

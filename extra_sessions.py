@@ -3,6 +3,7 @@
 import csv
 import io
 import re
+from datetime import date as _date, datetime, timedelta, timezone
 from pathlib import Path
 
 from auth import normalize_teacher_name
@@ -11,7 +12,7 @@ from form_ui import capitalize_student_name, date_from_form, time_from_form
 EXTRA_SESSION_FIELDS = [
     'teacher', 'student_name', 'turma', 'date', 'horario', 'turno',
     'session_type', 'assuntos', 'observacao', 'contatado', 'marcado', 'realizado',
-    'assigned_teacher',
+    'assigned_teacher', 'motivo',
 ]
 
 AUTO_AULA_EXTRA_MARKER = '__auto_aula_extra__'
@@ -25,6 +26,7 @@ EXTRA_SESSION_FIELD_LABELS = {
     'turno': 'Turno',
     'session_type': 'Tipo',
     'assuntos': 'Assuntos trabalhados',
+    'motivo': 'Motivo / o que trabalhar',
     'observacao': 'Observação',
     'contatado': 'Contatado',
     'marcado': 'Marcado',
@@ -244,6 +246,7 @@ def row_from_form(form):
         'marcado': normalize_status(form.get('marcado', '')),
         'realizado': normalize_status(form.get('realizado', '')),
         'assigned_teacher': normalize_teacher_name(form.get('assigned_teacher', '')),
+        'motivo': form.get('motivo', '').strip(),
     }
 
 
@@ -599,4 +602,88 @@ def schedule_session(row, assigned_teacher, date, horario='', turno=''):
         out['turno'] = turno
     if out['assigned_teacher'] and date:
         out['marcado'] = STATUS_OK
+    if out.get('realizado') == STATUS_NO:
+        out['realizado'] = ''  # rescheduled after the student missed it
     return out
+
+
+# Brazil has had no daylight saving since 2019, so a fixed offset is exact.
+SCHOOL_TZ = timezone(timedelta(hours=-3))
+_WEEKDAYS_PT = ('Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom')
+
+
+def school_today():
+    return datetime.now(SCHOOL_TZ).date()
+
+
+def parse_session_date(value):
+    """dd/mm/yyyy (or yyyy-mm-dd) → date; None when missing or partial."""
+    text = (value or '').strip()
+    for fmt in ('%d/%m/%Y', '%Y-%m-%d'):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def session_stage(row):
+    """Where a row sits in the flow: requested → scheduled → done."""
+    if is_status_ok(row.get('realizado')):
+        return 'done'
+    if is_awaiting_schedule(row):
+        return 'requested'
+    return 'scheduled'
+
+
+def session_due_state(row, today=None):
+    """For scheduled rows: missed (student did not come), past (result not recorded), today or upcoming."""
+    if (row.get('realizado') or '').strip() == STATUS_NO:
+        return 'missed'
+    when = parse_session_date(row.get('date'))
+    if when is None:
+        return 'upcoming'
+    today = today or school_today()
+    if when < today:
+        return 'past'
+    return 'today' if when == today else 'upcoming'
+
+
+def session_when(row):
+    """'Qua, 15/10/2026 · 14:00' for display."""
+    raw = (row.get('date') or '').strip()
+    when = parse_session_date(raw)
+    label = f'{_WEEKDAYS_PT[when.weekday()]}, {when.strftime("%d/%m/%Y")}' if when else raw
+    horario = (row.get('horario') or '').strip()
+    return f'{label} · {horario}' if label and horario else (label or horario)
+
+
+def session_sort_key(row):
+    return (parse_session_date(row.get('date')) or _date.max, (row.get('horario') or '').strip())
+
+
+def display_student_name(row):
+    """Student name without the '(TURMA)' suffix when the turma is shown next to it."""
+    name = (row.get('student_name') or '').strip()
+    if (row.get('turma') or '').strip():
+        name = re.sub(r'\s*\([^()]*\)\s*$', '', name) or name
+    return name
+
+
+def session_reason(row):
+    """Why the student needs the class (the request), never the auto marker or a bare type."""
+    motivo = (row.get('motivo') or '').strip()
+    if motivo:
+        return motivo
+    if is_status_ok(row.get('realizado')):
+        return ''
+    assuntos = (row.get('assuntos') or '').strip()
+    return '' if assuntos == (row.get('session_type') or '').strip() else assuntos
+
+
+def find_student_for_session(students, row):
+    """The roster student a session row belongs to, or None."""
+    for student in students or []:
+        if _row_matches_student(row, student):
+            return student
+    return None

@@ -40,12 +40,12 @@ def _flag_jane(chuck, value="Reposição"):
 def _panel(page):
     if 'id="aguardando-agendamento"' not in page:
         return ""
-    return page.split('id="aguardando-agendamento"', 1)[1].split("filter-panel", 1)[0]
+    return page.split('id="aguardando-agendamento"', 1)[1].split("<!-- /pedidos -->", 1)[0]
 
 
 def _awaiting(page, student="Jane Doe"):
     """(index, identity hidden fields) of the student's awaiting row, as a browser would post them."""
-    for idx, block in re.findall(r'data-awaiting="(\d+)">(.*?)(?=data-awaiting="|\Z)', _panel(page), re.S):
+    for idx, block in re.findall(r'data-awaiting="(\d+)"[^>]*>(.*?)(?=data-awaiting="|\Z)', _panel(page), re.S):
         if student in block:
             ident = {k: html_lib.unescape(v) for k, v in
                      re.findall(r'<input type="hidden" name="(orig_[a-z_]+)" value="([^"]*)"', block)}
@@ -90,7 +90,7 @@ def test_flagged_student_waits_then_coordination_schedules(school):
     for client in (chuck, paula):
         page = client.get("/extra-sessions").get_data(as_text=True)
         assert "20/10/2026" in page and "Jane Doe" not in _panel(page)
-    assert "Aula com Prof. Paula" in chuck.get("/extra-sessions").get_data(as_text=True)
+    assert "Aula com <strong>Prof. Paula</strong>" in chuck.get("/extra-sessions").get_data(as_text=True)
 
     # Chuck saving Jane again keeps the appointment (no reset, no duplicate request).
     _flag_jane(chuck)
@@ -130,3 +130,98 @@ def test_class_teacher_can_record_the_class_but_not_take_over_or_delete(school):
     for i in edit_links:
         paula.post(f"/extra-sessions/{i}/delete", data={**ident, "orig_date": row["date"]})
     _jane_reposicao(school)  # still there: only Chuck or the coordination may delete it
+
+
+def _ident(row):
+    return {f"orig_{k}": row[k] for k in ("student_name", "turma", "date", "session_type")}
+
+
+def test_class_teacher_records_result_and_missed_class_goes_back_to_coordination(school):
+    chuck = _client("chuck@test.local", "chuckpass")
+    admin = _client("admin@test.local", "testpass")
+    paula = school["paula"]
+    _flag_jane(chuck)
+    _schedule(admin, date="2026-10-20")
+    row = _jane_reposicao(school)
+    page = paula.get("/extra-sessions").get_data(as_text=True)
+    idx = int(re.search(r'data-scheduled="(\d+)"', page).group(1))
+    assert "Registrar resultado" in page
+
+    # Student did not come: stays open, flagged for rescheduling.
+    paula.post(f"/extra-sessions/{idx}/outcome", data={**_ident(row), "result": "NAO"})
+    row = _jane_reposicao(school)
+    assert row["realizado"] == "NÃO"
+    assert "Faltou · reagendar" in admin.get("/extra-sessions").get_data(as_text=True)
+    assert "A coordenação vai reagendar" in chuck.get("/extra-sessions").get_data(as_text=True)
+
+    # Coordination reschedules: the missed mark is cleared.
+    page = admin.get("/extra-sessions").get_data(as_text=True)
+    a_idx = int(re.search(r'data-scheduled="(\d+)"', page).group(1))
+    admin.post(f"/extra-sessions/{a_idx}/schedule", data={**_ident(row), "assigned_teacher": "Paula",
+                                                          "date_picker": "2026-10-27"})
+    row = _jane_reposicao(school)
+    assert (row["date"], row["realizado"]) == ("27/10/2026", "")
+
+    # Done, with what was worked on; the student's flag is cleared so no new request appears.
+    paula.post(f"/extra-sessions/{idx}/outcome", data={**_ident(row), "result": "OK",
+                                                        "assuntos": "Unit 3 past simple"})
+    row = _jane_reposicao(school)
+    assert (row["realizado"], row["assuntos"]) == ("OK", "Unit 3 past simple")
+    page = chuck.get("/extra-sessions").get_data(as_text=True)
+    assert "Jane Doe" not in _panel(page) and "Unit 3 past simple" in page.split('id="concluidas"', 1)[1]
+
+
+def test_unrelated_teacher_cannot_record_result(school):
+    chuck = _client("chuck@test.local", "chuckpass")
+    admin = _client("admin@test.local", "testpass")
+    _flag_jane(chuck)
+    _schedule(admin, teacher="Chuck")
+    row = _jane_reposicao(school)
+    for i in range(4):
+        school["paula"].post(f"/extra-sessions/{i}/outcome", data={**_ident(row), "result": "OK"})
+    assert _jane_reposicao(school)["realizado"] == ""
+
+
+def test_cancelling_a_request_does_not_bring_it_back(school):
+    chuck = _client("chuck@test.local", "chuckpass")
+    _flag_jane(chuck)
+    page = chuck.get("/extra-sessions").get_data(as_text=True)
+    action = re.search(r'action="(/extra-sessions/\d+/delete)"', _panel(page)).group(1)
+    assert "Cancelar pedido" in _panel(page)
+    chuck.post(action, data=_ident(_jane_reposicao(school)))
+    chuck.get("/extra-sessions")  # page load reconciles flagged students
+    assert not [r for r in _sessions(school) if r["turma"] == "MASTER" and r["session_type"] == "Reposição"]
+    student = chuck.get("/students/0/edit").get_data(as_text=True)
+    assert '<option value="Reposição" selected' not in student
+
+
+def test_request_form_uses_roster_and_blocks_duplicates(school):
+    chuck = _client("chuck@test.local", "chuckpass")
+    form = chuck.get("/extra-sessions/new").get_data(as_text=True)
+    assert 'value="MASTER|Jane Doe"' in form and "Bob Smith" not in form  # only own students
+
+    resp = chuck.post("/extra-sessions/new", data={"student_pick": "SPARK|Bob Smith", "session_type": "Reforço"})
+    assert resp.status_code == 400  # not Chuck's student
+    chuck.post("/extra-sessions/new", data={"student_pick": "MASTER|Jane Doe", "session_type": "Nivelamento",
+                                            "motivo": "Past simple"})
+    chuck.post("/extra-sessions/new", data={"student_pick": "MASTER|Jane Doe", "session_type": "Nivelamento"})
+    rows = [r for r in _sessions(school) if r["session_type"] == "Nivelamento"]
+    assert len(rows) == 1
+    assert (rows[0]["student_name"], rows[0]["turma"], rows[0]["teacher"], rows[0]["motivo"]) == \
+        ("Jane Doe (MASTER)", "MASTER", "Chuck", "Past simple")
+    page = chuck.get("/extra-sessions").get_data(as_text=True)
+    assert "Past simple" in _panel(page) and "já tem um pedido de Nivelamento em aberto" in page
+
+
+def test_edit_form_hides_internal_marker_and_keeps_request_linked(school):
+    chuck = _client("chuck@test.local", "chuckpass")
+    _flag_jane(chuck)
+    idx, _ = _awaiting(chuck.get("/extra-sessions").get_data(as_text=True))
+    edit = chuck.get(f"/extra-sessions/{idx}/edit").get_data(as_text=True)
+    assert "__auto_aula_extra__" not in edit
+    row = _jane_reposicao(school)
+    chuck.post(f"/extra-sessions/{idx}/edit", data={**_ident(row), "student_name": row["student_name"],
+                                                     "turma": "MASTER", "session_type": "Reposição",
+                                                     "motivo": "Faltou às aulas 3 e 4", "observacao": ""})
+    row = _jane_reposicao(school)
+    assert row["observacao"] == "__auto_aula_extra__" and row["motivo"] == "Faltou às aulas 3 e 4"
