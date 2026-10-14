@@ -81,15 +81,18 @@ from extra_sessions import (
     apply_open_extra_sessions_to_students,
     apply_pending_session_flag_to_students,
     build_atendimentos_template_csv,
+    class_teacher,
     coerce_session_status_fields,
     display_status,
     filter_sessions_for_teacher,
+    is_awaiting_schedule,
     is_status_ok,
     normalize_aula_extra,
     parse_import_csv,
     reconcile_flagged_students,
     remove_sessions_for_student,
     row_from_form,
+    schedule_session,
     sync_student_extra_sessions,
 )
 from feedback_options import FEEDBACK_OPTIONS, is_legacy_feedback
@@ -644,6 +647,8 @@ app.jinja_env.globals.update(
     STUDENT_IDENTITY=STUDENT_IDENTITY,
     LESSON_IDENTITY=LESSON_IDENTITY,
     EXTRA_SESSION_IDENTITY=EXTRA_SESSION_IDENTITY,
+    class_teacher=class_teacher,
+    is_awaiting_schedule=is_awaiting_schedule,
     storage_date_to_iso=storage_date_to_iso,
     format_date_for_input=format_date_for_input,
     storage_time_to_input=storage_time_to_input,
@@ -3828,9 +3833,13 @@ def extra_sessions():
     types = sorted({r.get('session_type', '').strip() for r in rows if r.get('session_type', '').strip()})
     message = session.pop('extra_session_flash_message', None)
     error = session.pop('extra_session_flash_error', None)
+    # Requests waiting for the coordination to pick a teacher and a date (index = row in `sessions`).
+    awaiting = [(i, r) for i, r in enumerate(rows) if is_awaiting_schedule(r)]
     return render_template(
         'extra_sessions.html',
         sessions=rows,
+        awaiting=awaiting,
+        schedule_teacher_names=_teacher_names_for_forms() if has_full_data_access(user['role']) else [],
         teachers=teachers,
         session_types=types or list(SESSION_TYPE_CHOICES),
         field_labels=EXTRA_SESSION_FIELD_LABELS,
@@ -3849,6 +3858,7 @@ def extra_session_new():
         new_row = row_from_form(request.form)
         if user['role'] == ROLE_TEACHER:
             new_row['teacher'] = user.get('teacher_name') or new_row.get('teacher', '')
+            new_row['assigned_teacher'] = ''  # the coordination assigns who gives the class
         if not new_row.get('student_name'):
             abort(400)
         all_rows.append(new_row)
@@ -3867,7 +3877,7 @@ def extra_session_new():
         is_new=True,
         field_labels=EXTRA_SESSION_FIELD_LABELS,
         session_type_choices=SESSION_TYPE_CHOICES,
-        teacher_names=_teacher_names_from_students(),
+        teacher_names=_teacher_names_for_forms(),
     )
 
 
@@ -3888,7 +3898,11 @@ def extra_session_edit(idx):
     if request.method == 'POST':
         updated = row_from_form(request.form)
         if user['role'] == ROLE_TEACHER:
-            updated['teacher'] = user.get('teacher_name') or updated.get('teacher', '')
+            # The student's teacher and the class assignment belong to the row, not to whoever
+            # edits it (a teacher giving another teacher's reforço must not take the student over).
+            current = visible[idx]
+            updated['teacher'] = current.get('teacher') or user.get('teacher_name', '')
+            updated['assigned_teacher'] = current.get('assigned_teacher', '')
         if not updated.get('student_name'):
             abort(400)
         global_idx = find_extra_session_global_index(all_rows, visible, idx)
@@ -3906,7 +3920,7 @@ def extra_session_edit(idx):
         is_new=False,
         field_labels=EXTRA_SESSION_FIELD_LABELS,
         session_type_choices=SESSION_TYPE_CHOICES,
-        teacher_names=_teacher_names_from_students(),
+        teacher_names=_teacher_names_for_forms(),
     )
 
 
@@ -3920,10 +3934,48 @@ def extra_session_delete(idx):
         session['extra_session_flash_error'] = LIST_CHANGED_MESSAGE
         return redirect(url_for('extra_sessions'))
     if 0 <= idx < len(visible):
+        user = _current_user()
+        row = visible[idx]
+        if user['role'] == ROLE_TEACHER and normalize_teacher_name(row.get('teacher', '')).casefold() \
+                not in ('', normalize_teacher_name(user.get('teacher_name', '')).casefold()):
+            # A teacher only assigned to give this class cannot delete the other teacher's request.
+            session['extra_session_flash_error'] = 'Só o professor do aluno ou a coordenação pode excluir este atendimento.'
+            return redirect(url_for('extra_sessions'))
         global_idx = find_extra_session_global_index(all_rows, visible, idx)
         if global_idx is not None:
             all_rows.pop(global_idx)
             _save_extra_sessions(all_rows)
+    return redirect(url_for('extra_sessions'))
+
+
+@app.route('/extra-sessions/<int:idx>/schedule', methods=['POST'])
+@role_required(ROLE_SUPERADMIN, ROLE_ADMIN)
+def extra_session_schedule(idx):
+    """Coordination picks who gives the extra class and when."""
+    all_rows, visible = _scoped_extra_sessions()
+    idx = _locate_by_identity(visible, idx, request.form, EXTRA_SESSION_IDENTITY, required=True)
+    if idx is None or not (0 <= idx < len(visible)):
+        session['extra_session_flash_error'] = LIST_CHANGED_MESSAGE
+        return redirect(url_for('extra_sessions'))
+    assigned = (request.form.get('assigned_teacher') or '').strip()
+    date = date_from_form(request.form)
+    if not assigned or not date:
+        session['extra_session_flash_error'] = 'Escolha o professor e a data para agendar.'
+        return redirect(url_for('extra_sessions'))
+    global_idx = find_extra_session_global_index(all_rows, visible, idx)
+    if global_idx is None:
+        abort(404)
+    updated = schedule_session(
+        all_rows[global_idx], assigned, date,
+        time_from_form(request.form), (request.form.get('turno') or '').strip(),
+    )
+    all_rows[global_idx] = updated
+    _save_extra_sessions(all_rows)
+    _sync_extra_session_to_student_flag(updated)
+    session['extra_session_flash_message'] = (
+        f'{updated.get("session_type") or "Atendimento"} de {updated.get("student_name")} agendado com '
+        f'Prof. {updated["assigned_teacher"]} em {date}{" às " + updated["horario"] if updated.get("horario") else ""}.'
+    )
     return redirect(url_for('extra_sessions'))
 
 

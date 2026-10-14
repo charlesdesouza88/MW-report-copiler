@@ -11,6 +11,7 @@ from form_ui import capitalize_student_name, date_from_form, time_from_form
 EXTRA_SESSION_FIELDS = [
     'teacher', 'student_name', 'turma', 'date', 'horario', 'turno',
     'session_type', 'assuntos', 'observacao', 'contatado', 'marcado', 'realizado',
+    'assigned_teacher',
 ]
 
 AUTO_AULA_EXTRA_MARKER = '__auto_aula_extra__'
@@ -28,6 +29,7 @@ EXTRA_SESSION_FIELD_LABELS = {
     'contatado': 'Contatado',
     'marcado': 'Marcado',
     'realizado': 'Realizado',
+    'assigned_teacher': 'Professor da aula extra',
 }
 
 SESSION_TYPE_CHOICES = ('Reforço', 'Reposição', 'Nivelamento', 'Aula extra')
@@ -241,6 +243,7 @@ def row_from_form(form):
         'contatado': normalize_status(form.get('contatado', '')),
         'marcado': normalize_status(form.get('marcado', '')),
         'realizado': normalize_status(form.get('realizado', '')),
+        'assigned_teacher': normalize_teacher_name(form.get('assigned_teacher', '')),
     }
 
 
@@ -385,7 +388,7 @@ def _row_matches_student(row, student):
 
 
 def filter_sessions_for_teacher(sessions, teacher_name, students):
-    """Teacher sees own sessions plus unassigned rows that match their roster."""
+    """Teacher sees their students' sessions, sessions assigned to them, and unowned rows for their roster."""
     key = normalize_teacher_name(teacher_name).casefold()
     if not key:
         return []
@@ -393,7 +396,8 @@ def filter_sessions_for_teacher(sessions, teacher_name, students):
     visible = []
     for row in sessions or []:
         row_teacher = normalize_teacher_name(row.get('teacher', '')).casefold()
-        if row_teacher == key:
+        assigned = normalize_teacher_name(row.get('assigned_teacher', '')).casefold()
+        if key in (row_teacher, assigned):  # their student's request, or a class they were given
             visible.append(row)
             continue
         if row_teacher:
@@ -505,9 +509,12 @@ def student_row_from_aula_extra_flag(student):
 def sync_student_extra_sessions(all_rows, student):
     """Create or remove auto-synced rows when a student's aula_extra flag changes."""
     session_type = normalize_aula_extra(student.get('aula_extra'))
+    # Drop only unscheduled auto requests; once the coordination set a date or a
+    # teacher, the row is a real appointment and must survive later saves.
     kept = [
         row for row in all_rows
-        if not (is_auto_aula_extra_row(row) and _row_matches_student(row, student))
+        if not (is_auto_aula_extra_row(row) and _row_matches_student(row, student)
+                and not is_scheduled(row))
     ]
     if not session_type:
         return kept
@@ -565,3 +572,31 @@ def clear_aula_extra_after_completed_session(students, session_row):
             changed = True
         out.append(row)
     return out if changed else students
+
+
+def is_scheduled(row):
+    """A date or an assigned teacher means the coordination already scheduled it."""
+    return bool((row.get('date') or '').strip() or (row.get('assigned_teacher') or '').strip())
+
+
+def is_awaiting_schedule(row):
+    """Open request with no date yet: shows in the coordination's to-schedule list."""
+    return not is_status_ok(row.get('realizado')) and not (row.get('date') or '').strip()
+
+
+def class_teacher(row):
+    """Who gives the extra class: the assigned teacher, else the student's own teacher."""
+    return (row.get('assigned_teacher') or '').strip() or (row.get('teacher') or '').strip()
+
+
+def schedule_session(row, assigned_teacher, date, horario='', turno=''):
+    """Coordination assigns who gives the class and when; the booking counts as Marcado."""
+    out = dict(row)
+    out['assigned_teacher'] = normalize_teacher_name(assigned_teacher)
+    out['date'] = date
+    out['horario'] = horario
+    if turno:
+        out['turno'] = turno
+    if out['assigned_teacher'] and date:
+        out['marcado'] = STATUS_OK
+    return out
