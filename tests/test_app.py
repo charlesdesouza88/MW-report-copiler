@@ -889,23 +889,11 @@ def test_new_extra_session_flags_student_on_alunos_page(monkeypatch, tmp_path):
     _login(client)
     created = client.post(
         "/extra-sessions/new",
-        data={
-            "student_name": "Jane Doe",
-            "turma": "MASTER",
-            "teacher": "Chuck",
-            "session_type": "Reposição",
-            "date_picker": "2026-08-15",
-            "horario": "09:00",
-            "turno": "Manhã",
-            "assuntos": "Reposição aula 2",
-            "observacao": "",
-            "contatado": "",
-            "marcado": "",
-            "realizado": "",
-        },
+        data={"student_pick": "MASTER|Jane Doe", "session_type": "Reposição", "motivo": "Reposição aula 2"},
         follow_redirects=True,
     )
     assert created.status_code == 200
+    assert "Pedido de Reposição para Jane Doe enviado" in created.get_data(as_text=True)
     html = client.get("/students?month=2026-08").get_data(as_text=True)
     assert 'data-aula-extra="Reposição"' in html
 

@@ -82,13 +82,23 @@ from extra_sessions import (
     apply_pending_session_flag_to_students,
     build_atendimentos_template_csv,
     class_teacher,
+    clear_aula_extra_after_completed_session,
     coerce_session_status_fields,
     display_status,
+    display_student_name,
     filter_sessions_for_teacher,
+    find_student_for_session,
+    flagged_students_without_session,
+    has_open_session_for_student,
     is_awaiting_schedule,
     is_status_ok,
     normalize_aula_extra,
     parse_import_csv,
+    session_due_state,
+    session_reason,
+    session_sort_key,
+    session_stage,
+    session_when,
     reconcile_flagged_students,
     remove_sessions_for_student,
     row_from_form,
@@ -649,6 +659,10 @@ app.jinja_env.globals.update(
     EXTRA_SESSION_IDENTITY=EXTRA_SESSION_IDENTITY,
     class_teacher=class_teacher,
     is_awaiting_schedule=is_awaiting_schedule,
+    display_student_name=display_student_name,
+    session_due_state=session_due_state,
+    session_reason=session_reason,
+    session_when=session_when,
     storage_date_to_iso=storage_date_to_iso,
     format_date_for_input=format_date_for_input,
     storage_time_to_input=storage_time_to_input,
@@ -2547,8 +2561,8 @@ def _sync_student_aula_extra_sessions(student):
         _save_extra_sessions(updated)
 
 
-def _sync_extra_session_to_student_flag(session_row):
-    """Keep monthly aula_extra in sync when an extra session is created or completed."""
+def _sync_extra_session_to_student_flag(session_row, cancelled=False):
+    """Keep monthly aula_extra in sync when an extra session is created, completed or cancelled."""
     months = []
     current = _get_review_month()
     session_month = parse_lesson_month(session_row.get('date', ''))
@@ -2560,7 +2574,12 @@ def _sync_extra_session_to_student_flag(session_row):
     roster = _load_roster_students()
     for month in months:
         merged = _merged_roster_for_month(roster, month)
-        updated = apply_pending_session_flag_to_students(merged, session_row)
+        if cancelled:
+            # Same effect as a completed class: the student no longer needs it, so the
+            # request is not recreated from the flag on the next page load.
+            updated = clear_aula_extra_after_completed_session(merged, {**session_row, 'realizado': 'OK'})
+        else:
+            updated = apply_pending_session_flag_to_students(merged, session_row)
         if updated is not merged:
             _persist_monthly_rows(updated, month)
 
@@ -2946,7 +2965,9 @@ def dashboard():
         turma_list = [c['turma'] for c in admin_turmas]
         turma_count = len(admin_turmas)
 
+    extra = _extra_session_counts(user, all_students, students)
     return render_template('dashboard.html',
+        extra=extra,
         student_count=len(students),
         turma_count=turma_count,
         lesson_count=len(month_lessons),
@@ -2970,6 +2991,23 @@ def dashboard():
         turma_flash_error=turma_flash_error,
         teacher_names=_teacher_names_for_forms() if user and has_full_data_access(user['role']) else [],
     )
+
+
+def _extra_session_counts(user, all_students, visible_students):
+    """Reforço/reposição numbers for the dashboard, without writing anything."""
+    if not user:
+        return {'requested': 0, 'scheduled': 0, 'overdue': 0}
+    scope = all_students if has_full_data_access(user['role']) else visible_students
+    _, rows = _scoped_extra_sessions()
+    stages = [session_stage(r) for r in rows]
+    # Students flagged in the review whose request row is created on the next Reforço page load.
+    not_yet_listed = len(flagged_students_without_session(scope, rows))
+    return {
+        'requested': stages.count('requested') + not_yet_listed,
+        'scheduled': stages.count('scheduled'),
+        'overdue': sum(1 for r, st in zip(rows, stages)
+                       if st == 'scheduled' and session_due_state(r) in ('past', 'missed')),
+    }
 
 
 def _may_manage_turmas(user):
@@ -3829,19 +3867,62 @@ def extra_sessions():
     scope_students = all_students if has_full_data_access(user['role']) else visible_students
     _reconcile_flagged_extra_sessions(scope_students)
     _, rows = _scoped_extra_sessions()
-    teachers = sorted({r.get('teacher', '').strip() for r in rows if r.get('teacher', '').strip()})
-    types = sorted({r.get('session_type', '').strip() for r in rows if r.get('session_type', '').strip()})
     message = session.pop('extra_session_flash_message', None)
     error = session.pop('extra_session_flash_error', None)
-    # Requests waiting for the coordination to pick a teacher and a date (index = row in `sessions`).
-    awaiting = [(i, r) for i, r in enumerate(rows) if is_awaiting_schedule(r)]
+
+    # Every list keeps (index in `rows`, row): the index is what the row routes expect.
+    indexed = list(enumerate(rows))
+    requested = sorted(
+        [(i, r) for i, r in indexed if session_stage(r) == 'requested'],
+        key=lambda ir: (ir[1].get('teacher', '').casefold(), ir[1].get('turma', '').casefold(),
+                        display_student_name(ir[1]).casefold()),
+    )
+    scheduled = sorted([(i, r) for i, r in indexed if session_stage(r) == 'scheduled'],
+                       key=lambda ir: session_sort_key(ir[1]))
+    done = sorted([(i, r) for i, r in indexed if session_stage(r) == 'done'],
+                  key=lambda ir: session_sort_key(ir[1]), reverse=True)
+
+    # What each open request is about: the lessons the student missed this month.
+    lesson_titles = {
+        ((l.get('turma') or '').strip().upper(), (l.get('aula_num') or '').strip()):
+            (l.get('licao_conteudo') or '').strip()
+        for l in _load_lessons()
+    }
+    missed = {}
+    for i, row in requested + scheduled:
+        # visible_students is this month's review with attendance applied (everyone, for admins).
+        student = find_student_for_session(visible_students, row)
+        nums = [n.strip() for n in ((student or {}).get('missed_aulas') or '').split(',') if n.strip()]
+        if nums:
+            turma = (student.get('turma') or '').strip().upper()
+            missed[i] = [(n, lesson_titles.get((turma, n), '')) for n in nums]
+
+    full_access = has_full_data_access(user['role'])
+    me = normalize_teacher_name(user.get('teacher_name', '')).casefold()
+    perms = {}
+    for i, row in indexed:
+        owner = normalize_teacher_name(row.get('teacher', '')).casefold()
+        giver = normalize_teacher_name(class_teacher(row)).casefold()
+        perms[i] = {
+            'record': full_access or (me and me in (owner, giver)),
+            'delete': full_access or owner in ('', me),
+        }
+
+    def _names(stage_rows, key):
+        return sorted({(r.get(key) or '').strip() for _, r in stage_rows if (r.get(key) or '').strip()})
+
     return render_template(
         'extra_sessions.html',
         sessions=rows,
-        awaiting=awaiting,
-        schedule_teacher_names=_teacher_names_for_forms() if has_full_data_access(user['role']) else [],
-        teachers=teachers,
-        session_types=types or list(SESSION_TYPE_CHOICES),
+        requested=requested,
+        scheduled=scheduled,
+        done=done,
+        missed=missed,
+        perms=perms,
+        schedule_teacher_names=_teacher_names_for_forms() if full_access else [],
+        request_teachers=_names(requested, 'teacher'),
+        done_teachers=sorted({class_teacher(r) for _, r in done if class_teacher(r)}),
+        done_types=_names(done, 'session_type'),
         field_labels=EXTRA_SESSION_FIELD_LABELS,
         auto_aula_extra_marker=AUTO_AULA_EXTRA_MARKER,
         message=message,
@@ -3849,36 +3930,67 @@ def extra_sessions():
     )
 
 
+def _request_student_choices(user):
+    """Roster students the user may open a request for, as (value, label, student)."""
+    all_students, visible_students = _scoped_students()
+    students = all_students if has_full_data_access(user['role']) else visible_students
+    choices = []
+    for student in students:
+        name = (student.get('student_name') or '').strip()
+        turma = (student.get('turma') or '').strip()
+        if name:
+            choices.append((f'{turma}|{name}', f'{name} — {turma}' if turma else name, student))
+    return sorted(choices, key=lambda c: c[1].casefold())
+
+
 @app.route('/extra-sessions/new', methods=['GET', 'POST'])
 @login_required
 def extra_session_new():
     all_rows, visible = _scoped_extra_sessions()
     user = _current_user()
+    choices = _request_student_choices(user)
+    form_error = None
     if request.method == 'POST':
-        new_row = row_from_form(request.form)
-        if user['role'] == ROLE_TEACHER:
-            new_row['teacher'] = user.get('teacher_name') or new_row.get('teacher', '')
-            new_row['assigned_teacher'] = ''  # the coordination assigns who gives the class
-        if not new_row.get('student_name'):
-            abort(400)
-        all_rows.append(new_row)
-        _save_extra_sessions(all_rows)
-        _sync_extra_session_to_student_flag(new_row)
-        return redirect(url_for('extra_sessions'))
+        pick = (request.form.get('student_pick') or '').strip()
+        student = next((st for value, _, st in choices if value == pick), None)
+        session_type = (request.form.get('session_type') or '').strip()
+        if session_type not in SESSION_TYPE_CHOICES:
+            session_type = 'Reforço'
+        if student is None:
+            form_error = 'Escolha o aluno na lista.'
+        elif has_open_session_for_student(all_rows, student, session_type):
+            session['extra_session_flash_error'] = (
+                f'{student.get("student_name")} já tem um pedido de {session_type} em aberto.'
+            )
+            return redirect(url_for('extra_sessions'))
+        else:
+            name = (student.get('student_name') or '').strip()
+            turma = (student.get('turma') or '').strip()
+            new_row = {f: '' for f in EXTRA_SESSION_FIELDS}
+            new_row.update({
+                'teacher': normalize_teacher_name(student.get('teacher', '')) or user.get('teacher_name', ''),
+                'student_name': f'{name} ({turma})' if turma else name,
+                'turma': turma,
+                'session_type': session_type,
+                'motivo': (request.form.get('motivo') or '').strip(),
+            })
+            all_rows.append(new_row)
+            _save_extra_sessions(all_rows)
+            _sync_extra_session_to_student_flag(new_row)
+            session['extra_session_flash_message'] = (
+                f'Pedido de {session_type} para {name} enviado. A coordenação vai definir o professor e a data.'
+            )
+            return redirect(url_for('extra_sessions'))
 
-    defaults = {f: '' for f in EXTRA_SESSION_FIELDS}
-    defaults['session_type'] = 'Reforço'
-    if user['role'] == ROLE_TEACHER:
-        defaults['teacher'] = user.get('teacher_name', '')
     return render_template(
-        'extra_session_edit.html',
-        session=defaults,
-        idx=None,
-        is_new=True,
-        field_labels=EXTRA_SESSION_FIELD_LABELS,
+        'extra_session_request.html',
+        choices=[(value, label) for value, label, _ in choices],
+        picked=request.form.get('student_pick', ''),
+        session_type=request.form.get('session_type', 'Reforço'),
+        motivo=request.form.get('motivo', ''),
         session_type_choices=SESSION_TYPE_CHOICES,
-        teacher_names=_teacher_names_for_forms(),
-    )
+        form_error=form_error,
+    ), (400 if form_error else 200)
 
 
 @app.route('/extra-sessions/<int:idx>/edit', methods=['GET', 'POST'])
@@ -3897,10 +4009,12 @@ def extra_session_edit(idx):
 
     if request.method == 'POST':
         updated = row_from_form(request.form)
+        current = visible[idx]
+        if current.get('observacao') == AUTO_AULA_EXTRA_MARKER and not updated.get('observacao'):
+            updated['observacao'] = AUTO_AULA_EXTRA_MARKER  # keeps the request tied to the student flag
         if user['role'] == ROLE_TEACHER:
             # The student's teacher and the class assignment belong to the row, not to whoever
             # edits it (a teacher giving another teacher's reforço must not take the student over).
-            current = visible[idx]
             updated['teacher'] = current.get('teacher') or user.get('teacher_name', '')
             updated['assigned_teacher'] = current.get('assigned_teacher', '')
         if not updated.get('student_name'):
@@ -3921,6 +4035,7 @@ def extra_session_edit(idx):
         field_labels=EXTRA_SESSION_FIELD_LABELS,
         session_type_choices=SESSION_TYPE_CHOICES,
         teacher_names=_teacher_names_for_forms(),
+        auto_aula_extra_marker=AUTO_AULA_EXTRA_MARKER,
     )
 
 
@@ -3943,8 +4058,59 @@ def extra_session_delete(idx):
             return redirect(url_for('extra_sessions'))
         global_idx = find_extra_session_global_index(all_rows, visible, idx)
         if global_idx is not None:
-            all_rows.pop(global_idx)
+            removed = all_rows.pop(global_idx)
             _save_extra_sessions(all_rows)
+            if not is_status_ok(removed.get('realizado')):
+                _sync_extra_session_to_student_flag(removed, cancelled=True)
+            kind = removed.get('session_type') or 'atendimento'
+            session['extra_session_flash_message'] = (
+                f'Aula de {kind} de {display_student_name(removed)} excluída.'
+                if is_status_ok(removed.get('realizado'))
+                else f'Pedido de {kind} de {display_student_name(removed)} cancelado.'
+            )
+    return redirect(url_for('extra_sessions'))
+
+
+@app.route('/extra-sessions/<int:idx>/outcome', methods=['POST'])
+@login_required
+def extra_session_outcome(idx):
+    """The teacher who gave the class (or the coordination) records whether it happened."""
+    all_rows, visible = _scoped_extra_sessions()
+    idx = _locate_by_identity(visible, idx, request.form, EXTRA_SESSION_IDENTITY, required=True)
+    if idx is None or not (0 <= idx < len(visible)):
+        session['extra_session_flash_error'] = LIST_CHANGED_MESSAGE
+        return redirect(url_for('extra_sessions'))
+    row = visible[idx]
+    if session_stage(row) != 'scheduled':
+        session['extra_session_flash_error'] = 'Só é possível registrar o resultado de aulas agendadas.'
+        return redirect(url_for('extra_sessions'))
+    user = _current_user()
+    if not has_full_data_access(user['role']):
+        me = normalize_teacher_name(user.get('teacher_name', '')).casefold()
+        allowed = {normalize_teacher_name(row.get('teacher', '')).casefold(),
+                   normalize_teacher_name(class_teacher(row)).casefold()}
+        if not me or me not in allowed:
+            abort(403)
+    result = (request.form.get('result') or '').strip().upper()
+    if result not in ('OK', 'NAO'):
+        session['extra_session_flash_error'] = 'Escolha se a aula foi realizada ou se o aluno faltou.'
+        return redirect(url_for('extra_sessions'))
+    global_idx = find_extra_session_global_index(all_rows, visible, idx)
+    if global_idx is None:
+        abort(404)
+    updated = dict(row)
+    updated['realizado'] = 'OK' if result == 'OK' else 'NÃO'
+    worked = (request.form.get('assuntos') or '').strip()
+    if worked:
+        updated['assuntos'] = worked
+    all_rows[global_idx] = updated
+    _save_extra_sessions(all_rows)
+    _sync_extra_session_to_student_flag(updated)
+    who = display_student_name(updated)
+    session['extra_session_flash_message'] = (
+        f'Aula de {who} registrada como realizada.' if result == 'OK'
+        else f'Falta de {who} registrada. A coordenação pode reagendar.'
+    )
     return redirect(url_for('extra_sessions'))
 
 
@@ -3973,7 +4139,7 @@ def extra_session_schedule(idx):
     _save_extra_sessions(all_rows)
     _sync_extra_session_to_student_flag(updated)
     session['extra_session_flash_message'] = (
-        f'{updated.get("session_type") or "Atendimento"} de {updated.get("student_name")} agendado com '
+        f'{updated.get("session_type") or "Atendimento"} de {display_student_name(updated)} agendado com '
         f'Prof. {updated["assigned_teacher"]} em {date}{" às " + updated["horario"] if updated.get("horario") else ""}.'
     )
     return redirect(url_for('extra_sessions'))
