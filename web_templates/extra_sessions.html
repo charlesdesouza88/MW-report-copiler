@@ -178,7 +178,7 @@
       </div>
       {{ session_context(i, row) }}
       {% if not session_reason(row) and not missed.get(i) %}
-      <p class="es-muted">Sem motivo informado.{% if perms[i].delete %} <a href="{{ url_for('extra_session_edit', idx=i) }}">Adicionar motivo</a>{% endif %}</p>
+      <p class="es-muted">Sem motivo informado. <a href="{{ url_for('extra_session_edit', idx=i) }}">Adicionar motivo</a></p>
       {% endif %}
       <div class="es-actions">
         {% if can_manage_teachers %}

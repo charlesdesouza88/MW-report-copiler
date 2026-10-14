@@ -4081,6 +4081,9 @@ def extra_session_outcome(idx):
         session['extra_session_flash_error'] = LIST_CHANGED_MESSAGE
         return redirect(url_for('extra_sessions'))
     row = visible[idx]
+    if session_stage(row) != 'scheduled':
+        session['extra_session_flash_error'] = 'Só é possível registrar o resultado de aulas agendadas.'
+        return redirect(url_for('extra_sessions'))
     user = _current_user()
     if not has_full_data_access(user['role']):
         me = normalize_teacher_name(user.get('teacher_name', '')).casefold()

@@ -244,3 +244,13 @@ def test_dashboard_shows_pending_requests(school):
     assert (_dashboard_count(admin), _dashboard_count(chuck)) == (base_admin, base_chuck)
     assert "aguardando agendamento" in admin.get("/").get_data(as_text=True)
     assert "aguardando a coordenação" in chuck.get("/").get_data(as_text=True)
+
+
+def test_result_only_for_scheduled_classes(school):
+    chuck = _client("chuck@test.local", "chuckpass")
+    _flag_jane(chuck)
+    idx, _ = _awaiting(chuck.get("/extra-sessions").get_data(as_text=True))
+    chuck.post(f"/extra-sessions/{idx}/outcome", data={**_ident(_jane_reposicao(school)), "result": "OK"})
+    row = _jane_reposicao(school)
+    assert row["realizado"] == "" and row["date"] == ""  # still a request, not "done"
+    assert "Só é possível registrar o resultado de aulas agendadas" in chuck.get("/extra-sessions").get_data(as_text=True)
