@@ -90,6 +90,7 @@ def _render_busy_report() -> str:
                 feedback_foco="Atenção excelente durante as atividades e na hora da história.",
                 feedback_trabalho_equipe="Trabalha muito bem com os colegas e ajuda quem precisa.",
                 recomendacoes="Continuar lendo em voz alta em casa e revisar o vocabulário da semana com um adulto.",
+                observacao="Aluno dedicado e educado com os colegas; precisa chegar no horário às terças.",
                 organizacao="4",
                 pontualidade="5",
                 respeito_regras="5",
@@ -112,6 +113,8 @@ def _render_longest_feedback_report() -> str:
                 **longest,
                 recomendacoes="Ótima evolução na fala. Praticar a escrita em casa com o livro "
                               "e revisar o vocabulário das lições 5 a 8 antes da prova.",
+                observacao="Comportamento exemplar em sala: respeita os colegas, ajuda quem tem dúvidas "
+                           "e participa com entusiasmo. Precisa apenas chegar no horário às terças.",
             ),
             _lessons(),
             report_month="2026-01",

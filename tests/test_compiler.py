@@ -621,3 +621,18 @@ def test_turmas_without_lessons_detected():
     assert turmas_without_lessons(students, lessons + [
         {"turma": "nova", "aula_num": "1", "date": "01/03/2026"},
     ]) == []
+
+
+def test_report_shows_observacao_geral_above_recomendacoes():
+    from pathlib import Path
+
+    env = create_report_environment(Path(__file__).resolve().parent.parent / 'templates')
+    tpl = env.get_template('individual_report.html')
+    html = tpl.render(**build_student_ctx(
+        _student(observacao='Muito educado com os colegas.', recomendacoes='Ler em casa.'), _lessons(),
+    ))
+    obs = html.index('Observação geral')
+    assert 'Muito educado com os colegas.' in html[obs:]
+    assert obs < html.index('Recomendações do professor')
+    blank = tpl.render(**build_student_ctx(_student(observacao=''), _lessons()))
+    assert 'Observação geral' not in blank  # no empty card when the teacher wrote nothing
