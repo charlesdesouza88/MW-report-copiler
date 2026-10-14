@@ -358,6 +358,13 @@ body {
 
     </section>
 
+    {% if student.observacao %}
+    <section class="card recs obs">
+      <div class="card-title">Observação geral</div>
+      <p>{{ student.observacao }}</p>
+    </section>
+    {% endif %}
+
     <section class="card recs">
       <div class="card-title">Recomendações do professor</div>
       {% if student.recomendacoes %}<p>{{ student.recomendacoes }}</p>{% else %}<p class="empty">Sem observações.</p>{% endif %}
