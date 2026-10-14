@@ -48,7 +48,7 @@
 {% endif %}
 {% endif %}
 
-<div class="stat-grid">
+<div class="stat-grid stat-grid-5">
   <div class="stat-card">
     <div class="stat-label">Alunos</div>
     <div class="stat-value">{{ student_count }}</div>
@@ -69,6 +69,21 @@
     <div class="stat-value">{{ report_count }}</div>
     <div class="stat-sub">gerados</div>
   </div>
+  <a class="stat-card stat-card-extra{% if extra.requested or extra.overdue %} needs-action{% endif %}"
+     href="{{ url_for('extra_sessions') }}#{{ 'pedidos' if extra.requested or not extra.overdue else 'agendadas' }}"
+     data-extra-requested="{{ extra.requested }}">
+    <div class="stat-label">Reforço / Reposição</div>
+    <div class="stat-value">{{ extra.requested }}</div>
+    <div class="stat-sub">
+      {% if is_teacher %}{{ 'pedido aguardando' if extra.requested == 1 else 'pedidos aguardando' }} a coordenação
+      {% else %}{{ 'pedido aguardando' if extra.requested == 1 else 'pedidos aguardando' }} agendamento{% endif %}
+    </div>
+    {% if extra.overdue %}
+    <div class="stat-alert">{{ extra.overdue }} {{ 'aula precisa' if extra.overdue == 1 else 'aulas precisam' }} de resultado ou reagendamento</div>
+    {% elif extra.scheduled %}
+    <div class="stat-sub">{{ extra.scheduled }} {{ 'aula agendada' if extra.scheduled == 1 else 'aulas agendadas' }}</div>
+    {% endif %}
+  </a>
 </div>
 
 <div class="layout-2col">

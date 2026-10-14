@@ -141,6 +141,12 @@ svg.mw-icon-svg {
 .stat-label { font-size: 10px; color: var(--gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
 .stat-value { font-size: 38px; font-weight: 900; color: var(--purple); line-height: 1; }
 .stat-sub { font-size: 11px; color: var(--gray); margin-top: 4px; }
+.stat-grid-5 { grid-template-columns: repeat(5, 1fr); }
+a.stat-card { display: block; text-decoration: none; color: inherit; }
+.stat-card-extra.needs-action { border: 1px solid var(--gold-accent); background: linear-gradient(180deg, #FFFBEF, #fff); }
+.stat-card-extra.needs-action .stat-value { color: var(--plum); }
+.stat-alert { margin-top: 6px; font-size: 11px; font-weight: 800; color: #8A5A00; }
+@media (max-width: 1180px) { .stat-grid-5 { grid-template-columns: repeat(3, 1fr); } .stat-grid-5 .stat-card-extra { grid-column: span 2; } }
 .input-select { padding: 8px 11px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font); font-size: 13px; color: var(--text); background: var(--white); }
 .quick-actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .quick-action-btn { justify-content: center; width: 100%; }
@@ -568,6 +574,7 @@ body.nav-open .nav-backdrop { display: block; }
 
 @media (max-width: 767px) {
   .stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-grid-5 .stat-card-extra { grid-column: 1 / -1; }
   .stat-value { font-size: clamp(28px, 8vw, 38px); }
   .stat-card { padding: 14px 16px; }
   .card { padding: 16px; }

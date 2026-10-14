@@ -225,3 +225,22 @@ def test_edit_form_hides_internal_marker_and_keeps_request_linked(school):
                                                      "motivo": "Faltou às aulas 3 e 4", "observacao": ""})
     row = _jane_reposicao(school)
     assert row["observacao"] == "__auto_aula_extra__" and row["motivo"] == "Faltou às aulas 3 e 4"
+
+
+def _dashboard_count(client):
+    return int(re.search(r'data-extra-requested="(\d+)"', client.get("/").get_data(as_text=True)).group(1))
+
+
+def test_dashboard_shows_pending_requests(school):
+    chuck = _client("chuck@test.local", "chuckpass")
+    admin = _client("admin@test.local", "testpass")
+    paula = school["paula"]
+    _flag_jane(chuck, value="")  # the fixture starts Jane flagged; begin from no request
+    base_admin, base_chuck, base_paula = _dashboard_count(admin), _dashboard_count(chuck), _dashboard_count(paula)
+    _flag_jane(chuck)  # counted even before anyone opens the Reforço page
+    assert (_dashboard_count(admin), _dashboard_count(chuck), _dashboard_count(paula)) == \
+        (base_admin + 1, base_chuck + 1, base_paula)
+    _schedule(admin)
+    assert (_dashboard_count(admin), _dashboard_count(chuck)) == (base_admin, base_chuck)
+    assert "aguardando agendamento" in admin.get("/").get_data(as_text=True)
+    assert "aguardando a coordenação" in chuck.get("/").get_data(as_text=True)

@@ -88,6 +88,7 @@ from extra_sessions import (
     display_student_name,
     filter_sessions_for_teacher,
     find_student_for_session,
+    flagged_students_without_session,
     has_open_session_for_student,
     is_awaiting_schedule,
     is_status_ok,
@@ -2964,7 +2965,9 @@ def dashboard():
         turma_list = [c['turma'] for c in admin_turmas]
         turma_count = len(admin_turmas)
 
+    extra = _extra_session_counts(user, all_students, students)
     return render_template('dashboard.html',
+        extra=extra,
         student_count=len(students),
         turma_count=turma_count,
         lesson_count=len(month_lessons),
@@ -2988,6 +2991,23 @@ def dashboard():
         turma_flash_error=turma_flash_error,
         teacher_names=_teacher_names_for_forms() if user and has_full_data_access(user['role']) else [],
     )
+
+
+def _extra_session_counts(user, all_students, visible_students):
+    """Reforço/reposição numbers for the dashboard, without writing anything."""
+    if not user:
+        return {'requested': 0, 'scheduled': 0, 'overdue': 0}
+    scope = all_students if has_full_data_access(user['role']) else visible_students
+    _, rows = _scoped_extra_sessions()
+    stages = [session_stage(r) for r in rows]
+    # Students flagged in the review whose request row is created on the next Reforço page load.
+    not_yet_listed = len(flagged_students_without_session(scope, rows))
+    return {
+        'requested': stages.count('requested') + not_yet_listed,
+        'scheduled': stages.count('scheduled'),
+        'overdue': sum(1 for r, st in zip(rows, stages)
+                       if st == 'scheduled' and session_due_state(r) in ('past', 'missed')),
+    }
 
 
 def _may_manage_turmas(user):
