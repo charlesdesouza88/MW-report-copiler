@@ -6,6 +6,7 @@ import io
 import re
 
 import app as web_app
+from extra_sessions import EXTRA_SESSION_FIELDS
 from test_teacher_isolation import school  # noqa: F401  (pytest fixture: Chuck owns Jane/MASTER, Paula owns Bob/SPARK)
 
 JANE = {"orig_turma": "MASTER", "orig_student_name": "Jane Doe"}
@@ -254,3 +255,43 @@ def test_result_only_for_scheduled_classes(school):
     row = _jane_reposicao(school)
     assert row["realizado"] == "" and row["date"] == ""  # still a request, not "done"
     assert "Só é possível registrar o resultado de aulas agendadas" in chuck.get("/extra-sessions").get_data(as_text=True)
+
+
+def _add_session_rows(school, *rows):
+    path = school["data"] / "extra_sessions.csv"
+    existing = _sessions(school)
+    fields = EXTRA_SESSION_FIELDS
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fields, extrasaction="ignore")
+        writer.writeheader()
+        for row in existing + [dict({f: "" for f in fields}, **r) for r in rows]:
+            writer.writerow(row)
+
+
+def test_renamed_student_keeps_one_request(school):
+    chuck = _client("chuck@test.local", "chuckpass")
+    _flag_jane(chuck)
+    chuck.post("/students/0/autosave", data={
+        **JANE, "teacher": "Chuck", "turma": "MASTER", "student_name": "Jane Doe Smith", "aula_extra": "Reposição",
+    }, headers={"Accept": "application/json"})
+    chuck.get("/extra-sessions")
+    reps = [r for r in _sessions(school) if r["session_type"] == "Reposição" and r["turma"] == "MASTER"]
+    assert [r["student_name"] for r in reps] == ["Jane Doe Smith (MASTER)"]
+
+
+def test_requests_follow_the_roster_and_unknown_names_are_flagged(school):
+    # Imported with the wrong teacher and no class, as on the live site; plus a name nobody has.
+    _add_session_rows(school,
+                      {"teacher": "Paula", "student_name": "JANE DOE", "turma": "", "session_type": "Nivelamento"},
+                      {"teacher": "Paula", "student_name": "Ghost Kid (SPARK)", "turma": "SPARK",
+                       "session_type": "Reforço"})
+    chuck = _client("chuck@test.local", "chuckpass")
+    admin = _client("admin@test.local", "testpass")
+    page = admin.get("/extra-sessions").get_data(as_text=True)
+    row = next(r for r in _sessions(school) if r["session_type"] == "Nivelamento")
+    assert (row["student_name"], row["turma"], row["teacher"]) == ("Jane Doe (MASTER)", "MASTER", "Chuck")
+    assert "Jane Doe" in _panel(chuck.get("/extra-sessions").get_data(as_text=True))  # now with her teacher
+    ghost = page.split("Ghost Kid", 1)[1].split("</article>", 1)[0]
+    assert "Aluno não encontrado no cadastro" in ghost
+    assert page.count("Aluno não encontrado no cadastro") == 1
+    assert any(r["student_name"] == "Ghost Kid (SPARK)" for r in _sessions(school))  # flagged, never deleted
