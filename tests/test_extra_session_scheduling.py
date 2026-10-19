@@ -325,3 +325,40 @@ def test_orphan_label_stays_on_its_own_row(school):
     page = _client("admin@test.local", "testpass").get("/extra-sessions").get_data(as_text=True)
     assert page.count("Aluno não encontrado no cadastro") == 1
     assert "Aluno não encontrado" not in page.split('id="concluidas"', 1)[1]
+
+
+def test_duplicate_requests_merge_but_booked_or_reasoned_ones_stay():
+    from extra_sessions import realign_open_sessions
+    lais = {"student_name": "Lais Correa Alves", "turma": "CLOUD", "teacher": "Jaqueline"}
+    current = {"student_name": "Lais Correa Alves (CLOUD)", "turma": "CLOUD", "teacher": "Jaqueline",
+               "session_type": "Reposição", "realizado": ""}
+    stale = dict(current, student_name="Lais Correa Alves (BEYOND)", turma="BEYOND", teacher="Chuck")
+    out, orphans = realign_open_sessions([current, stale], [lais])
+    assert len(out) == 1 and orphans == set()
+    booked = dict(stale, date="20/10/2026", assigned_teacher="Chuck")
+    out, _ = realign_open_sessions([current, booked], [lais])
+    assert len(out) == 1 and out[0]["date"] == "20/10/2026"  # the booked one is kept
+    reasoned = dict(stale, motivo="Faltou às aulas 3 e 4")
+    out, _ = realign_open_sessions([current, reasoned], [lais])
+    assert [r.get("motivo", "") for r in out] == ["Faltou às aulas 3 e 4"]
+    other = dict(current, motivo="Outro motivo")
+    out, _ = realign_open_sessions([reasoned, other], [lais])
+    assert len(out) == 2  # two different reasons: both stay for the coordination
+
+
+def test_cancelling_one_of_two_requests_keeps_the_review_mark(school):
+    chuck = _client("chuck@test.local", "chuckpass")
+    _flag_jane(chuck)
+    row = _jane_reposicao(school)
+    others = [r for r in _sessions(school) if r is not None and not (r["session_type"] == "Reposição"
+                                                                      and r["turma"] == "MASTER")]
+    (school["data"] / "extra_sessions.csv").write_text(",".join(EXTRA_SESSION_FIELDS) + "\n", encoding="utf-8")
+    _add_session_rows(school, *others, dict(row, motivo="Repor a Unit 3"),
+                      dict(row, motivo="Faltou às aulas 3 e 4"))  # two requests, each with its own reason
+    page = chuck.get("/extra-sessions").get_data(as_text=True)
+    assert _panel(page).count("Cancelar pedido") == 2
+    action = re.search(r'action="(/extra-sessions/\d+/delete)"', _panel(page)).group(1)
+    chuck.post(action, data=_ident(row))
+    left = [r for r in _sessions(school) if r["session_type"] == "Reposição" and r["turma"] == "MASTER"]
+    assert len(left) == 1
+    assert '<option value="Reposição" selected' in chuck.get("/students/0/edit").get_data(as_text=True)

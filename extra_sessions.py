@@ -748,4 +748,36 @@ def realign_open_sessions(rows, students):
                 else:
                     orphans.add(i)
         out.append(row)
+    drop = _duplicate_requests(out, orphans)
+    if drop:
+        keep = [i for i in range(len(out)) if i not in drop]
+        position = {old: new for new, old in enumerate(keep)}
+        return [out[i] for i in keep], {position[i] for i in orphans}
     return (out if changed else rows), orphans
+
+
+def _duplicate_requests(rows, orphans):
+    """Indexes of open requests that repeat another one for the same student and type.
+
+    Only unscheduled requests are ever dropped, and only when their reason adds nothing:
+    a booked class, or a request carrying its own reason, always stays.
+    """
+    groups = {}
+    for i, row in enumerate(rows):
+        if i in orphans or is_status_ok(row.get('realizado')):
+            continue
+        key = (_display_name_key(row.get('student_name')), (row.get('turma') or '').strip().casefold(),
+               normalize_teacher_name(row.get('teacher', '')).casefold(), (row.get('session_type') or '').strip())
+        groups.setdefault(key, []).append(i)
+    drop = set()
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        # Keep a booked one if any, else the one with a reason, else the oldest.
+        keeper = min(members, key=lambda i: (not is_scheduled(rows[i]), not (rows[i].get('motivo') or '').strip(), i))
+        kept_reason = (rows[keeper].get('motivo') or '').strip()
+        for i in members:
+            reason = (rows[i].get('motivo') or '').strip()
+            if i != keeper and not is_scheduled(rows[i]) and reason in ('', kept_reason):
+                drop.add(i)
+    return drop
