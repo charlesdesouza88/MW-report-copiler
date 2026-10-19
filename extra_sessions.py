@@ -703,12 +703,22 @@ def _point_at_student(row, student):
     return out
 
 
+def _row_is_aligned_with_student(row, student):
+    """Exactly the student's current name, teacher and class (blank fields do not count)."""
+    target = _point_at_student(row, student)
+    return (
+        _display_name_key(row.get('student_name')) == _display_name_key(target['student_name'])
+        and normalize_teacher_name(row.get('teacher', '')).casefold() == target['teacher'].casefold()
+        and (row.get('turma') or '').strip().casefold() == target['turma'].casefold()
+    )
+
+
 def move_open_sessions(rows, old_student, new_student):
     """A student was renamed or changed class/teacher: their open requests follow them."""
     out, changed = [], False
     for row in rows or []:
         if not is_status_ok(row.get('realizado')) and _row_matches_student(row, old_student) \
-                and not _row_matches_student(row, new_student):
+                and not _row_is_aligned_with_student(row, new_student):
             row = _point_at_student(row, new_student)
             changed = True
         out.append(row)
@@ -730,7 +740,8 @@ def realign_open_sessions(rows, students):
     for i, row in enumerate(rows or []):
         if not is_status_ok(row.get('realizado')):
             same_name = by_name.get(_display_name_key(row.get('student_name')), [])
-            if not any(_row_matches_student(row, s) for s in same_name):
+            aligned = [s for s in same_name if _row_is_aligned_with_student(row, s)]
+            if len(aligned) != 1:
                 if len(same_name) == 1:
                     row = _point_at_student(row, same_name[0])
                     changed = True

@@ -2598,12 +2598,12 @@ def _reconcile_flagged_extra_sessions(students):
 
 
 def _realign_extra_sessions(roster):
-    """Open requests follow the student's current class/teacher; returns orphan identities."""
+    """Open requests follow the student's current class/teacher; returns orphan row indexes."""
     all_rows = _load_extra_sessions()
     updated, orphans = realign_open_sessions(all_rows, roster)
     if updated is not all_rows:
         _save_extra_sessions(updated)
-    return {tuple((updated[i].get(f) or '').strip() for f in EXTRA_SESSION_IDENTITY) for i in orphans}
+    return orphans
 
 
 def _load_lesson_attendance():
@@ -3879,11 +3879,12 @@ def extra_sessions():
     user = _current_user()
     all_students, visible_students = _scoped_students()
     scope_students = all_students if has_full_data_access(user['role']) else visible_students
-    orphan_keys = _realign_extra_sessions(all_students)
+    orphan_rows = _realign_extra_sessions(all_students)
+    # Reconciling only appends rows, so the realigned indexes stay valid.
     _reconcile_flagged_extra_sessions(scope_students)
-    _, rows = _scoped_extra_sessions()
-    orphans = {i for i, r in enumerate(rows)
-               if tuple((r.get(f) or '').strip() for f in EXTRA_SESSION_IDENTITY) in orphan_keys}
+    all_session_rows, rows = _scoped_extra_sessions()
+    orphans = {i for i in range(len(rows))
+               if find_extra_session_global_index(all_session_rows, rows, i) in orphan_rows}
     message = session.pop('extra_session_flash_message', None)
     error = session.pop('extra_session_flash_error', None)
 

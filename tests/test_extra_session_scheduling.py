@@ -295,3 +295,33 @@ def test_requests_follow_the_roster_and_unknown_names_are_flagged(school):
     assert "Aluno não encontrado no cadastro" in ghost
     assert page.count("Aluno não encontrado no cadastro") == 1
     assert any(r["student_name"] == "Ghost Kid (SPARK)" for r in _sessions(school))  # flagged, never deleted
+
+
+def test_realign_fills_blank_fields_and_flags_ambiguous_names():
+    from extra_sessions import move_open_sessions, realign_open_sessions
+    jane = {"student_name": "Jane Doe", "turma": "MASTER", "teacher": "Chuck"}
+    twin = {"student_name": "Jane Doe", "turma": "SPARK", "teacher": "Paula"}
+    blank = {"student_name": "Jane Doe", "turma": "", "teacher": "Chuck", "realizado": ""}
+    out, orphans = realign_open_sessions([blank], [jane])
+    assert (out[0]["turma"], out[0]["teacher"], orphans) == ("MASTER", "Chuck", set())
+    _, orphans = realign_open_sessions([blank], [jane, twin])  # two Janes: can't tell which
+    assert orphans == {0}
+    done = dict(blank, realizado="OK")
+    _, orphans = realign_open_sessions([done, {"student_name": "Ghost", "realizado": ""}], [jane])
+    assert orphans == {1}  # history is never flagged
+    renamed = dict(jane, student_name="Jane Doe Smith")
+    moved = move_open_sessions([blank], jane, renamed)
+    assert (moved[0]["student_name"], moved[0]["turma"]) == ("Jane Doe Smith (MASTER)", "MASTER")
+
+
+def test_orphan_label_stays_on_its_own_row(school):
+    # A completed class with the same name/class/date/type as an orphan request must not be flagged.
+    _add_session_rows(school,
+                      {"teacher": "Paula", "student_name": "Ghost Kid (SPARK)", "turma": "SPARK",
+                       "session_type": "Reforço", "date": "01/10/2026", "realizado": "OK",
+                       "assuntos": "Done class"},
+                      {"teacher": "Paula", "student_name": "Ghost Kid (SPARK)", "turma": "SPARK",
+                       "session_type": "Reforço", "date": "01/10/2026"})
+    page = _client("admin@test.local", "testpass").get("/extra-sessions").get_data(as_text=True)
+    assert page.count("Aluno não encontrado no cadastro") == 1
+    assert "Aluno não encontrado" not in page.split('id="concluidas"', 1)[1]
