@@ -85,6 +85,8 @@
 .es-reason, .es-missed { margin:10px 0 0; font-size:13px; line-height:1.45; }
 .es-label { display:inline-block; min-width:58px; margin-right:6px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--gray); }
 .es-aula { display:inline-block; margin:2px 6px 2px 0; padding:2px 8px; border-radius:8px; background:#F7F3FA; font-size:12px; }
+.es-orphan { margin-top:6px; display:inline-block; padding:3px 10px; border-radius:8px; background:#FADBD8; color:#B03A2E; font-size:12px; font-weight:800; }
+.es-muted a, .es-links a { color:var(--purple); }
 .es-muted { margin:10px 0 0; font-size:12px; color:var(--gray); font-style:italic; }
 .es-actions { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; margin-top:12px; padding-top:12px; border-top:1px dashed #EFE4F3; }
 .es-actions form { margin:0; }
@@ -173,6 +175,7 @@
             {% if row.teacher %}<span>Prof. do aluno: {{ row.teacher }}</span>{% endif %}
             {% if row.observacao == auto_aula_extra_marker %}<span>· Indicado no relatório</span>{% endif %}
           </div>
+          {% if i in orphans %}<div class="es-orphan">Aluno não encontrado no cadastro — confira o nome ou cancele este pedido.</div>{% endif %}
         </div>
         {{ type_tag(row) }}
       </div>
@@ -223,6 +226,7 @@
             <span>Aula com <strong>Prof. {{ class_teacher(row) or '—' }}</strong></span>
             {% if row.assigned_teacher and row.teacher and row.assigned_teacher != row.teacher %}<span>· aluno de {{ row.teacher }}</span>{% endif %}
           </div>
+          {% if i in orphans %}<div class="es-orphan">Aluno não encontrado no cadastro — confira o nome.</div>{% endif %}
         </div>
         <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
           {{ type_tag(row) }}

@@ -92,7 +92,9 @@ from extra_sessions import (
     has_open_session_for_student,
     is_awaiting_schedule,
     is_status_ok,
+    move_open_sessions,
     normalize_aula_extra,
+    realign_open_sessions,
     parse_import_csv,
     session_due_state,
     session_reason,
@@ -2554,8 +2556,11 @@ def _record_successful_login(user):
         logger.warning('Could not record login event: %s', exc)
 
 
-def _sync_student_aula_extra_sessions(student):
+def _sync_student_aula_extra_sessions(student, previous=None):
     all_rows = _load_extra_sessions()
+    if previous is not None:
+        # Renamed or moved to another class/teacher: open requests follow the student.
+        all_rows = move_open_sessions(all_rows, previous, student)
     updated = sync_student_extra_sessions(all_rows, student)
     if updated != all_rows:
         _save_extra_sessions(updated)
@@ -2590,6 +2595,15 @@ def _reconcile_flagged_extra_sessions(students):
     if updated != all_rows:
         _save_extra_sessions(updated)
     return updated
+
+
+def _realign_extra_sessions(roster):
+    """Open requests follow the student's current class/teacher; returns orphan row indexes."""
+    all_rows = _load_extra_sessions()
+    updated, orphans = realign_open_sessions(all_rows, roster)
+    if updated is not all_rows:
+        _save_extra_sessions(updated)
+    return orphans
 
 
 def _load_lesson_attendance():
@@ -3550,7 +3564,7 @@ def student_edit(idx):
                     form_error=SAVE_CONFLICT_MESSAGE,
                 ),
             )
-        _sync_student_aula_extra_sessions(updated)
+        _sync_student_aula_extra_sessions(updated, previous=visible[idx])
         _move_student_photo(visible[idx], updated)
         return _redirect_students(flash_ok=f'Aluno "{updated.get("student_name", "")}" salvo.')
     return render_template(
@@ -3591,7 +3605,7 @@ def student_autosave(idx):
             'conflict': True,
             'error': SAVE_CONFLICT_MESSAGE,
         }), 409
-    _sync_student_aula_extra_sessions(updated)
+    _sync_student_aula_extra_sessions(updated, previous=visible[idx])
     _move_student_photo(visible[idx], updated)
     return jsonify({
         'ok': True,
@@ -3865,8 +3879,12 @@ def extra_sessions():
     user = _current_user()
     all_students, visible_students = _scoped_students()
     scope_students = all_students if has_full_data_access(user['role']) else visible_students
+    orphan_rows = _realign_extra_sessions(all_students)
+    # Reconciling only appends rows, so the realigned indexes stay valid.
     _reconcile_flagged_extra_sessions(scope_students)
-    _, rows = _scoped_extra_sessions()
+    all_session_rows, rows = _scoped_extra_sessions()
+    orphans = {i for i in range(len(rows))
+               if find_extra_session_global_index(all_session_rows, rows, i) in orphan_rows}
     message = session.pop('extra_session_flash_message', None)
     error = session.pop('extra_session_flash_error', None)
 
@@ -3918,6 +3936,7 @@ def extra_sessions():
         scheduled=scheduled,
         done=done,
         missed=missed,
+        orphans=orphans,
         perms=perms,
         schedule_teacher_names=_teacher_names_for_forms() if full_access else [],
         request_teachers=_names(requested, 'teacher'),

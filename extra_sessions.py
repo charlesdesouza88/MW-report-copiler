@@ -687,3 +687,65 @@ def find_student_for_session(students, row):
         if _row_matches_student(row, student):
             return student
     return None
+
+
+def _session_label(student):
+    name = (student.get('student_name') or '').strip()
+    turma = (student.get('turma') or '').strip()
+    return f'{name} ({turma})' if turma else name
+
+
+def _point_at_student(row, student):
+    out = dict(row)
+    out['student_name'] = _session_label(student)
+    out['turma'] = (student.get('turma') or '').strip()
+    out['teacher'] = normalize_teacher_name(student.get('teacher', ''))
+    return out
+
+
+def _row_is_aligned_with_student(row, student):
+    """Exactly the student's current name, teacher and class (blank fields do not count)."""
+    target = _point_at_student(row, student)
+    return (
+        _display_name_key(row.get('student_name')) == _display_name_key(target['student_name'])
+        and normalize_teacher_name(row.get('teacher', '')).casefold() == target['teacher'].casefold()
+        and (row.get('turma') or '').strip().casefold() == target['turma'].casefold()
+    )
+
+
+def move_open_sessions(rows, old_student, new_student):
+    """A student was renamed or changed class/teacher: their open requests follow them."""
+    out, changed = [], False
+    for row in rows or []:
+        if not is_status_ok(row.get('realizado')) and _row_matches_student(row, old_student) \
+                and not _row_is_aligned_with_student(row, new_student):
+            row = _point_at_student(row, new_student)
+            changed = True
+        out.append(row)
+    return out if changed else rows
+
+
+def realign_open_sessions(rows, students):
+    """Point open requests at the student's current class and teacher.
+
+    Returns (rows, orphans): rows is a new list only when something changed; orphans holds
+    the indexes of open requests whose name matches no student in the roster (or several
+    students with no way to tell them apart), for the coordination to review. Completed
+    classes are history and are left untouched.
+    """
+    by_name = {}
+    for student in students or []:
+        by_name.setdefault(_display_name_key(student.get('student_name')), []).append(student)
+    out, orphans, changed = [], set(), False
+    for i, row in enumerate(rows or []):
+        if not is_status_ok(row.get('realizado')):
+            same_name = by_name.get(_display_name_key(row.get('student_name')), [])
+            aligned = [s for s in same_name if _row_is_aligned_with_student(row, s)]
+            if len(aligned) != 1:
+                if len(same_name) == 1:
+                    row = _point_at_student(row, same_name[0])
+                    changed = True
+                else:
+                    orphans.add(i)
+        out.append(row)
+    return (out if changed else rows), orphans
