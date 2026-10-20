@@ -756,11 +756,25 @@ def realign_open_sessions(rows, students):
     return (out if changed else rows), orphans
 
 
+def _own_details(row):
+    """What a request says beyond who and what: reason, topics, note and the family contact."""
+    note = (row.get('observacao') or '').strip()
+    topics = (row.get('assuntos') or '').strip()
+    return {
+        'reason': (row.get('motivo') or '').strip(),
+        # Legacy rows keep their reason in assuntos; a bare type ("Reposição") says nothing.
+        'topics': '' if topics == (row.get('session_type') or '').strip() else topics,
+        'note': '' if note == AUTO_AULA_EXTRA_MARKER else note,
+        'contacted': is_status_ok(row.get('contatado')),
+    }
+
+
 def _duplicate_requests(rows, orphans):
     """Indexes of open requests that repeat another one for the same student and type.
 
-    Only unscheduled requests are ever dropped, and only when their reason adds nothing:
-    a booked class, or a request carrying its own reason, always stays.
+    Only unscheduled requests are ever dropped, and only when they add nothing to the one
+    kept: no reason (motivo or legacy assuntos), note or family contact of their own. A booked
+    class, or a request with its own details, always stays for the coordination to decide.
     """
     groups = {}
     for i, row in enumerate(rows):
@@ -773,11 +787,14 @@ def _duplicate_requests(rows, orphans):
     for members in groups.values():
         if len(members) < 2:
             continue
-        # Keep a booked one if any, else the one with a reason, else the oldest.
-        keeper = min(members, key=lambda i: (not is_scheduled(rows[i]), not (rows[i].get('motivo') or '').strip(), i))
-        kept_reason = (rows[keeper].get('motivo') or '').strip()
+        details = {i: _own_details(rows[i]) for i in members}
+        # Keep a booked one if any, else the one with the most to say, else the oldest.
+        keeper = min(members, key=lambda i: (not is_scheduled(rows[i]),
+                                             -sum(bool(v) for v in details[i].values()), i))
+        kept = details[keeper]
         for i in members:
-            reason = (rows[i].get('motivo') or '').strip()
-            if i != keeper and not is_scheduled(rows[i]) and reason in ('', kept_reason):
+            mine = details[i]
+            adds_nothing = all(not mine[k] or mine[k] == kept[k] for k in mine)
+            if i != keeper and not is_scheduled(rows[i]) and adds_nothing:
                 drop.add(i)
     return drop

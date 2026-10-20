@@ -2602,7 +2602,10 @@ def _realign_extra_sessions(roster):
     all_rows = _load_extra_sessions()
     updated, orphans = realign_open_sessions(all_rows, roster)
     if updated is not all_rows:
-        _save_extra_sessions(updated)
+        reason = ('Pedidos de reforço duplicados agrupados' if len(updated) < len(all_rows)
+                  else 'Pedidos de reforço alinhados ao cadastro')
+        with backup_reason(reason):  # undoable from Backups
+            _save_extra_sessions(updated)
     return orphans
 
 
