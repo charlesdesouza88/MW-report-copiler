@@ -362,3 +362,19 @@ def test_cancelling_one_of_two_requests_keeps_the_review_mark(school):
     left = [r for r in _sessions(school) if r["session_type"] == "Reposição" and r["turma"] == "MASTER"]
     assert len(left) == 1
     assert '<option value="Reposição" selected' in chuck.get("/students/0/edit").get_data(as_text=True)
+
+
+def test_duplicate_merge_never_loses_legacy_reasons_notes_or_contact():
+    from extra_sessions import AUTO_AULA_EXTRA_MARKER, realign_open_sessions
+    lais = {"student_name": "Lais Correa Alves", "turma": "CLOUD", "teacher": "Jaqueline"}
+    auto = {"student_name": "Lais Correa Alves (CLOUD)", "turma": "CLOUD", "teacher": "Jaqueline",
+            "session_type": "Reposição", "assuntos": "Reposição", "observacao": AUTO_AULA_EXTRA_MARKER,
+            "realizado": ""}
+    imported = dict(auto, assuntos="Reforço - Reposição até a lição 12", observacao="")
+    out, _ = realign_open_sessions([auto, imported], [lais])  # the plain one is older
+    assert [r["assuntos"] for r in out] == ["Reforço - Reposição até a lição 12"]
+    noted = dict(auto, observacao="Mãe pediu horário de manhã")
+    contacted = dict(auto, contatado="OK")
+    out, _ = realign_open_sessions([auto, noted, contacted], [lais])
+    assert len(out) == 2 and {r.get("observacao") for r in out} >= {"Mãe pediu horário de manhã"}
+    assert any(r.get("contatado") == "OK" for r in out)
