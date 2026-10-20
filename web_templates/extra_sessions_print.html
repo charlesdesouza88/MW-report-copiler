@@ -14,8 +14,9 @@
   max-width:200mm;
   overflow-wrap:normal; word-break:normal;
 }
-.handoff-table { width:100%; min-width:0; border-collapse:collapse; table-layout:fixed; font-size:12px; overflow-wrap:normal; word-break:normal; }
+.handoff-table { width:calc(100% - 1px); min-width:0; border-collapse:collapse; table-layout:fixed; font-size:12px; overflow-wrap:normal; word-break:normal; }
 .handoff-table th, .handoff-table td { overflow-wrap:normal; word-break:normal; white-space:normal; }
+.handoff-table thead tr, .handoff-table tbody tr:hover td { background:none; }  /* base.html paints thead rows */
 .handoff-table tr.who th {
   background:#fff; color:#2D1040; border:none; border-bottom:3px solid #792D83;
   padding:0 0 8px; text-align:left; text-transform:none; letter-spacing:0; font-weight:500;
@@ -94,6 +95,11 @@
 {% for section in sections %}
 <section class="sheet">
   <table class="handoff-table">
+    {# With table-layout:fixed the first row sets the column widths; that row is the
+       full-width title, so the widths have to be declared here. #}
+    <colgroup>
+      <col class="col-student"><col class="col-type"><col class="col-reason"><col class="col-when">
+    </colgroup>
     <thead>
       <tr class="who">
         <th colspan="4">

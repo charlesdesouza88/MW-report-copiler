@@ -75,6 +75,9 @@ def test_print_handoff_lists_waiting_students_by_teacher(school):
     assert "Faltou:" in page  # missed lesson from the review
     assert "Horários que funcionam" in page and "Motivo" in page
     assert page.count('class="blank date"') >= 4
+    # table-layout:fixed sizes columns from the first row (the full-width title), so the
+    # widths only apply when declared on <col>; without them all four columns come out equal.
+    assert page.count("<colgroup>") == page.count('class="handoff-table"') >= 1
 
     own = chuck.get("/extra-sessions/print").get_data(as_text=True)
     assert "Jane Doe" in own and "Bob Smith" not in own
