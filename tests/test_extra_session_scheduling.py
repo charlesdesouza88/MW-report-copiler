@@ -60,6 +60,31 @@ def _schedule(admin, teacher="Paula", date="2026-10-20", horario=""):
         **ident, "assigned_teacher": teacher, "date_picker": date, "horario": horario})
 
 
+def test_print_handoff_lists_waiting_students_by_teacher(school):
+    chuck = _client("chuck@test.local", "chuckpass")
+    admin = _client("admin@test.local", "testpass")
+    _flag_jane(chuck, "Reposição")
+
+    page = admin.get("/extra-sessions/print").get_data(as_text=True)
+    assert "Lista para os professores" in page
+    assert 'data-handoff="Reposição"' in page
+    assert 'data-teacher="Chuck"' in page and 'data-teacher="Paula"' in page
+    assert "Jane Doe" in page and "Masters" in page
+    assert "Bob Smith" in page and "Spark" in page
+    assert 'data-handoff="Reforço"' not in page  # Jane's booked reforço stays off the sheet
+    assert "Faltou:" in page  # missed lesson from the review
+    assert "1ª opção" in page and "Motivo" in page
+    assert page.count('class="line"') >= 4
+
+    own = chuck.get("/extra-sessions/print").get_data(as_text=True)
+    assert "Jane Doe" in own and "Bob Smith" not in own
+    paula = school["paula"].get("/extra-sessions/print").get_data(as_text=True)
+    assert "Bob Smith" in paula and "Jane Doe" not in paula
+
+    listing = admin.get("/extra-sessions").get_data(as_text=True)
+    assert "Lista para os professores" in listing
+
+
 def test_flagged_student_waits_then_coordination_schedules(school):
     chuck = _client("chuck@test.local", "chuckpass")
     admin = _client("admin@test.local", "testpass")

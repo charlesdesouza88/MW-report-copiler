@@ -78,6 +78,7 @@ from extra_sessions import (
     EXTRA_SESSION_FIELD_LABELS,
     EXTRA_SESSION_FIELDS,
     SESSION_TYPE_CHOICES,
+    STATUS_NO,
     apply_open_extra_sessions_to_students,
     apply_pending_session_flag_to_students,
     build_atendimentos_template_csv,
@@ -89,6 +90,7 @@ from extra_sessions import (
     filter_sessions_for_teacher,
     find_student_for_session,
     flagged_students_without_session,
+    group_handoff_by_teacher,
     has_open_session_for_student,
     is_awaiting_schedule,
     is_status_ok,
@@ -101,6 +103,7 @@ from extra_sessions import (
     session_sort_key,
     session_stage,
     session_when,
+    school_today,
     reconcile_flagged_students,
     remove_sessions_for_student,
     row_from_form,
@@ -3949,6 +3952,68 @@ def extra_sessions():
         auto_aula_extra_marker=AUTO_AULA_EXTRA_MARKER,
         message=message,
         error=error,
+    )
+
+
+def _handoff_class_label(student, row):
+    code = (row.get('turma') or '').strip()
+    display = ((student or {}).get('turma_display') or '').strip()
+    if display and code and display.casefold() != code.casefold():
+        return display, code
+    return display or code, ''
+
+
+def _handoff_groups(rows, students, lessons):
+    """One printable section per teacher, with the context the teacher fills in."""
+    lesson_titles = {
+        ((lesson.get('turma') or '').strip().upper(), (lesson.get('aula_num') or '').strip()):
+            (lesson.get('licao_conteudo') or '').strip()
+        for lesson in lessons or []
+    }
+    sections = []
+    for teacher, items in group_handoff_by_teacher(list(enumerate(rows))):
+        cards = []
+        for index, row in items:
+            student = find_student_for_session(students, row)
+            class_label, code_hint = _handoff_class_label(student, row)
+            nums = [
+                n.strip()
+                for n in ((student or {}).get('missed_aulas') or '').split(',')
+                if n.strip()
+            ]
+            turma_key = ((student or {}).get('turma') or row.get('turma') or '').strip().upper()
+            missed = [(n, lesson_titles.get((turma_key, n), '')) for n in nums]
+            cards.append({
+                'index': index,
+                'name': display_student_name(row),
+                'class_label': class_label,
+                'code_hint': code_hint,
+                'class_time': ((student or {}).get('horario') or '').strip(),
+                'session_type': normalize_aula_extra(row.get('session_type')) or 'Reforço',
+                'reason': session_reason(row),
+                'missed': missed,
+                'reschedule': (row.get('realizado') or '').strip() == STATUS_NO,
+            })
+        sections.append({'teacher': teacher, 'cards': cards})
+    return sections
+
+
+@app.route('/extra-sessions/print')
+@login_required
+def extra_sessions_print():
+    """Paper list for teachers: why the student needs the class, and times that work."""
+    user = _current_user()
+    all_students, visible_students = _scoped_students()
+    scope_students = all_students if has_full_data_access(user['role']) else visible_students
+    _realign_extra_sessions(all_students)
+    _reconcile_flagged_extra_sessions(scope_students)
+    _, rows = _scoped_extra_sessions()
+    sections = _handoff_groups(rows, visible_students, _load_lessons())
+    return render_template(
+        'extra_sessions_print.html',
+        sections=sections,
+        student_count=sum(len(section['cards']) for section in sections),
+        printed_on=school_today().strftime('%d/%m/%Y'),
     )
 
 

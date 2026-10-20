@@ -587,6 +587,47 @@ def is_awaiting_schedule(row):
     return not is_status_ok(row.get('realizado')) and not (row.get('date') or '').strip()
 
 
+HANDOFF_SESSION_TYPES = ('Reforço', 'Reposição')
+
+
+def needs_teacher_handoff(row):
+    """Reforço or reposição that still needs a reason and a time the student can attend.
+
+    A booked class stays off the sheet. A class the student missed comes back,
+    because it needs a new slot.
+    """
+    kind = normalize_aula_extra(row.get('session_type'))
+    if kind not in HANDOFF_SESSION_TYPES:
+        return False
+    if is_status_ok(row.get('realizado')):
+        return False
+    if (row.get('realizado') or '').strip() == STATUS_NO:
+        return True
+    return not (row.get('date') or '').strip()
+
+
+def group_handoff_by_teacher(indexed_rows):
+    """(teacher, [(index, row), ...]) for the printable handoff, one group per teacher."""
+    buckets = {}
+    for index, row in indexed_rows or []:
+        if not needs_teacher_handoff(row):
+            continue
+        teacher = (row.get('teacher') or '').strip() or 'Sem professor'
+        buckets.setdefault(teacher, []).append((index, row))
+    groups = []
+    for teacher in sorted(buckets, key=str.casefold):
+        items = sorted(
+            buckets[teacher],
+            key=lambda item: (
+                (item[1].get('turma') or '').casefold(),
+                display_student_name(item[1]).casefold(),
+                (item[1].get('session_type') or '').casefold(),
+            ),
+        )
+        groups.append((teacher, items))
+    return groups
+
+
 def class_teacher(row):
     """Who gives the extra class: the assigned teacher, else the student's own teacher."""
     return (row.get('assigned_teacher') or '').strip() or (row.get('teacher') or '').strip()

@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}Lista para os professores{% endblock %}
+{% block page_title %}Lista para os professores{% endblock %}
+
+{% block content %}
+<style>
+.handoff-toolbar { display:flex; flex-wrap:wrap; gap:12px 16px; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.handoff-toolbar p { margin:0; max-width:640px; }
+.sheet {
+  background:#fff; color:#1c1024;
+  border:1px solid #E7DCEC; border-radius:16px;
+  box-shadow:0 8px 28px rgba(68,24,84,.08);
+  padding:22px 22px 18px; margin:0 auto 22px;
+  max-width:210mm;
+  overflow-wrap:normal; word-break:normal;
+}
+.sheet-top { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; border-bottom:3px solid #792D83; padding-bottom:10px; margin-bottom:10px; }
+.sheet-kicker { font-size:11px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:#792D83; }
+.sheet-top h2 { margin:2px 0 0; font-size:20px; color:#2D1040; }
+.sheet-meta { text-align:right; font-size:12px; line-height:1.45; color:#5c4a66; }
+.sheet-meta strong { color:#2D1040; }
+.sheet-note { margin:0 0 12px; font-size:12.5px; line-height:1.45; }
+.handoff-table { width:100%; min-width:0; border-collapse:collapse; table-layout:fixed; overflow-wrap:normal; word-break:normal; }
+.handoff-table th, .handoff-table td { border:1px solid #2D1040; padding:6px 7px; vertical-align:top; overflow-wrap:normal; word-break:normal; }
+.handoff-table th { background:#F6F0F8; color:#2D1040; font-size:10px; font-weight:800; letter-spacing:.2px; text-transform:uppercase; text-align:left; white-space:normal; }
+.handoff-table td { height:24mm; font-size:12px; }
+.col-student { width:27%; }
+.col-type { width:11%; }
+.col-reason { width:26%; }
+.col-slot { width:9%; }
+.student-name { font-size:13px; font-weight:800; }
+.sub { margin-top:3px; font-size:11px; color:#5c4a66; line-height:1.35; }
+.sub.warn { color:#8A2E24; font-weight:700; }
+.known { font-size:11px; margin-bottom:4px; }
+.line { border-bottom:1px solid #2D1040; height:14px; margin-top:7px; }
+.sheet-sign { display:flex; gap:28px; margin-top:16px; font-size:12px; }
+.sheet-sign div { flex:1; }
+.sheet-sign span { display:block; border-bottom:1px solid #2D1040; min-height:18px; margin-top:8px; }
+.sheet-empty { text-align:center; padding:28px 16px; }
+@media print {
+  @page { size: A4 portrait; margin: 10mm; }
+  .sidebar, .page-header, .review-banner, .nav-backdrop, .no-print { display:none !important; }
+  body, .main, .content { background:#fff !important; margin:0 !important; padding:0 !important; width:auto !important; min-height:0 !important; }
+  .sheet { box-shadow:none; border:none; border-radius:0; max-width:none; padding:0; margin:0; break-after:page; }
+  .sheet:last-child { break-after:auto; }
+  .handoff-table th { background:#fff !important; color:#000 !important; }
+  a { color:inherit; text-decoration:none; }
+}
+</style>
+
+<div class="handoff-toolbar no-print">
+  <p class="font-sm text-gray">
+    Uma folha por professor. Eles anotam o motivo e dois horários em que o aluno pode vir.
+    Com a folha de volta, abra <strong>Lançar</strong> e grave o motivo, a data e o horário.
+  </p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a href="{{ url_for('extra_sessions') }}" class="btn btn-ghost btn-sm">Voltar</a>
+    {% if sections %}<button type="button" class="btn btn-primary btn-sm" onclick="window.print()">Imprimir</button>{% endif %}
+  </div>
+</div>
+
+{% if sections %}
+{% for section in sections %}
+<section class="sheet">
+  <header class="sheet-top">
+    <div>
+      <div class="sheet-kicker">Mister Wiz · {{ review_month_label or 'Reforço e reposição' }}</div>
+      <h2>Reforço e reposição</h2>
+    </div>
+    <div class="sheet-meta">
+      <div>Professor: <strong>{{ section.teacher }}</strong></div>
+      <div>{{ section.cards|length }} aluno{{ 's' if section.cards|length != 1 else '' }}</div>
+      <div>Impresso em {{ printed_on }}</div>
+    </div>
+  </header>
+  <p class="sheet-note">Escreva por que o aluno precisa da aula extra e dois dias e horários em que ele pode vir. Devolva esta folha à coordenação.</p>
+  <table class="handoff-table">
+    <thead>
+      <tr>
+        <th class="col-student" rowspan="2">Aluno</th>
+        <th class="col-type" rowspan="2">Tipo</th>
+        <th class="col-reason" rowspan="2">Motivo — por que precisa</th>
+        <th class="col-slot" colspan="2">1ª opção</th>
+        <th class="col-slot" colspan="2">2ª opção</th>
+      </tr>
+      <tr>
+        <th>Data</th>
+        <th>Hora</th>
+        <th>Data</th>
+        <th>Hora</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for card in section.cards %}
+      <tr data-handoff="{{ card.session_type }}" data-teacher="{{ section.teacher }}">
+        <td>
+          <div class="student-name">{{ card.name }}</div>
+          {% if card.class_label %}<div class="sub">{{ card.class_label }}{% if card.code_hint %} · código {{ card.code_hint }}{% endif %}{% if card.class_time %} · {{ card.class_time }}{% endif %}</div>{% endif %}
+          {% if card.missed %}
+          <div class="sub">Faltou:
+            {% for num, title in card.missed %}aula {{ num }}{% if title %} ({{ title }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+          </div>
+          {% endif %}
+          {% if card.reschedule %}<div class="sub warn">Faltou na aula extra — precisa de novo horário</div>{% endif %}
+          <div class="no-print" style="margin-top:6px;"><a href="{{ url_for('extra_session_edit', idx=card.index) }}">Lançar</a></div>
+        </td>
+        <td>{{ card.session_type }}</td>
+        <td class="write">
+          {% if card.reason %}<div class="known">Já informado: {{ card.reason }}</div>{% endif %}
+          <div class="line"></div>
+          <div class="line"></div>
+        </td>
+        <td class="write"></td>
+        <td class="write"></td>
+        <td class="write"></td>
+        <td class="write"></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="sheet-sign">
+    <div>Assinatura do professor <span></span></div>
+    <div>Data da devolução <span></span></div>
+  </div>
+</section>
+{% endfor %}
+{% else %}
+<div class="card sheet-empty">
+  <p><strong>Nenhum aluno aguardando reforço ou reposição.</strong></p>
+  <p class="font-sm text-gray" style="margin-top:6px;">Quando um aluno for marcado na revisão, ou um pedido ficar sem data, ele entra nesta lista.</p>
+</div>
+{% endif %}
+{% endblock %}

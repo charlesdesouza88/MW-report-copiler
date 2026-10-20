@@ -5,9 +5,11 @@ from extra_sessions import (
     build_atendimentos_template_csv,
     clear_aula_extra_after_completed_session,
     display_status,
+    group_handoff_by_teacher,
     internal_row_to_csv_row,
     is_auto_aula_extra_row,
     is_status_ok,
+    needs_teacher_handoff,
     normalize_aula_extra,
     normalize_status,
     parse_import_csv,
@@ -382,3 +384,30 @@ def test_sync_reflags_after_completed_session():
     pending = [row for row in rows if not is_status_ok(row.get('realizado'))]
     assert len(pending) == 1
     assert pending[0]['session_type'] == 'Reforço'
+
+
+def test_handoff_keeps_open_reforco_and_missed_reposicao():
+    rows = [
+        {'teacher': 'Chuck', 'student_name': 'Jane Doe', 'turma': 'MASTER', 'session_type': 'Reposição'},
+        {'teacher': 'Chuck', 'student_name': 'Jane Doe', 'turma': 'MASTER', 'session_type': 'Reforço',
+         'date': '01/10/2026', 'realizado': 'OK'},
+        {'teacher': 'Paula', 'student_name': 'Bob Smith', 'turma': 'SPARK', 'session_type': 'Nivelamento'},
+        {'teacher': 'Paula', 'student_name': 'Bob Smith', 'turma': 'SPARK', 'session_type': 'Reforço',
+         'date': '02/10/2026', 'assigned_teacher': 'Chuck'},
+        {'teacher': 'Chuck', 'student_name': 'Ana Luz', 'turma': 'MASTER', 'session_type': 'Reposição',
+         'date': '03/10/2026', 'realizado': 'NÃO'},
+        {'teacher': '', 'student_name': 'Sem Dono', 'turma': 'ROOT', 'session_type': 'Reforço'},
+    ]
+    assert needs_teacher_handoff(rows[0])
+    assert not needs_teacher_handoff(rows[1])
+    assert not needs_teacher_handoff(rows[2])
+    assert not needs_teacher_handoff(rows[3])
+    groups = group_handoff_by_teacher(list(enumerate(rows)))
+    by_teacher = {teacher: [(i, row['student_name'], row['session_type']) for i, row in items]
+                  for teacher, items in groups}
+    assert by_teacher['Chuck'] == [
+        (4, 'Ana Luz', 'Reposição'),
+        (0, 'Jane Doe', 'Reposição'),
+    ]
+    assert by_teacher['Sem professor'] == [(5, 'Sem Dono', 'Reforço')]
+    assert 'Paula' not in by_teacher
