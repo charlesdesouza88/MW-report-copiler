@@ -703,6 +703,27 @@ def session_sort_key(row):
     return (parse_session_date(row.get('date')) or _date.max, (row.get('horario') or '').strip())
 
 
+_WEEKDAY_SHORT = (
+    ('segunda-feira', 'Seg'),
+    ('terça-feira', 'Ter'),
+    ('terca-feira', 'Ter'),
+    ('quarta-feira', 'Qua'),
+    ('quinta-feira', 'Qui'),
+    ('sexta-feira', 'Sex'),
+    ('sábado', 'Sáb'),
+    ('sabado', 'Sáb'),
+    ('domingo', 'Dom'),
+)
+
+
+def short_horario(value):
+    """Shorter weekday names so a class schedule fits one line on the handoff sheet."""
+    text = (value or '').strip()
+    for long, short in _WEEKDAY_SHORT:
+        text = re.sub(long, short, text, flags=re.IGNORECASE)
+    return text
+
+
 def display_student_name(row):
     """Student name without the '(TURMA)' suffix when the turma is shown next to it."""
     name = (row.get('student_name') or '').strip()

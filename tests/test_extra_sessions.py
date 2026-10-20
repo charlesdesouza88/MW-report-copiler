@@ -6,6 +6,7 @@ from extra_sessions import (
     clear_aula_extra_after_completed_session,
     display_status,
     group_handoff_by_teacher,
+    short_horario,
     internal_row_to_csv_row,
     is_auto_aula_extra_row,
     is_status_ok,
@@ -411,3 +412,9 @@ def test_handoff_keeps_open_reforco_and_missed_reposicao():
     ]
     assert by_teacher['Sem professor'] == [(5, 'Sem Dono', 'Reforço')]
     assert 'Paula' not in by_teacher
+
+
+def test_short_horario_fits_a_handoff_line():
+    assert short_horario('Terça-feira e Quinta-feira 14:00 - 15:30') == 'Ter e Qui 14:00 - 15:30'
+    assert short_horario('Segunda-feira e Quarta-feira 08:00 - 09:30') == 'Seg e Qua 08:00 - 09:30'
+    assert short_horario('Terça e quinta, 18:00 - 19:30') == 'Terça e quinta, 18:00 - 19:30'

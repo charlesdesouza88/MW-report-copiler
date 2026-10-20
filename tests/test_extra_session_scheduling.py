@@ -73,8 +73,8 @@ def test_print_handoff_lists_waiting_students_by_teacher(school):
     assert "Bob Smith" in page and "Spark" in page
     assert 'data-handoff="Reforço"' not in page  # Jane's booked reforço stays off the sheet
     assert "Faltou:" in page  # missed lesson from the review
-    assert "1ª opção" in page and "Motivo" in page
-    assert page.count('class="line"') >= 4
+    assert "Horários que funcionam" in page and "Motivo" in page
+    assert page.count('class="blank date"') >= 4
 
     own = chuck.get("/extra-sessions/print").get_data(as_text=True)
     assert "Jane Doe" in own and "Bob Smith" not in own
