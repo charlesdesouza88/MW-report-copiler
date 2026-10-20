@@ -757,10 +757,13 @@ def realign_open_sessions(rows, students):
 
 
 def _own_details(row):
-    """What a request says beyond who and what: its reason, its note, and the family contact."""
+    """What a request says beyond who and what: reason, topics, note and the family contact."""
     note = (row.get('observacao') or '').strip()
+    topics = (row.get('assuntos') or '').strip()
     return {
-        'reason': session_reason(row),
+        'reason': (row.get('motivo') or '').strip(),
+        # Legacy rows keep their reason in assuntos; a bare type ("Reposição") says nothing.
+        'topics': '' if topics == (row.get('session_type') or '').strip() else topics,
         'note': '' if note == AUTO_AULA_EXTRA_MARKER else note,
         'contacted': is_status_ok(row.get('contatado')),
     }

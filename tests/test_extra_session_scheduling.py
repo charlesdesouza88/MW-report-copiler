@@ -378,3 +378,7 @@ def test_duplicate_merge_never_loses_legacy_reasons_notes_or_contact():
     out, _ = realign_open_sessions([auto, noted, contacted], [lais])
     assert len(out) == 2 and {r.get("observacao") for r in out} >= {"Mãe pediu horário de manhã"}
     assert any(r.get("contatado") == "OK" for r in out)
+    same_reason = dict(auto, motivo="Repor Unit 3", observacao="")
+    with_topics = dict(same_reason, assuntos="Verbos no passado")
+    out, _ = realign_open_sessions([same_reason, with_topics], [lais])
+    assert [r["assuntos"] for r in out] == ["Verbos no passado"]  # same reason, own topics: kept
