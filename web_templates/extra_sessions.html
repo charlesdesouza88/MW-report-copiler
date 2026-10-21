@@ -321,7 +321,7 @@
       {% if row.turma %}<div class="font-sm" style="margin-bottom:8px;"><span class="tag">{{ row.turma }}</span></div>{% endif %}
       {% if row.assuntos and row.assuntos != row.session_type %}<p class="font-sm" style="margin-bottom:2px;"><strong>Trabalhado:</strong></p><div class="font-sm es-clamp" data-clamp style="margin-bottom:6px;">{{ row.assuntos|replace("**", "") }}</div>{% endif %}
       {% if row.motivo %}<p class="font-sm text-gray" style="margin-bottom:6px;">Motivo: {{ row.motivo }}</p>{% endif %}
-      {% if row.observacao and row.observacao != auto_aula_extra_marker %}<p class="font-sm text-gray" style="margin-bottom:10px;">{{ row.observacao }}</p>{% endif %}
+      {% if row.observacao and row.observacao != auto_aula_extra_marker %}<div class="font-sm text-gray es-clamp" data-clamp style="margin-bottom:10px;">{{ row.observacao }}</div>{% endif %}
       <div class="student-card-actions">
         <a href="{{ url_for('extra_session_edit', idx=i) }}" class="btn btn-ghost btn-sm">Editar</a>
         {% if perms[i].delete %}
@@ -433,7 +433,16 @@
   // Long lesson reports: show three lines, expand on demand.
   function addMoreButtons() {
     document.querySelectorAll('[data-clamp]').forEach(function (el) {
-      if (el.dataset.clampReady || !el.offsetParent || el.scrollHeight <= el.clientHeight + 2) return;
+      // Hidden, or expanded by the reader: nothing to measure.
+      if (!el.offsetParent || el.classList.contains('is-open')) return;
+      if (el.scrollHeight <= el.clientHeight + 2) {
+        // Fits now (e.g. after a resize): drop a stale button.
+        var stale = el.nextElementSibling;
+        if (stale && stale.classList.contains('es-more')) stale.remove();
+        delete el.dataset.clampReady;
+        return;
+      }
+      if (el.dataset.clampReady) return;
       el.dataset.clampReady = '1';
       var btn = document.createElement('button');
       btn.type = 'button'; btn.className = 'es-more'; btn.textContent = 'Ver tudo';
