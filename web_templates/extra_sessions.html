@@ -110,6 +110,14 @@
 .es-outcome form { display:grid; gap:8px; }
 .es-outcome .es-buttons { display:flex; flex-wrap:wrap; gap:8px; }
 .es-empty { text-align:center; padding:32px 20px; }
+.es-done-table { table-layout:fixed; min-width:760px; }
+.es-done-table td { vertical-align:top; }
+.es-done-table td strong { overflow-wrap:normal; word-break:normal; }
+.es-done-table .tag, .student-card .tag { white-space:nowrap; }
+.es-nowrap { white-space:nowrap; }
+.es-clamp { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; white-space:pre-line; overflow-wrap:anywhere; line-height:1.45; }
+.es-clamp.is-open { display:block; -webkit-line-clamp:unset; }
+.es-more { margin-top:4px; padding:0; border:none; background:none; color:var(--purple); font-size:12px; font-weight:800; cursor:pointer; }
 .es-empty p { margin:0 0 6px; }
 @media (max-width: 639px) {
   .stage-tab { flex:1 1 0; padding:9px 6px; gap:5px; font-size:12px; }
@@ -311,7 +319,7 @@
         {{ type_tag(row) }}
       </div>
       {% if row.turma %}<div class="font-sm" style="margin-bottom:8px;"><span class="tag">{{ row.turma }}</span></div>{% endif %}
-      {% if row.assuntos and row.assuntos != row.session_type %}<p class="font-sm" style="margin-bottom:6px;"><strong>Trabalhado:</strong> {{ row.assuntos }}</p>{% endif %}
+      {% if row.assuntos and row.assuntos != row.session_type %}<p class="font-sm" style="margin-bottom:2px;"><strong>Trabalhado:</strong></p><div class="font-sm es-clamp" data-clamp style="margin-bottom:6px;">{{ row.assuntos|replace("**", "") }}</div>{% endif %}
       {% if row.motivo %}<p class="font-sm text-gray" style="margin-bottom:6px;">Motivo: {{ row.motivo }}</p>{% endif %}
       {% if row.observacao and row.observacao != auto_aula_extra_marker %}<p class="font-sm text-gray" style="margin-bottom:10px;">{{ row.observacao }}</p>{% endif %}
       <div class="student-card-actions">
@@ -329,7 +337,10 @@
   </div>
 
   <div class="table-wrap students-table-view">
-    <table>
+    <table class="es-done-table">
+      <colgroup>
+        <col style="width:19%"><col style="width:11%"><col style="width:13%"><col style="width:11%"><col><col style="width:120px">
+      </colgroup>
       <thead>
         <tr>
           <th>Aluno</th>
@@ -353,11 +364,11 @@
             {% if row.turma %}<div class="font-sm" style="margin-top:4px;"><span class="tag">{{ row.turma }}</span></div>{% endif %}
           </td>
           <td>{{ type_tag(row) }}</td>
-          <td class="font-sm">{{ session_when(row) or '—' }}</td>
+          <td class="font-sm es-nowrap">{% set when = session_when(row) %}{% if ' · ' in when %}{{ when.split(' · ')[0] }}<div class="text-gray">{{ when.split(' · ')[1] }}</div>{% else %}{{ when or '—' }}{% endif %}</td>
           <td class="font-sm">{{ class_teacher(row) or '—' }}{% if row.assigned_teacher and row.teacher and row.assigned_teacher != row.teacher %}<div class="text-gray" style="font-size:11px;">aluno de {{ row.teacher }}</div>{% endif %}</td>
           <td class="font-sm">
-            {% if row.assuntos and row.assuntos != row.session_type %}{{ row.assuntos }}{% else %}—{% endif %}
-            {% if row.observacao and row.observacao != auto_aula_extra_marker %}<div class="text-gray" style="margin-top:2px;">{{ row.observacao }}</div>{% endif %}
+            {% if row.assuntos and row.assuntos != row.session_type %}<div class="es-clamp" data-clamp>{{ row.assuntos|replace("**", "") }}</div>{% else %}—{% endif %}
+            {% if row.observacao and row.observacao != auto_aula_extra_marker %}<div class="es-clamp text-gray" data-clamp style="margin-top:4px;">{{ row.observacao }}</div>{% endif %}
           </td>
           <td class="col-actions">
             <div class="row-actions">
@@ -418,6 +429,25 @@
     var name = (location.hash || '').replace('#', '');
     if (counts.hasOwnProperty(name)) show(name);
   });
+
+  // Long lesson reports: show three lines, expand on demand.
+  function addMoreButtons() {
+    document.querySelectorAll('[data-clamp]').forEach(function (el) {
+      if (el.dataset.clampReady || !el.offsetParent || el.scrollHeight <= el.clientHeight + 2) return;
+      el.dataset.clampReady = '1';
+      var btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'es-more'; btn.textContent = 'Ver tudo';
+      btn.addEventListener('click', function () {
+        var open = el.classList.toggle('is-open');
+        btn.textContent = open ? 'Ver menos' : 'Ver tudo';
+      });
+      el.insertAdjacentElement('afterend', btn);
+    });
+  }
+  addMoreButtons();
+  tabs.forEach(function (t) { t.addEventListener('click', function () { setTimeout(addMoreButtons, 0); }); });
+  window.addEventListener('hashchange', function () { setTimeout(addMoreButtons, 0); });
+  window.addEventListener('resize', addMoreButtons);
 
   // Requests: filter by the student's teacher.
   var chipRow = document.querySelector('[data-es-filter="pedidos"]');
