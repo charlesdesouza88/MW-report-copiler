@@ -10,10 +10,10 @@ import io
 import json
 
 import pytest
+from test_app import _seed_teacher_classes, _students_csv
 
 import app as web_app
 from auth import UserStore
-from test_app import _seed_teacher_classes, _students_csv
 
 CHUCK_SECRETS = ("Jane Doe", "Chuck lesson", "Chuck secret topic")
 JANE_IDENTITY = {"orig_turma": "MASTER", "orig_student_name": "Jane Doe"}
