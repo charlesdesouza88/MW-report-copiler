@@ -11,7 +11,11 @@
 {% block content %}
 <form method="post" style="max-width: 760px;">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  {% if not is_new %}{{ identity_fields(session, EXTRA_SESSION_IDENTITY) }}{% endif %}
+  {% if not is_new %}{{ identity_fields(identity_row or session, EXTRA_SESSION_IDENTITY) }}{% endif %}
+
+  {% if form_error %}
+  <div class="alert" role="alert" style="background:#FADBD8; color:#E24B4A; border:1px solid #F1948A;">✕ &nbsp;{{ form_error }}</div>
+  {% endif %}
 
   <div class="form-section">
     <div class="form-section-title">Aluno e professor</div>
