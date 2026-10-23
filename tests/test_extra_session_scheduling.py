@@ -5,9 +5,10 @@ import html as html_lib
 import io
 import re
 
+from test_teacher_isolation import school  # noqa: F401  (pytest fixture: Chuck owns Jane/MASTER, Paula owns Bob/SPARK)
+
 import app as web_app
 from extra_sessions import EXTRA_SESSION_FIELDS
-from test_teacher_isolation import school  # noqa: F401  (pytest fixture: Chuck owns Jane/MASTER, Paula owns Bob/SPARK)
 
 JANE = {"orig_turma": "MASTER", "orig_student_name": "Jane Doe"}
 
@@ -46,7 +47,7 @@ def _panel(page):
 
 def _awaiting(page, student="Jane Doe"):
     """(index, identity hidden fields) of the student's awaiting row, as a browser would post them."""
-    for idx, block in re.findall(r'data-awaiting="(\d+)"[^>]*>(.*?)(?=data-awaiting="|\Z)', _panel(page), re.S):
+    for idx, block in re.findall(r'data-awaiting="(\d+)"[^>]*>(.*?)(?=data-awaiting="|\Z)', _panel(page), re.DOTALL):
         if student in block:
             ident = {k: html_lib.unescape(v) for k, v in
                      re.findall(r'<input type="hidden" name="(orig_[a-z_]+)" value="([^"]*)"', block)}

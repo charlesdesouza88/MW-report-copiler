@@ -3,7 +3,8 @@
 import csv
 import io
 import re
-from datetime import date as _date, datetime, timedelta, timezone
+from datetime import date as _date
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from auth import normalize_teacher_name
