@@ -2192,7 +2192,19 @@ def _available_review_semesters(lessons):
     month_sid = semester_for_month(month)
     if month_sid:
         found.add(month_sid)
+    if (request.endpoint or '').startswith('extra_session'):
+        # A class dated in a semester with no lessons must still be reachable to fix its date.
+        found.update(filter(None, (semester_for_date(row.get('date', ''))
+                                   for row in _extra_session_rows_unbound())))
     return sorted(found)
+
+
+def _extra_session_rows_unbound():
+    """Read-only peek that leaves the save-conflict version of the current request alone."""
+    if db_store:
+        return db_store.load_extra_sessions()
+    path = DATA_DIR / 'extra_sessions.csv'
+    return load_csv(path) if path.exists() else []
 
 
 def _get_review_semester(lessons=None):

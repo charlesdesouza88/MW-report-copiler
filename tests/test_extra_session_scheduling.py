@@ -446,6 +446,9 @@ def test_completed_class_dated_in_another_semester_says_where_it_went(school, mo
     page = html_lib.unescape(chuck.get("/extra-sessions").get_data(as_text=True))
     assert "registrada como realizada" in page
     assert "aparece em Concluídas do 1º semestre 2026" in page and "corrija em Editar" in page
+    # That semester has no lessons here, but the class is still reachable to fix its date.
+    s1 = chuck.get("/extra-sessions?semester=2026-S1").get_data(as_text=True)
+    assert 'value="2026-S1"' in s1 and "Revisão" in s1
 
 
 def test_edit_refuses_moving_a_class_into_a_past_semester(school, monkeypatch):
