@@ -410,3 +410,63 @@ def test_duplicate_merge_never_loses_legacy_reasons_notes_or_contact():
     with_topics = dict(same_reason, assuntos="Verbos no passado")
     out, _ = realign_open_sessions([same_reason, with_topics], [lais])
     assert [r["assuntos"] for r in out] == ["Verbos no passado"]  # same reason, own topics: kept
+
+
+def _freeze_today(monkeypatch):
+    from datetime import date
+    monkeypatch.setattr(web_app, "school_today", lambda: date(2026, 10, 23))
+
+
+def test_schedule_refuses_a_date_in_a_semester_that_is_over(school, monkeypatch):
+    _freeze_today(monkeypatch)
+    admin = _client("admin@test.local", "testpass")
+    _flag_jane(_client("chuck@test.local", "chuckpass"))
+    _schedule(admin, date="2026-02-11")  # day and month swapped: 02/11 typed as 11/02
+    assert _jane_reposicao(school)["date"] == ""
+    page = admin.get("/extra-sessions").get_data(as_text=True)
+    assert "A data 11/02/2026 é do 1º semestre 2026" in html_lib.unescape(page)
+    assert _schedule(admin, date="2026-10-22").status_code == 302
+    assert _jane_reposicao(school)["date"] == "22/10/2026"
+
+
+def test_completed_class_dated_in_another_semester_says_where_it_went(school, monkeypatch):
+    # Booked before the date check existed, as Daniel Breder's class on the live site.
+    _freeze_today(monkeypatch)
+    _add_session_rows(school, {"teacher": "Chuck", "student_name": "Jane Doe (MASTER)", "turma": "MASTER",
+                               "session_type": "Aula extra", "assigned_teacher": "Chuck",
+                               "date": "11/02/2026", "horario": "17:00", "marcado": "OK"})
+    chuck = _client("chuck@test.local", "chuckpass")
+    row = next(r for r in _sessions(school) if r["session_type"] == "Aula extra")
+    page = chuck.get("/extra-sessions").get_data(as_text=True)
+    assert "11/02/2026" in page  # an open class shows in every semester
+    links = sorted(set(int(i) for i in re.findall(r'/extra-sessions/(\d+)/outcome', page)))
+    for i in links:
+        chuck.post(f"/extra-sessions/{i}/outcome", data={**_ident(row), "result": "OK", "assuntos": "Revisão"})
+    assert next(r for r in _sessions(school) if r["session_type"] == "Aula extra")["realizado"] == "OK"
+    page = html_lib.unescape(chuck.get("/extra-sessions").get_data(as_text=True))
+    assert "registrada como realizada" in page
+    assert "aparece em Concluídas do 1º semestre 2026" in page and "corrija em Editar" in page
+
+
+def test_edit_refuses_moving_a_class_into_a_past_semester(school, monkeypatch):
+    _freeze_today(monkeypatch)
+    admin = _client("admin@test.local", "testpass")
+    _flag_jane(_client("chuck@test.local", "chuckpass"))
+    _schedule(admin, date="2026-10-22")
+    row = _jane_reposicao(school)
+    page = admin.get("/extra-sessions").get_data(as_text=True)
+    form = {**_ident(row), "student_name": row["student_name"], "turma": "MASTER", "teacher": "Chuck",
+            "assigned_teacher": "Paula", "session_type": "Reposição"}
+    for i in sorted(set(int(i) for i in re.findall(r'/extra-sessions/(\d+)/edit', page))):
+        resp = admin.post(f"/extra-sessions/{i}/edit", data={**form, "date_picker": "11/02/2026"})
+        if resp.status_code == 400:
+            body = html_lib.unescape(resp.get_data(as_text=True))
+            assert "é do 1º semestre 2026, que já terminou" in body
+            # The form still points at the stored row, so fixing the date and saving works.
+            assert 'name="orig_date" value="22/10/2026"' in body
+            ok = admin.post(f"/extra-sessions/{i}/edit", data={**form, "date_picker": "21/10/2026"})
+            assert ok.status_code == 302
+            break
+    else:
+        raise AssertionError("past-semester date was not refused")
+    assert _jane_reposicao(school)["date"] == "21/10/2026"

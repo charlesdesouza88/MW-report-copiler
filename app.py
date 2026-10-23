@@ -178,6 +178,7 @@ from report_periods import (
     parse_lesson_month,
     report_month_from_filename,
     save_snapshots,
+    parse_semester_id,
     semester_for_date,
     semester_for_month,
     semester_label,
@@ -2646,6 +2647,26 @@ def _extra_session_visible_in_semester(row, semester_id):
     return not is_status_ok(row.get('realizado'))
 
 
+def _past_semester_date_error(date_str):
+    """A class booked in a semester that is already over is almost always a typo (day/month swapped)."""
+    sid = semester_for_date(date_str)
+    now_sid = semester_for_date(school_today().strftime('%d/%m/%Y'))
+    if sid and now_sid and parse_semester_id(sid) < parse_semester_id(now_sid):
+        return (f'A data {date_str} é do {semester_label(sid)}, que já terminou. '
+                'Confira o dia e o mês (dia/mês/ano).')
+    return ''
+
+
+def _other_semester_note(row):
+    """Explains where a completed class went when its date is outside the semester on screen."""
+    sid = semester_for_date(row.get('date', ''))
+    view = _get_review_semester()
+    if not sid or not view or sid == view:
+        return ''
+    return (f' A data da aula é {row.get("date")} ({semester_label(sid)}), então ela aparece em '
+            f'Concluídas do {semester_label(sid)}. Se a data estiver errada, corrija em Editar.')
+
+
 def _scoped_extra_sessions(semester_id=None):
     all_rows = _load_extra_sessions()
     user = _current_user()
@@ -4107,6 +4128,22 @@ def extra_session_edit(idx):
             updated['assigned_teacher'] = current.get('assigned_teacher', '')
         if not updated.get('student_name'):
             abort(400)
+        date_error = ''
+        if (updated.get('date') or '') != (current.get('date') or ''):
+            date_error = _past_semester_date_error(updated.get('date', ''))
+        if date_error:
+            return render_template(
+                'extra_session_edit.html',
+                session=updated,
+                idx=idx,
+                is_new=False,
+                field_labels=EXTRA_SESSION_FIELD_LABELS,
+                session_type_choices=SESSION_TYPE_CHOICES,
+                teacher_names=_teacher_names_for_forms(),
+                auto_aula_extra_marker=AUTO_AULA_EXTRA_MARKER,
+                identity_row=current,  # the stored row, so the next save still finds it
+                form_error=date_error,
+            ), 400
         global_idx = find_extra_session_global_index(all_rows, visible, idx)
         if global_idx is None:
             abort(404)
@@ -4196,7 +4233,7 @@ def extra_session_outcome(idx):
     _sync_extra_session_to_student_flag(updated)
     who = display_student_name(updated)
     session['extra_session_flash_message'] = (
-        f'Aula de {who} registrada como realizada.' if result == 'OK'
+        f'Aula de {who} registrada como realizada.{_other_semester_note(updated)}' if result == 'OK'
         else f'Falta de {who} registrada. A coordenação pode reagendar.'
     )
     return redirect(url_for('extra_sessions'))
@@ -4215,6 +4252,10 @@ def extra_session_schedule(idx):
     date = date_from_form(request.form)
     if not assigned or not date:
         session['extra_session_flash_error'] = 'Escolha o professor e a data para agendar.'
+        return redirect(url_for('extra_sessions'))
+    date_error = _past_semester_date_error(date)
+    if date_error:
+        session['extra_session_flash_error'] = date_error
         return redirect(url_for('extra_sessions'))
     global_idx = find_extra_session_global_index(all_rows, visible, idx)
     if global_idx is None:
