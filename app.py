@@ -84,6 +84,7 @@ from extra_sessions import (
     build_atendimentos_template_csv,
     class_teacher,
     clear_aula_extra_after_completed_session,
+    clear_aula_extra_for_students,
     coerce_session_status_fields,
     display_status,
     display_student_name,
@@ -109,6 +110,7 @@ from extra_sessions import (
     remove_sessions_for_student,
     row_from_form,
     schedule_session,
+    students_matching_session,
     sync_student_extra_sessions,
 )
 from feedback_options import FEEDBACK_OPTIONS, is_legacy_feedback
@@ -2584,7 +2586,35 @@ def _sync_student_aula_extra_sessions(student, previous=None):
 
 
 def _sync_extra_session_to_student_flag(session_row, cancelled=False):
-    """Keep monthly aula_extra in sync when an extra session is created, completed or cancelled."""
+    """Keep monthly aula_extra in sync when an extra session is created, completed or cancelled.
+
+    A finished or cancelled class clears the flag on every saved month and on a
+    legacy roster value. Clearing only the session's month left earlier months
+    saying the class was still to do, and the next page load opened a new request.
+    """
+    if cancelled or is_status_ok(session_row.get('realizado')):
+        roster = [dict(row) for row in _load_roster_students()]
+        _enrich_students_from_registry(roster)
+        matched = students_matching_session(roster, session_row)
+        if not matched:
+            return
+        store = _load_monthly_review_store()
+        if clear_aula_extra_for_students(store, matched):
+            _save_monthly_review_store(store)
+        raw = _load_roster_students()
+        enriched = [dict(row) for row in raw]
+        _enrich_students_from_registry(enriched)
+        roster_changed = False
+        for raw_row, student in zip(raw, enriched):
+            if not students_matching_session([student], session_row):
+                continue
+            if normalize_aula_extra(raw_row.get('aula_extra')):
+                raw_row['aula_extra'] = ''
+                roster_changed = True
+        if roster_changed:
+            _save_students(raw)
+        return
+
     months = []
     current = _get_review_month()
     session_month = parse_lesson_month(session_row.get('date', ''))
@@ -2593,15 +2623,11 @@ def _sync_extra_session_to_student_flag(session_row, cancelled=False):
             months.append(month)
     if not months:
         return
-    roster = _load_roster_students()
+    roster_plain = _load_roster_students()
     for month in months:
-        merged = _merged_roster_for_month(roster, month)
-        if cancelled:
-            # Same effect as a completed class: the student no longer needs it, so the
-            # request is not recreated from the flag on the next page load.
-            updated = clear_aula_extra_after_completed_session(merged, {**session_row, 'realizado': 'OK'})
-        else:
-            updated = apply_pending_session_flag_to_students(merged, session_row)
+        merged = _merged_roster_for_month(roster_plain, month)
+        _enrich_students_from_registry(merged)
+        updated = apply_pending_session_flag_to_students(merged, session_row)
         if updated is not merged:
             _persist_monthly_rows(updated, month)
 
@@ -3918,10 +3944,11 @@ def lesson_new():
 def extra_sessions():
     user = _current_user()
     all_students, visible_students = _scoped_students()
-    scope_students = all_students if has_full_data_access(user['role']) else visible_students
+    # Monthly reviews hold the live flag. The raw roster can still carry a
+    # legacy aula_extra; reconciling that reopened a finished class.
     orphan_rows = _realign_extra_sessions(all_students)
     # Reconciling only appends rows, so the realigned indexes stay valid.
-    _reconcile_flagged_extra_sessions(scope_students)
+    _reconcile_flagged_extra_sessions(visible_students)
     all_session_rows, rows = _scoped_extra_sessions()
     orphans = {i for i in range(len(rows))
                if find_extra_session_global_index(all_session_rows, rows, i) in orphan_rows}
@@ -4036,11 +4063,9 @@ def _handoff_groups(rows, students, lessons):
 @login_required
 def extra_sessions_print():
     """Paper list for teachers: why the student needs the class, and times that work."""
-    user = _current_user()
     all_students, visible_students = _scoped_students()
-    scope_students = all_students if has_full_data_access(user['role']) else visible_students
     _realign_extra_sessions(all_students)
-    _reconcile_flagged_extra_sessions(scope_students)
+    _reconcile_flagged_extra_sessions(visible_students)
     _, rows = _scoped_extra_sessions()
     sections = _handoff_groups(rows, visible_students, _load_lessons())
     return render_template(

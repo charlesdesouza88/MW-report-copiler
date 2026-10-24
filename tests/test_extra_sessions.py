@@ -311,6 +311,88 @@ def test_filter_sessions_for_teacher_includes_unassigned_roster_match():
     assert visible[0]['teacher'] == ''
 
 
+def test_completed_reposicao_clears_student_flag():
+    from extra_sessions import apply_open_extra_sessions_to_students
+
+    students = [{
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe',
+        'turma': 'MASTER',
+        'turma_display': 'Masters',
+        'aula_extra': 'Reposição',
+    }]
+    sessions = [{
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe (Masters)',
+        'turma': 'Masters',
+        'session_type': 'Reposição',
+        'realizado': 'OK',
+    }]
+    overlay = apply_open_extra_sessions_to_students(students, sessions)
+    assert overlay[0]['aula_extra'] == ''
+
+
+def test_reflag_after_completed_session_stays_open():
+    from extra_sessions import apply_open_extra_sessions_to_students
+
+    students = [{
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe',
+        'turma': 'MASTER',
+        'turma_display': 'Masters',
+        'aula_extra': 'Reposição',
+    }]
+    sessions = [
+        {
+            'teacher': 'Chuck',
+            'student_name': 'Jane Doe',
+            'turma': 'MASTER',
+            'session_type': 'Reposição',
+            'realizado': 'OK',
+        },
+        {
+            'teacher': 'Chuck',
+            'student_name': 'Jane Doe',
+            'turma': 'MASTER',
+            'session_type': 'Reposição',
+            'realizado': '',
+        },
+    ]
+    overlay = apply_open_extra_sessions_to_students(students, sessions)
+    assert overlay[0]['aula_extra'] == 'Reposição'
+
+
+def test_clear_aula_extra_for_students_every_month():
+    from extra_sessions import clear_aula_extra_for_students
+
+    student = {
+        'teacher': 'Chuck',
+        'student_name': 'Jane Doe',
+        'turma': 'MASTER',
+    }
+    store = {
+        'MASTER|abc|2026-08': {
+            'turma': 'MASTER',
+            'student_name': 'Jane Doe',
+            'aula_extra': 'Reposição',
+        },
+        'MASTER|abc|2026-09': {
+            'turma': 'MASTER',
+            'student_name': 'Jane Doe',
+            'aula_extra': 'Reposição',
+        },
+        'MASTER|other|2026-09': {
+            'turma': 'MASTER',
+            'student_name': 'Other Kid',
+            'aula_extra': 'Reforço',
+        },
+    }
+    assert clear_aula_extra_for_students(store, [student]) is True
+    assert store['MASTER|abc|2026-08']['aula_extra'] == ''
+    assert store['MASTER|abc|2026-09']['aula_extra'] == ''
+    assert store['MASTER|other|2026-09']['aula_extra'] == 'Reforço'
+
+
 def test_apply_open_extra_sessions_ignores_completed():
     from extra_sessions import apply_open_extra_sessions_to_students
 

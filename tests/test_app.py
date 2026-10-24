@@ -898,6 +898,103 @@ def test_new_extra_session_flags_student_on_alunos_page(monkeypatch, tmp_path):
     assert 'data-aula-extra="Reposição"' in html
 
 
+def test_completed_reposicao_shows_done_and_does_not_reopen(monkeypatch, tmp_path):
+    """Marking the extra class realizado clears every month and does not spawn a blank row."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,10/08/2026,Lesson Aug,,\n"
+        "MASTER,2,12/09/2026,Lesson Sep,,\n",
+        encoding="utf-8",
+    )
+    (data_dir / "student_monthly_reviews.json").write_text(
+        json.dumps([
+            {
+                "report_month": "2026-08",
+                "turma": "MASTER",
+                "student_name": "Jane Doe",
+                "aula_extra": "Reposição",
+            },
+            {
+                "report_month": "2026-09",
+                "turma": "MASTER",
+                "student_name": "Jane Doe",
+                "aula_extra": "Reposição",
+            },
+        ]),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "db_store", None)
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+
+    web_app._save_extra_sessions([{
+        "teacher": "Chuck",
+        "student_name": "Jane Doe (Masters)",
+        "turma": "Masters",
+        "date": "",
+        "horario": "",
+        "turno": "",
+        "session_type": "Reposição",
+        "assuntos": "Reposição",
+        "observacao": "",
+        "contatado": "OK",
+        "marcado": "OK",
+        "realizado": "",
+    }])
+
+    client = web_app.app.test_client()
+    _login(client)
+    with client.session_transaction() as sess:
+        sess["review_month"] = "2026-09"
+
+    saved = client.post(
+        "/extra-sessions/0/edit",
+        data={
+            "student_name": "Jane Doe (Masters)",
+            "turma": "Masters",
+            "teacher": "Chuck",
+            "session_type": "Reposição",
+            "date_picker": "",
+            "horario": "",
+            "turno": "",
+            "assuntos": "Reposição",
+            "observacao": "",
+            "contatado": "OK",
+            "marcado": "OK",
+            "realizado": "OK",
+        },
+        follow_redirects=True,
+    )
+    assert saved.status_code == 200
+    html = saved.get_data(as_text=True)
+    assert "Aulas concluídas" in html
+    assert 'data-month="2026-09"' in html
+
+    reviews = json.loads((data_dir / "student_monthly_reviews.json").read_text(encoding="utf-8"))
+    flags = {row["report_month"]: row.get("aula_extra", "") for row in reviews}
+    assert flags["2026-08"] == ""
+    assert flags["2026-09"] == ""
+
+    again = client.get("/extra-sessions")
+    assert again.status_code == 200
+    assert "Aulas concluídas" in again.get_data(as_text=True)
+    rows = web_app._load_extra_sessions()
+    assert len(rows) == 1
+    assert rows[0]["realizado"] == "OK"
+
+    students_html = client.get("/students?month=2026-09").get_data(as_text=True)
+    assert 'data-aula-extra="__none__"' in students_html
+    assert 'data-aula-extra="Reposição"' not in students_html
+
+
 def test_teacher_power_extra_session_shows_in_alunos_filter(monkeypatch, tmp_path):
     """Teacher Alunos filter must show Power kids with imported reforço rows."""
     data_dir = tmp_path / "data"

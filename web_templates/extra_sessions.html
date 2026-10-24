@@ -309,7 +309,7 @@
          data-filter-id="{{ i }}"
          data-teacher="{{ class_teacher(row) }}"
          data-type="{{ row.session_type }}"
-         data-month="{{ parse_lesson_month(row.date) or '' }}"
+         data-month="{{ parse_lesson_month(row.date) or review_month or '' }}"
          data-search="{{ (row.student_name ~ ' ' ~ (row.turma or '') ~ ' ' ~ (row.session_type or '') ~ ' ' ~ class_teacher(row) ~ ' ' ~ (row.assuntos or '') ~ ' ' ~ (row.motivo or ''))|lower }}">
       <div class="student-card-header">
         <div>
@@ -357,7 +357,7 @@
             data-filter-id="{{ i }}"
             data-teacher="{{ class_teacher(row) }}"
             data-type="{{ row.session_type }}"
-            data-month="{{ parse_lesson_month(row.date) or '' }}"
+            data-month="{{ parse_lesson_month(row.date) or review_month or '' }}"
             data-search="{{ (row.student_name ~ ' ' ~ (row.turma or '') ~ ' ' ~ (row.session_type or '') ~ ' ' ~ class_teacher(row) ~ ' ' ~ (row.assuntos or '') ~ ' ' ~ (row.motivo or ''))|lower }}">
           <td>
             <strong>{{ display_student_name(row) }}</strong>

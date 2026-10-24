@@ -445,22 +445,78 @@ def pending_session_type_for_student(rows, student):
     return found
 
 
+def completed_session_covers_flag(rows, student, session_type):
+    """True when this flag has a finished session and nothing of that type is still open.
+
+    A later re-flag creates a new pending row, so the flag stays. A finished
+    reposição with no open follow-up no longer counts as incomplete.
+    """
+    target = normalize_aula_extra(session_type)
+    if not target:
+        return False
+    saw_completed = False
+    for row in rows or []:
+        if not _row_matches_student(row, student):
+            continue
+        if normalize_aula_extra(row.get('session_type')) != target:
+            continue
+        if is_status_ok(row.get('realizado')):
+            saw_completed = True
+            continue
+        return False
+    return saw_completed
+
+
+def students_matching_session(students, session_row):
+    return [student for student in students or [] if _row_matches_student(session_row, student)]
+
+
+def monthly_review_matches_student(row, student):
+    from report_periods import student_snapshot_id
+
+    turma = (student.get('turma') or '').strip()
+    name = (student.get('student_name') or '').strip()
+    if (row.get('turma') or '').strip() != turma:
+        return False
+    row_name = (row.get('student_name') or '').strip()
+    if row_name and row_name.casefold() == name.casefold():
+        return True
+    sid = (row.get('student_id') or '').strip()
+    return bool(sid and name) and sid == student_snapshot_id(turma, name)
+
+
+def clear_aula_extra_for_students(monthly_store, students):
+    """Blank aula_extra on every saved month for these students. Returns True if changed."""
+    changed = False
+    for row in (monthly_store or {}).values():
+        if not isinstance(row, dict):
+            continue
+        if not any(monthly_review_matches_student(row, student) for student in students):
+            continue
+        if not normalize_aula_extra(row.get('aula_extra')):
+            continue
+        row['aula_extra'] = ''
+        changed = True
+    return changed
+
+
 def apply_open_extra_sessions_to_students(students, session_rows):
     """Normalize aula_extra and overlay pending extra sessions onto the roster.
 
     Monthly reviews start blank each month, so kids with an open reforço or
-    reposição would otherwise disappear from the Alunos filter.
+    reposição would otherwise disappear from the Alunos filter. A flag whose
+    session is already realizado no longer stays on the student.
     """
     out = []
     for student in students or []:
         row = dict(student)
         flagged = normalize_aula_extra(row.get('aula_extra'))
+        if flagged and completed_session_covers_flag(session_rows, student, flagged):
+            flagged = ''
         if flagged:
             row['aula_extra'] = flagged
         else:
-            overlay = pending_session_type_for_student(session_rows, student)
-            if overlay:
-                row['aula_extra'] = overlay
+            row['aula_extra'] = pending_session_type_for_student(session_rows, student) or ''
         out.append(row)
     return out
 
