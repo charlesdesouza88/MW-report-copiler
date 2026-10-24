@@ -440,12 +440,19 @@ def test_completed_class_dated_in_another_semester_says_where_it_went(school, mo
     page = chuck.get("/extra-sessions").get_data(as_text=True)
     assert "11/02/2026" in page  # an open class shows in every semester
     links = sorted(set(int(i) for i in re.findall(r'/extra-sessions/(\d+)/outcome', page)))
+    locations = []
     for i in links:
-        chuck.post(f"/extra-sessions/{i}/outcome", data={**_ident(row), "result": "OK", "assuntos": "Revisão"})
+        resp = chuck.post(f"/extra-sessions/{i}/outcome", data={**_ident(row), "result": "OK", "assuntos": "Revisão"})
+        locations.append(resp.headers.get("Location", ""))
     assert next(r for r in _sessions(school) if r["session_type"] == "Aula extra")["realizado"] == "OK"
+    assert any(loc.endswith("#concluidas") for loc in locations)
     page = html_lib.unescape(chuck.get("/extra-sessions").get_data(as_text=True))
     assert "registrada como realizada" in page
-    assert "aparece em Concluídas do 1º semestre 2026" in page and "corrija em Editar" in page
+    assert "A data registrada é 11/02/2026" in page and "corrija em Editar" in page
+    # The finished class stays on the semester on screen, under that month's filter.
+    concluidas = page.split('data-stage="concluidas"', 1)[1]
+    assert "Revisão" in concluidas
+    assert 'data-month="2026-09"' in concluidas
     # That semester has no lessons here, but the class is still reachable to fix its date.
     s1 = chuck.get("/extra-sessions?semester=2026-S1").get_data(as_text=True)
     assert 'value="2026-S1"' in s1 and "Revisão" in s1

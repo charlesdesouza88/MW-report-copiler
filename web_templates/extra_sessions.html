@@ -11,6 +11,22 @@
 <span class="tag {% if row.session_type == 'Reposição' %}tag-orange{% elif row.session_type and row.session_type != 'Reforço' %}tag-gray{% endif %}">{{ row.session_type or 'Reforço' }}</span>
 {%- endmacro %}
 
+{% macro concluded_filter_month(row) -%}
+{%- set row_sem = semester_for_date(row.date) -%}
+{%- if row_sem and review_semester and row_sem != review_semester and review_month -%}
+{{- review_month -}}
+{%- else -%}
+{{- parse_lesson_month(row.date) or review_month or '' -}}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro concluded_date_note(row) -%}
+{%- set row_sem = semester_for_date(row.date) -%}
+{%- if row_sem and review_semester and row_sem != review_semester -%}
+<p class="font-sm text-gray" style="margin-top:4px;">A data registrada é {{ row.date }} ({{ semester_label(row_sem) }}). Se o dia e o mês estiverem trocados, corrija em Editar.</p>
+{%- endif -%}
+{%- endmacro %}
+
 {% macro session_context(i, row) -%}
 {% set reason = session_reason(row) %}
 {% if reason %}<p class="es-reason"><span class="es-label">Motivo</span>{{ reason }}</p>{% endif %}
@@ -309,12 +325,13 @@
          data-filter-id="{{ i }}"
          data-teacher="{{ class_teacher(row) }}"
          data-type="{{ row.session_type }}"
-         data-month="{{ parse_lesson_month(row.date) or review_month or '' }}"
+         data-month="{{ concluded_filter_month(row) }}"
          data-search="{{ (row.student_name ~ ' ' ~ (row.turma or '') ~ ' ' ~ (row.session_type or '') ~ ' ' ~ class_teacher(row) ~ ' ' ~ (row.assuntos or '') ~ ' ' ~ (row.motivo or ''))|lower }}">
       <div class="student-card-header">
         <div>
           <strong style="font-size:15px;">{{ display_student_name(row) }}</strong>
           <div class="font-sm text-gray" style="margin-top:4px;">{{ session_when(row) or '—' }} · Prof. {{ class_teacher(row) or '—' }}</div>
+          {{ concluded_date_note(row) }}
         </div>
         {{ type_tag(row) }}
       </div>
@@ -357,14 +374,14 @@
             data-filter-id="{{ i }}"
             data-teacher="{{ class_teacher(row) }}"
             data-type="{{ row.session_type }}"
-            data-month="{{ parse_lesson_month(row.date) or review_month or '' }}"
+            data-month="{{ concluded_filter_month(row) }}"
             data-search="{{ (row.student_name ~ ' ' ~ (row.turma or '') ~ ' ' ~ (row.session_type or '') ~ ' ' ~ class_teacher(row) ~ ' ' ~ (row.assuntos or '') ~ ' ' ~ (row.motivo or ''))|lower }}">
           <td>
             <strong>{{ display_student_name(row) }}</strong>
             {% if row.turma %}<div class="font-sm" style="margin-top:4px;"><span class="tag">{{ row.turma }}</span></div>{% endif %}
           </td>
           <td>{{ type_tag(row) }}</td>
-          <td class="font-sm es-nowrap">{% set when = session_when(row) %}{% if ' · ' in when %}{{ when.split(' · ')[0] }}<div class="text-gray">{{ when.split(' · ')[1] }}</div>{% else %}{{ when or '—' }}{% endif %}</td>
+          <td class="font-sm es-nowrap">{% set when = session_when(row) %}{% if ' · ' in when %}{{ when.split(' · ')[0] }}<div class="text-gray">{{ when.split(' · ')[1] }}</div>{% else %}{{ when or '—' }}{% endif %}{{ concluded_date_note(row) }}</td>
           <td class="font-sm">{{ class_teacher(row) or '—' }}{% if row.assigned_teacher and row.teacher and row.assigned_teacher != row.teacher %}<div class="text-gray" style="font-size:11px;">aluno de {{ row.teacher }}</div>{% endif %}</td>
           <td class="font-sm">
             {% if row.assuntos and row.assuntos != row.session_type %}<div class="es-clamp" data-clamp>{{ row.assuntos|replace("**", "") }}</div>{% else %}—{% endif %}

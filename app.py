@@ -681,6 +681,7 @@ app.jinja_env.globals.update(
     semester_label=semester_label,
     report_month_from_filename=report_month_from_filename,
     parse_lesson_month=parse_lesson_month,
+    semester_for_date=semester_for_date,
 )
 
 SAVE_CONFLICT_MESSAGE = (
@@ -2678,11 +2679,23 @@ def _save_lesson_attendance(rows):
 
 
 def _extra_session_visible_in_semester(row, semester_id):
-    """Keep undated rows, current-semester rows, and still-pending sessions."""
+    """Keep undated rows, this semester's rows, open classes, and finished
+    classes dated in an earlier semester.
+
+    A finished class dated in a past semester (Daniel's 11/02 booking) used
+    to vanish from the semester on screen. It stays in Concluídas so the
+    result is visible; the date can still be corrected in Editar.
+    """
     row_sid = semester_for_date(row.get('date', ''))
     if row_sid is None or row_sid == semester_id:
         return True
-    return not is_status_ok(row.get('realizado'))
+    if is_status_ok(row.get('realizado')):
+        viewed = parse_semester_id(semester_id)
+        dated = parse_semester_id(row_sid)
+        if viewed and dated and dated < viewed:
+            return True
+        return False
+    return True
 
 
 def _past_semester_date_error(date_str):
@@ -2696,13 +2709,13 @@ def _past_semester_date_error(date_str):
 
 
 def _other_semester_note(row):
-    """Explains where a completed class went when its date is outside the semester on screen."""
+    """Warns that a completed class's date sits in another semester, without hiding it."""
     sid = semester_for_date(row.get('date', ''))
     view = _get_review_semester()
     if not sid or not view or sid == view:
         return ''
-    return (f' A data da aula é {row.get("date")} ({semester_label(sid)}), então ela aparece em '
-            f'Concluídas do {semester_label(sid)}. Se a data estiver errada, corrija em Editar.')
+    return (f' A data registrada é {row.get("date")} ({semester_label(sid)}). '
+            f'A aula está em Concluídas. Se o dia e o mês estiverem trocados, corrija em Editar.')
 
 
 def _scoped_extra_sessions(semester_id=None):
@@ -4273,7 +4286,10 @@ def extra_session_outcome(idx):
         f'Aula de {who} registrada como realizada.{_other_semester_note(updated)}' if result == 'OK'
         else f'Falta de {who} registrada. A coordenação pode reagendar.'
     )
-    return redirect(url_for('extra_sessions'))
+    target = url_for('extra_sessions')
+    if result == 'OK':
+        target += '#concluidas'
+    return redirect(target)
 
 
 @app.route('/extra-sessions/<int:idx>/schedule', methods=['POST'])
