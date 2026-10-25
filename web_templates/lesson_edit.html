@@ -118,7 +118,7 @@
   </div>
 </form>
 
-{% if is_new and turma_next_aula %}
+{% if turma_next_aula %}
 <script>
 (function () {
   var turmaNext = {{ turma_next_aula | tojson }};
@@ -186,7 +186,9 @@
   }
 
   function onTurmaChange() {
+    {% if is_new %}
     updateAulaNum();
+    {% endif %}
     rebuildAttendanceRows();
   }
 

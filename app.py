@@ -595,7 +595,7 @@ limiter = Limiter(
     key_func=get_remote_address,
     app=app,
     default_limits=[],
-    storage_uri='memory://',
+    storage_uri=os.environ.get('RATELIMIT_STORAGE_URI', 'memory://'),
 )
 
 
@@ -1846,7 +1846,14 @@ def _lesson_from_form():
 
 def _persist_lesson_attendance(lesson, roster):
     """Save attendance picks and sync faltas/missed_aulas into the lesson's review month."""
-    entries = parse_attendance_form(request.form)
+    allowed = {
+        (row.get('student_name') or '').strip()
+        for row in students_for_turma(roster, lesson.get('turma'))
+    }
+    entries = [
+        entry for entry in parse_attendance_form(request.form)
+        if (entry.get('student_name') or '').strip() in allowed
+    ]
     if not entries:
         return
     turma = lesson.get('turma', '')
@@ -2642,7 +2649,14 @@ def _reconcile_flagged_extra_sessions(students):
 
 
 def _realign_extra_sessions(roster):
-    """Open requests follow the student's current class/teacher; returns orphan row indexes."""
+    """Open requests follow the student's current class/teacher; returns orphan row indexes.
+
+    Only coordination persists the rewrite. A teacher loading the list must not
+    drop another teacher's unscheduled duplicate.
+    """
+    user = _current_user()
+    if not user or not has_full_data_access(user['role']):
+        return set()
     all_rows = _load_extra_sessions()
     updated, orphans = realign_open_sessions(all_rows, roster)
     if updated is not all_rows:
@@ -2808,50 +2822,122 @@ def _upload_page_context(user, messages=None, errors=None):
     }
 
 
+def _purge_related_student_records(removed_students):
+    """Drop attendance, reviews, snapshots, extra sessions, and photos for these students."""
+    if not removed_students:
+        return
+    from report_periods import student_snapshot_id as _sid
+
+    attendance = _load_lesson_attendance()
+    review_store = _load_monthly_review_store()
+    snaps = _load_snapshot_store()
+    extras = _load_extra_sessions()
+    photos = _load_student_photos()
+    photo_changed = False
+    snap_changed = False
+    reviews_changed = False
+    attendance_count = len(attendance)
+    extras_count = len(extras)
+    for removed in removed_students:
+        turma = removed.get('turma')
+        name = removed.get('student_name')
+        attendance = remove_attendance_for_student(attendance, turma, name)
+        if remove_reviews_for_student(review_store, turma, name):
+            reviews_changed = True
+        old_prefix = f'{(turma or "").strip()}|{_sid(turma, name)}|'
+        cleaned = {
+            key: row for key, row in snaps.items()
+            if not key.startswith(old_prefix)
+        }
+        if len(cleaned) != len(snaps):
+            snap_changed = True
+            snaps = cleaned
+        extras = remove_sessions_for_student(extras, removed)
+        photos, photo_removed = remove_student_photo(photos, turma, name)
+        photo_changed = photo_changed or photo_removed
+    if len(attendance) != attendance_count:
+        _save_lesson_attendance(attendance)
+    if reviews_changed:
+        _save_monthly_review_store(review_store)
+    if snap_changed:
+        _save_snapshot_store(snaps)
+    if len(extras) != extras_count:
+        _save_extra_sessions(extras)
+    if photo_changed:
+        _save_student_photos(photos)
+
+
+def _purge_attendance_for_lessons(lessons):
+    if not lessons:
+        return
+    attendance = _load_lesson_attendance()
+    before = len(attendance)
+    for lesson in lessons:
+        attendance = remove_attendance_for_lesson(
+            attendance, lesson.get('turma'), lesson.get('aula_num'),
+        )
+    if len(attendance) != before:
+        _save_lesson_attendance(attendance)
+
+
 def _delete_csv_dataset(name, user):
     """Remove uploaded CSV data. Admins clear all; teachers only their rows."""
     if name not in ('students', 'lessons'):
         abort(404)
 
-    if has_full_data_access(user['role']):
-        if db_store:
-            if name == 'students':
-                before = len(_load_students())
-                _save_students([])
-            else:
-                before = len(_load_lessons())
-                _save_lessons([])
-        else:
-            path = DATA_DIR / f'{name}.csv'
-            before = len(load_csv(path)) if path.exists() else 0
-            if path.exists():
-                path.unlink()
-        return before, True
-
-    teacher_key = normalize_teacher_name(user.get('teacher_name', '')).casefold()
-    if not teacher_key:
-        return 0, False
-
     if name == 'students':
         all_rows = _load_students()
+        if has_full_data_access(user['role']):
+            if db_store:
+                _save_students([])
+            else:
+                path = DATA_DIR / 'students.csv'
+                if path.exists():
+                    path.unlink()
+            _purge_related_student_records(all_rows)
+            return len(all_rows), True
+        teacher_key = normalize_teacher_name(user.get('teacher_name', '')).casefold()
+        if not teacher_key:
+            return 0, False
         kept = [
             row for row in all_rows
             if normalize_teacher_name(row.get('teacher', '')).casefold() != teacher_key
         ]
-        removed = len(all_rows) - len(kept)
+        removed_rows = [
+            row for row in all_rows
+            if normalize_teacher_name(row.get('teacher', '')).casefold() == teacher_key
+        ]
         _save_students(kept)
-        return removed, False
+        _purge_related_student_records(removed_rows)
+        return len(removed_rows), False
 
+    all_lessons = _load_lessons()
+    if has_full_data_access(user['role']):
+        if db_store:
+            _save_lessons([])
+        else:
+            path = DATA_DIR / 'lessons.csv'
+            if path.exists():
+                path.unlink()
+        _purge_attendance_for_lessons(all_lessons)
+        return len(all_lessons), True
+
+    teacher_key = normalize_teacher_name(user.get('teacher_name', '')).casefold()
+    if not teacher_key:
+        return 0, False
     all_students = _load_students()
     turmas = teacher_turmas(all_students, user.get('teacher_name', ''))
-    all_lessons = _load_lessons()
     kept = [
         row for row in all_lessons
         if row.get('turma', '').strip() not in turmas
     ]
-    removed = len(all_lessons) - len(kept)
+    removed_lessons = [
+        row for row in all_lessons
+        if row.get('turma', '').strip() in turmas
+    ]
     _save_lessons(kept)
-    return removed, False
+    _purge_attendance_for_lessons(removed_lessons)
+    return len(removed_lessons), False
 
 
 # ── Auth ─────────────────────────────────────────────────────────────────────────────
@@ -3746,40 +3832,7 @@ def student_delete(idx):
             removed = all_rows[global_idx]
             remaining = [row for i, row in enumerate(all_rows) if i != global_idx]
             if _save_students(remaining):
-                attendance = remove_attendance_for_student(
-                    _load_lesson_attendance(),
-                    removed.get('turma'),
-                    removed.get('student_name'),
-                )
-                _save_lesson_attendance(attendance)
-                review_store = _load_monthly_review_store()
-                remove_reviews_for_student(
-                    review_store,
-                    removed.get('turma'),
-                    removed.get('student_name'),
-                )
-                _save_monthly_review_store(review_store)
-                # Snapshots live in a separate store — purge them too so a
-                # recreated student with the same name doesn't inherit trends.
-                from report_periods import student_snapshot_id as _sid
-                snaps = _load_snapshot_store()
-                old_prefix = (
-                    f'{(removed.get("turma") or "").strip()}|'
-                    f'{_sid(removed.get("turma"), removed.get("student_name"))}|'
-                )
-                cleaned = {
-                    key: row for key, row in snaps.items()
-                    if not key.startswith(old_prefix)
-                }
-                if len(cleaned) != len(snaps):
-                    _save_snapshot_store(cleaned)
-                extras = remove_sessions_for_student(_load_extra_sessions(), removed)
-                _save_extra_sessions(extras)
-                photos, photo_removed = remove_student_photo(
-                    _load_student_photos(), removed.get('turma'), removed.get('student_name'),
-                )
-                if photo_removed:
-                    _save_student_photos(photos)
+                _purge_related_student_records([removed])
                 return _redirect_students(
                     flash_ok=f'Aluno "{removed.get("student_name", "")}" excluído.',
                 )
@@ -3874,6 +3927,7 @@ def lesson_edit(idx):
         abort(404)
 
     if request.method == 'POST':
+        stored = dict(visible[idx])
         updated = _lesson_from_form()
         if not updated.get('turma') or not updated.get('aula_num'):
             abort(400)
@@ -3883,7 +3937,17 @@ def lesson_edit(idx):
         if global_idx is None:
             abort(404)
         all_rows[global_idx] = updated
-        _save_lessons(_sort_lessons(all_rows))
+        if not _save_lessons(_sort_lessons(all_rows)):
+            return _redirect_lessons(flash_error=LIST_CHANGED_MESSAGE)
+        old_turma = (stored.get('turma') or '').strip()
+        new_turma = (updated.get('turma') or '').strip()
+        old_aula = str(stored.get('aula_num') or '').strip()
+        new_aula = str(updated.get('aula_num') or '').strip()
+        if old_turma != new_turma or old_aula != new_aula:
+            attendance = remove_attendance_for_lesson(
+                _load_lesson_attendance(), old_turma, stored.get('aula_num'),
+            )
+            _save_lesson_attendance(attendance)
         _persist_lesson_attendance(updated, _load_roster_students())
         lesson_month = parse_lesson_month(updated.get('date', ''))
         if lesson_month:
@@ -3922,7 +3986,8 @@ def lesson_new():
         if not _teacher_may_use_turma(new_row['turma'], all_students, user):
             abort(403)
         all_rows.append(new_row)
-        _save_lessons(_sort_lessons(all_rows))
+        if not _save_lessons(_sort_lessons(all_rows)):
+            return _redirect_lessons(flash_error=LIST_CHANGED_MESSAGE)
         _persist_lesson_attendance(new_row, _load_roster_students())
         lesson_month = parse_lesson_month(new_row.get('date', ''))
         if lesson_month:
@@ -4174,8 +4239,11 @@ def extra_session_edit(idx):
         if user['role'] == ROLE_TEACHER:
             # The student's teacher and the class assignment belong to the row, not to whoever
             # edits it (a teacher giving another teacher's reforço must not take the student over).
+            # Date, time, marcado, and realizado go through /schedule and /outcome.
             updated['teacher'] = current.get('teacher') or user.get('teacher_name', '')
             updated['assigned_teacher'] = current.get('assigned_teacher', '')
+            for field in ('date', 'horario', 'turno', 'marcado', 'realizado'):
+                updated[field] = current.get(field, '')
         if not updated.get('student_name'):
             abort(400)
         date_error = ''
@@ -4485,6 +4553,12 @@ def upload():
                     if validation_errors:
                         errors.append(f'Erro no CSV de {label}: {validation_errors[0]}')
                         continue
+                elif request.form.get('confirm_replace') != '1':
+                    what = 'alunos' if key == 'students' else 'aulas'
+                    errors.append(
+                        f'Confirme que este arquivo substitui todos os {what} da escola.'
+                    )
+                    continue
 
                 try:
                     _save_upload_dataset(key, rows, user, students_after_upload)
@@ -4496,7 +4570,8 @@ def upload():
                     messages.append(success)
                 except OSError as exc:
                     errors.append(f'Erro ao salvar {label}: {exc}')
-    return render_template('upload.html', **_upload_page_context(user, messages, errors))
+    status = 400 if any('substitui todos os' in msg for msg in errors) else 200
+    return render_template('upload.html', **_upload_page_context(user, messages, errors)), status
 
 
 @app.route('/upload/delete/<name>', methods=['POST'])
@@ -5436,7 +5511,10 @@ def _live_render_individual_preview(path):
     all_students, students = _scoped_students(
         review_month=month, apply_attendance=True,
     )
-    _, lessons = _scoped_lessons(all_students)
+    file_semester = semester_for_month(month) if month else ''
+    _, lessons = _scoped_lessons(all_students, semester_id=file_semester)
+    if month:
+        lessons = filter_lessons_by_month(lessons, month)
     turma, student_name = _student_for_report_file(path, students, month)
     if not turma:
         turma, student_name = _student_for_report_file(path, all_students, month)
@@ -5488,7 +5566,10 @@ def _live_render_class_preview(path):
     all_students, students = _scoped_students(
         review_month=month, apply_attendance=True,
     )
-    _, lessons = _scoped_lessons(all_students)
+    file_semester = semester_for_month(month) if month else ''
+    _, lessons = _scoped_lessons(all_students, semester_id=file_semester)
+    if month:
+        lessons = filter_lessons_by_month(lessons, month)
     group = [
         row for row in students
         if not row.get('_transfer_alias')
@@ -5535,21 +5616,47 @@ def download_report(filename):
     return send_file(path, as_attachment=True)
 
 
+def _report_file_matches_filters(path, students, month='', turma='', report_kind=''):
+    name = Path(path).name
+    is_diagnostic = 'class_diagnostic' in name
+    if report_kind == 'diagnostic' and not is_diagnostic:
+        return False
+    if report_kind == 'individual' and is_diagnostic:
+        return False
+    file_month = report_month_from_filename(name) or ''
+    if month and file_month != month:
+        return False
+    if not turma:
+        return True
+    if is_diagnostic:
+        return (_turma_from_diagnostic_filename(name) or '').strip() == turma
+    file_turma, _ = _student_for_report_file(path, students, file_month)
+    return (file_turma or '').strip() == turma
+
+
 @app.route('/reports/download-all')
 @login_required
 def download_all():
     all_students, _ = _scoped_students()
     _, lessons = _scoped_lessons(all_students)
     selected_month = (request.args.get('month') or '').strip()
+    selected_turma = (request.args.get('turma') or '').strip()
+    report_kind = (request.args.get('report_kind') or '').strip()
     available_months = available_report_months(lessons)
     if selected_month and selected_month not in available_months:
         selected_month = ''
+    students_for_reports = _students_with_report_aliases(all_students)
     files = filter_reports_for_user(
         sorted(OUT_DIR.glob('*.html')),
-        _students_with_report_aliases(all_students),
+        students_for_reports,
         _current_user(),
     )
-    files = filter_report_files_by_month(files, selected_month)
+    files = [
+        path for path in files
+        if _report_file_matches_filters(
+            path, students_for_reports, selected_month, selected_turma, report_kind,
+        )
+    ]
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
         for f in files:

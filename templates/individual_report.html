@@ -174,7 +174,15 @@ body {
 .bar-note { font-size: 9.5px; color: var(--mw-muted); line-height: 1.3; margin-top: 3px; }
 
 /* Recomendações */
-.recs p { font-size: 11.5px; line-height: 1.45; color: var(--mw-ink); }
+.recs p {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--mw-ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .recs .empty { color: var(--mw-muted); }
 
 @media screen {

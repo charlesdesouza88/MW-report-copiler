@@ -32,7 +32,10 @@ def school(monkeypatch, tmp_path):
 
 
 def upload(client, csv_text):
-    return client.post("/upload", data={"students": (io.BytesIO(csv_text.encode()), "alunos.csv")})
+    return client.post("/upload", data={
+        "students": (io.BytesIO(csv_text.encode()), "alunos.csv"),
+        "confirm_replace": "1",
+    })
 
 
 def test_teachers_cannot_reach_backups(school):
@@ -62,8 +65,8 @@ def test_deleting_all_students_can_be_undone(school):
     admin, store = school["admin"], school["store"]
     admin.post("/upload/delete/students")
     assert store.load_students() == []
-    point = next(b for b in store.list_backups() if b["reason"] == "Remoção de CSV")
-    admin.post(f"/admin/backups/{point['id']}/restore")
+    points = [b for b in store.list_backups() if b["reason"] == "Remoção de CSV"]
+    admin.post("/admin/backups/restore-group", data={"backup_id": [b["id"] for b in points]})
     assert [s["student_name"] for s in store.load_students()] == ["Jane Doe"]
 
 

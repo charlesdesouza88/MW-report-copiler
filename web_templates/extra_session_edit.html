@@ -33,8 +33,7 @@
       <div class="form-group">
         <label>{{ field_labels.teacher }}</label>
         {% if current_user and current_user.role == 'teacher' %}
-        <input type="text" value="{{ current_user.teacher_name or session.teacher or '' }}" readonly style="background:#f4f4f4;">
-        <input type="hidden" name="teacher" value="{{ current_user.teacher_name or session.teacher or '' }}">
+        <input type="text" value="{{ session.teacher or '' }}" readonly style="background:#f4f4f4;">
         {% else %}
         <input type="text" name="teacher" value="{{ session.teacher or '' }}" list="teacher-names" placeholder="Amanda">
         <datalist id="teacher-names">
@@ -73,14 +72,29 @@
       </div>
       <div class="form-group">
         <label>{{ field_labels.turno }}</label>
+        {% if current_user and current_user.role == 'teacher' %}
+        <input type="text" value="{{ session.turno or '—' }}" readonly style="background:#f4f4f4;">
+        {% else %}
         <select name="turno">
           <option value="" {% if not session.turno %}selected{% endif %}>—</option>
           <option value="Manhã" {% if session.turno == 'Manhã' %}selected{% endif %}>Manhã</option>
           <option value="Tarde" {% if session.turno == 'Tarde' %}selected{% endif %}>Tarde</option>
         </select>
+        {% endif %}
       </div>
+      {% if current_user and current_user.role == 'teacher' %}
+      <div class="form-group">
+        <label>{{ field_labels.date }}</label>
+        <input type="text" value="{{ session.date or 'A coordenação define' }}" readonly style="background:#f4f4f4;">
+      </div>
+      <div class="form-group">
+        <label>{{ field_labels.horario }}</label>
+        <input type="text" value="{{ session.horario or '—' }}" readonly style="background:#f4f4f4;">
+      </div>
+      {% else %}
       {{ date_picker(session.date, field_labels.date) }}
       {{ time_picker(session.horario, field_labels.horario) }}
+      {% endif %}
     </div>
   </div>
 
@@ -108,18 +122,27 @@
       </div>
       <div class="form-group">
         <label>{{ field_labels.marcado }}</label>
+        {% if current_user and current_user.role == 'teacher' %}
+        <input type="text" value="{{ 'OK' if is_status_ok(session.marcado) else '—' }}" readonly style="background:#f4f4f4;">
+        {% else %}
         <select name="marcado">
           <option value="" {% if not session.marcado %}selected{% endif %}>—</option>
           <option value="OK" {% if is_status_ok(session.marcado) %}selected{% endif %}>OK</option>
         </select>
+        {% endif %}
       </div>
       <div class="form-group">
         <label>{{ field_labels.realizado }}</label>
+        {% if current_user and current_user.role == 'teacher' %}
+        <input type="text" value="{% if is_status_ok(session.realizado) %}OK{% elif session.realizado == 'NÃO' %}NÃO / Faltou{% else %}—{% endif %}" readonly style="background:#f4f4f4;">
+        <p class="font-sm text-gray" style="margin-top:6px;">Use Registrar resultado na lista de atendimentos.</p>
+        {% else %}
         <select name="realizado">
           <option value="" {% if not session.realizado %}selected{% endif %}>—</option>
           <option value="OK" {% if is_status_ok(session.realizado) %}selected{% endif %}>OK</option>
           <option value="NÃO" {% if session.realizado == 'NÃO' %}selected{% endif %}>NÃO / Faltou</option>
         </select>
+        {% endif %}
       </div>
     </div>
   </div>

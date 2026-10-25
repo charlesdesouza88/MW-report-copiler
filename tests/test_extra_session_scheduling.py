@@ -150,15 +150,66 @@ def test_class_teacher_can_record_the_class_but_not_take_over_or_delete(school):
     for i in edit_links:  # whichever index is Jane's, the forged owner/assignment must not stick
         paula.post(f"/extra-sessions/{i}/edit", data={
             **ident, "student_name": row["student_name"], "turma": "MASTER", "teacher": "Paula",
-            "assigned_teacher": "Somebody Else", "session_type": "Reposição", "date_picker": "2026-10-20",
-            "realizado": "OK",
+            "assigned_teacher": "Somebody Else", "session_type": "Reposição", "date_picker": "2026-10-27",
+            "horario": "14:00", "turno": "Tarde", "marcado": "", "realizado": "OK",
         })
     row = _jane_reposicao(school)
-    assert (row["teacher"], row["assigned_teacher"], row["realizado"]) == ("Chuck", "Paula", "OK")
+    assert (row["teacher"], row["assigned_teacher"]) == ("Chuck", "Paula")
+    assert row["date"] == "20/10/2026"
+    assert row["realizado"] != "OK"
+    assert row["marcado"] == "OK"
 
     for i in edit_links:
         paula.post(f"/extra-sessions/{i}/delete", data={**ident, "orig_date": row["date"]})
     _jane_reposicao(school)  # still there: only Chuck or the coordination may delete it
+
+
+def test_teacher_edit_cannot_schedule_or_record_result(school):
+    chuck = _client("chuck@test.local", "chuckpass")
+    admin = _client("admin@test.local", "testpass")
+    paula = school["paula"]
+    _flag_jane(chuck)
+    _schedule(admin, horario="09:00")
+    row = _jane_reposicao(school)
+    idx = sorted(set(int(i) for i in re.findall(
+        r'/extra-sessions/(\d+)/edit', paula.get("/extra-sessions").get_data(as_text=True))))[0]
+
+    form = paula.get(f"/extra-sessions/{idx}/edit").get_data(as_text=True)
+    assert 'name="date_picker"' not in form
+    assert 'name="horario"' not in form
+    assert 'name="turno"' not in form
+    assert 'name="marcado"' not in form
+    assert 'name="realizado"' not in form
+    assert 'name="teacher"' not in form
+    assert "Chuck" in form
+    assert "Paula" not in form.split("Aluno e professor", 1)[1].split("Agendamento", 1)[0]
+
+    ident = _ident(row)
+    paula.post(f"/extra-sessions/{idx}/edit", data={
+        **ident, "student_name": row["student_name"], "turma": "MASTER",
+        "session_type": "Reposição", "date_picker": "2026-10-27", "horario": "14:00",
+        "turno": "Tarde", "marcado": "", "realizado": "OK", "motivo": "Kept by teacher",
+    })
+    row = _jane_reposicao(school)
+    assert row["date"] == "20/10/2026"
+    assert row["horario"] == "09:00"
+    assert row["turno"] == ""
+    assert row["marcado"] == "OK"
+    assert row["realizado"] != "OK"
+    assert row["motivo"] == "Kept by teacher"
+
+    admin.post(f"/extra-sessions/{idx}/edit", data={
+        **_ident(row), "student_name": row["student_name"], "turma": "MASTER",
+        "teacher": "Chuck", "assigned_teacher": "Paula", "session_type": "Reposição",
+        "date_picker": "21/10/2026", "horario": "10:00", "turno": "Tarde", "marcado": "OK",
+    })
+    row = _jane_reposicao(school)
+    assert (row["date"], row["horario"], row["turno"]) == ("21/10/2026", "10:00", "Tarde")
+
+    page = paula.get("/extra-sessions").get_data(as_text=True)
+    out_idx = int(re.search(r'data-scheduled="(\d+)"', page).group(1))
+    paula.post(f"/extra-sessions/{out_idx}/outcome", data={**_ident(row), "result": "OK"})
+    assert _jane_reposicao(school)["realizado"] == "OK"
 
 
 def _ident(row):
@@ -353,6 +404,32 @@ def test_orphan_label_stays_on_its_own_row(school):
     page = _client("admin@test.local", "testpass").get("/extra-sessions").get_data(as_text=True)
     assert page.count("Aluno não encontrado no cadastro") == 1
     assert "Aluno não encontrado" not in page.split('id="concluidas"', 1)[1]
+
+
+def test_teacher_get_does_not_drop_another_teachers_duplicate(school):
+    chuck = _client("chuck@test.local", "chuckpass")
+    paula = school["paula"]
+    admin = _client("admin@test.local", "testpass")
+    _flag_jane(chuck)
+    row = _jane_reposicao(school)
+    _add_session_rows(school, dict(row))
+    jane_repos = [
+        r for r in _sessions(school)
+        if r["session_type"] == "Reposição" and r["turma"] == "MASTER"
+    ]
+    assert len(jane_repos) == 2
+    paula.get("/extra-sessions")
+    jane_repos = [
+        r for r in _sessions(school)
+        if r["session_type"] == "Reposição" and r["turma"] == "MASTER"
+    ]
+    assert len(jane_repos) == 2
+    admin.get("/extra-sessions")
+    jane_repos = [
+        r for r in _sessions(school)
+        if r["session_type"] == "Reposição" and r["turma"] == "MASTER"
+    ]
+    assert len(jane_repos) == 1
 
 
 def test_duplicate_requests_merge_but_booked_or_reasoned_ones_stay():
