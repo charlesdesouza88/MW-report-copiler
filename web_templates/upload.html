@@ -126,6 +126,12 @@
                  onchange="this.closest('form').querySelector('.file-name').textContent = this.files[0]?.name || ''">
           <div class="file-name" style="min-height:18px; color:#792D83; font-size:12px; font-weight:800;"></div>
         </label>
+        {% if can_upload_all_csv %}
+        <label style="display:flex; gap:8px; align-items:flex-start; margin:0 0 12px; font-size:12px; color:#5A1A64; line-height:1.45;">
+          <input type="checkbox" name="confirm_replace" value="1" required style="margin-top:2px;">
+          <span>Substituir todos os alunos da escola. Esta ação não pode ser desfeita.</span>
+        </label>
+        {% endif %}
         <button type="submit" class="btn btn-primary btn-sm" style="width:100%; justify-content:center; margin-bottom:12px;">{{ icon('upload', 16) }} Fazer upload</button>
       </form>
       <div class="inline-actions" style="margin-bottom:16px;">
@@ -222,6 +228,12 @@
                  onchange="this.closest('form').querySelector('.file-name').textContent = this.files[0]?.name || ''">
           <div class="file-name" style="min-height:18px; color:#792D83; font-size:12px; font-weight:800;"></div>
         </label>
+        {% if can_upload_all_csv %}
+        <label style="display:flex; gap:8px; align-items:flex-start; margin:0 0 12px; font-size:12px; color:#5A1A64; line-height:1.45;">
+          <input type="checkbox" name="confirm_replace" value="1" required style="margin-top:2px;">
+          <span>Substituir todas as aulas da escola. Esta ação não pode ser desfeita.</span>
+        </label>
+        {% endif %}
         <button type="submit" class="btn btn-primary btn-sm" style="width:100%; justify-content:center; margin-bottom:12px;">{{ icon('upload', 16) }} Fazer upload</button>
       </form>
       <div class="inline-actions" style="margin-bottom:16px;">

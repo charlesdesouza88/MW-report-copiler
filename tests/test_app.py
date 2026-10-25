@@ -505,7 +505,7 @@ def test_reports_page_unified_filter_markup(monkeypatch, tmp_path):
     assert 'data-report-kind="individual"' in html
     assert 'data-report-kind="diagnostic"' in html
     assert 'data-month="2026-03"' in html
-    assert 'urlKeys: ["month"]' in html
+    assert 'urlKeys: ["month", "turma", "report_kind"]' in html
     assert "Relatórios (" in html
     assert "Diagnóstico de turma" in html
 
@@ -631,6 +631,38 @@ def test_reports_preview_live_renders_individual_report(monkeypatch, tmp_path):
     assert 'class="cal-grid"' in html
     assert "<b>Período</b>" in html
     assert "stale report without layout" not in html
+
+
+def test_reports_preview_uses_file_month_not_session_semester(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    out_dir = tmp_path / "output"
+    data_dir.mkdir()
+    out_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,15/01/2026,January lesson,,\n"
+        "MASTER,2,15/09/2026,September lesson,,\n",
+        encoding="utf-8",
+    )
+    (out_dir / "MASTER_Jane_Doe_2026-01_report.html").write_text("<html>stale</html>", encoding="utf-8")
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", out_dir)
+    monkeypatch.setattr(web_app, "TMPL_DIR", Path(web_app.__file__).parent / "templates")
+    monkeypatch.setattr(web_app, "SNAPSHOTS_PATH", data_dir / "student_snapshots.json")
+    _init_user_store(monkeypatch, data_dir)
+    _seed_teacher_classes(data_dir, "Chuck", ("MASTER", "Masters"))
+
+    client = web_app.app.test_client()
+    _login(client)
+    with client.session_transaction() as sess:
+        sess["review_month"] = "2026-09"
+        sess["review_semester"] = "2026-S2"
+
+    html = client.get("/reports/preview/MASTER_Jane_Doe_2026-01_report.html").get_data(as_text=True)
+    assert "Janeiro 2026" in html
+    assert "Sem aulas neste período" not in html
 
 
 def test_upload_invalid_students_csv_shows_error_and_does_not_crash(monkeypatch, tmp_path):
@@ -2481,6 +2513,165 @@ def test_teacher_delete_only_own_students(monkeypatch, tmp_path):
     assert "Bob Smith" in remaining
 
 
+def test_admin_upload_requires_confirm_replace(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+    upload_page = client.get("/upload").get_data(as_text=True)
+    assert 'name="confirm_replace"' in upload_page
+    assert "Substituir todos os alunos da escola" in upload_page
+
+    replacement = _students_csv().replace("Jane Doe", "Wrong Kid")
+    blocked = client.post(
+        "/upload",
+        data={"students": (io.BytesIO(replacement.encode()), "students.csv")},
+        content_type="multipart/form-data",
+    )
+    assert blocked.status_code == 400
+    assert "substitui todos os alunos" in blocked.get_data(as_text=True)
+    assert "Jane Doe" in (data_dir / "students.csv").read_text(encoding="utf-8")
+    assert "Wrong Kid" not in (data_dir / "students.csv").read_text(encoding="utf-8")
+
+    saved = client.post(
+        "/upload",
+        data={
+            "students": (io.BytesIO(replacement.encode()), "students.csv"),
+            "confirm_replace": "1",
+        },
+        content_type="multipart/form-data",
+    )
+    assert saved.status_code == 200
+    text = (data_dir / "students.csv").read_text(encoding="utf-8")
+    assert "Wrong Kid" in text
+    assert "Jane Doe" not in text
+
+
+def test_admin_delete_students_csv_cascades_related_records(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(_lessons_csv(), encoding="utf-8")
+    (data_dir / "lesson_attendance.csv").write_text(
+        "turma,aula_num,student_name,status\nMASTER,2,Jane Doe,absent\n",
+        encoding="utf-8",
+    )
+    (data_dir / "extra_sessions.csv").write_text(
+        "teacher,student_name,turma,date,horario,turno,session_type,assuntos,observacao,contatado,marcado,realizado\n"
+        "Chuck,Jane Doe,MASTER,10/02/2026,09:00,Manhã,Reposição,,,,,\n",
+        encoding="utf-8",
+    )
+    (data_dir / "student_monthly_reviews.json").write_text(
+        json.dumps([{
+            "report_month": "2026-02",
+            "turma": "MASTER",
+            "student_name": "Jane Doe",
+            "participacao": "4",
+        }]),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "MONTHLY_REVIEWS_PATH", data_dir / "student_monthly_reviews.json")
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+
+    client = web_app.app.test_client()
+    _login(client)
+    response = client.post("/upload/delete/students", follow_redirects=True)
+    assert response.status_code == 200
+    assert not (data_dir / "students.csv").exists()
+    assert "Jane Doe" not in (data_dir / "lesson_attendance.csv").read_text(encoding="utf-8")
+    assert "Jane Doe" not in (data_dir / "extra_sessions.csv").read_text(encoding="utf-8")
+    assert json.loads((data_dir / "student_monthly_reviews.json").read_text(encoding="utf-8")) == []
+
+
+def test_download_all_zip_honors_turma_and_kind_filters(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    out_dir = tmp_path / "output"
+    data_dir.mkdir()
+    out_dir.mkdir()
+    header, jane = _students_csv().strip().split("\n")
+    bob = jane.replace("Chuck,MASTER,Masters", "Chuck,SPARK,Spark").replace("Jane Doe", "Bob Smith")
+    (data_dir / "students.csv").write_text(f"{header}\n{jane}\n{bob}\n", encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,01/03/2026,L1,,\nSPARK,1,02/03/2026,L1,,\n",
+        encoding="utf-8",
+    )
+    (out_dir / "MASTER_Jane_Doe_2026-03_report.html").write_text("jane", encoding="utf-8")
+    (out_dir / "MASTER_2026-03_class_diagnostic.html").write_text("diag", encoding="utf-8")
+    (out_dir / "SPARK_Bob_Smith_2026-03_report.html").write_text("bob", encoding="utf-8")
+    _init_user_store(monkeypatch, data_dir)
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", out_dir)
+    monkeypatch.setattr(web_app, "SNAPSHOTS_PATH", data_dir / "student_snapshots.json")
+    _seed_teacher_classes(data_dir, "Chuck", ("MASTER", "Masters"), ("SPARK", "Spark"))
+
+    client = web_app.app.test_client()
+    _login(client)
+    reports_html = client.get("/reports").get_data(as_text=True)
+    assert 'data-filter-query-href="' in reports_html
+    archive = client.get("/reports/download-all?month=2026-03&turma=MASTER&report_kind=individual")
+    assert archive.status_code == 200
+    names = zipfile.ZipFile(io.BytesIO(archive.data)).namelist()
+    assert names == ["MASTER_Jane_Doe_2026-03_report.html"]
+
+
+def test_lesson_edit_skips_attendance_when_lesson_save_fails(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "students.csv").write_text(_students_csv(), encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,15/05/2026,Lesson 1,,\n",
+        encoding="utf-8",
+    )
+    (data_dir / "lesson_attendance.csv").write_text(
+        "turma,aula_num,student_name,status\nMASTER,1,Jane Doe,present\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(web_app, "db_store", None)
+    web_app.OUT_DIR.mkdir()
+    _init_user_store(monkeypatch, data_dir)
+    monkeypatch.setattr(web_app, "_save_lessons", lambda *_a, **_k: False)
+
+    client = web_app.app.test_client()
+    _login(client)
+    response = client.post(
+        "/lessons/0/edit",
+        data={
+            "orig_turma": "MASTER",
+            "orig_aula_num": "1",
+            "orig_date": "15/05/2026",
+            "turma": "MASTER",
+            "aula_num": "1",
+            "date_picker": "15/05/2026",
+            "licao_conteudo": "Hacked",
+            "attendance_count": "1",
+            "attendance_student_0": "Jane Doe",
+            "attendance_status_0": "absent",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "A lista mudou" in response.get_data(as_text=True)
+    lessons = (data_dir / "lessons.csv").read_text(encoding="utf-8")
+    assert "Hacked" not in lessons
+    attendance = (data_dir / "lesson_attendance.csv").read_text(encoding="utf-8")
+    assert "absent" not in attendance
+    assert "present" in attendance
+
+
 def test_teacher_upload_rejects_other_teacher_rows(monkeypatch, tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
@@ -2592,6 +2783,8 @@ def test_teacher_upload_merges_without_wiping_other_teachers(monkeypatch, tmp_pa
 
     client = web_app.app.test_client()
     _login(client, email="teacher@test.local", password="teachpass")
+    upload_page = client.get("/upload").get_data(as_text=True)
+    assert 'name="confirm_replace"' not in upload_page
     response = client.post(
         "/upload",
         data={"students": (io.BytesIO(_students_csv().encode()), "students.csv")},

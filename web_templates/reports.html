@@ -11,7 +11,9 @@
   <span class="page-toolbar-label">Ações</span>
   <div class="page-toolbar-actions">
     {% if report_rows %}
-    <a href="{{ url_for('download_all', month=selected_month) if selected_month else url_for('download_all') }}" class="btn btn-outline btn-sm">{{ icon_download(16) }} Baixar todos (.zip)</a>
+    <a href="{{ url_for('download_all', month=selected_month) if selected_month else url_for('download_all') }}"
+       data-filter-query-href="{{ url_for('download_all') }}"
+       class="btn btn-outline btn-sm">{{ icon_download(16) }} Baixar todos (.zip)</a>
     {% endif %}
     <form method="post" action="{{ url_for('generate') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -226,6 +228,6 @@ function openPrint(e, url) {
 }
 </script>
 {% if report_rows %}
-{{ list_filter_script('.report-row', 'reports', '#filter-reports', ['month'], {'month': selected_month} if selected_month else none) }}
+{{ list_filter_script('.report-row', 'reports', '#filter-reports', ['month', 'turma', 'report_kind'], {'month': selected_month} if selected_month else none) }}
 {% endif %}
 {% endblock %}

@@ -247,3 +247,65 @@ def test_form_shows_late_arrivals_and_autosave_cannot_change_faltas(monkeypatch,
     may = [r for r in json.loads(reviews_path.read_text()) if r["report_month"] == "2026-05"]
     assert may[0]["speaking"] == "5"
     assert may[0]["faltas"] == "1" and may[0]["missed_aulas"] == "1"
+
+
+def test_lesson_edit_turma_change_drops_old_attendance(monkeypatch, tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    header, jane = _students_csv().strip().split("\n")
+    bob = jane.replace("MASTER,Masters", "SPARK,Spark").replace("Jane Doe", "Bob Smith")
+    (data_dir / "students.csv").write_text(f"{header}\n{jane}\n{bob}\n", encoding="utf-8")
+    (data_dir / "teacher_classes.json").write_text("{}", encoding="utf-8")
+    (data_dir / "lessons.csv").write_text(
+        "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
+        "MASTER,1,15/05/2026,Lesson 1,,\n",
+        encoding="utf-8",
+    )
+    (data_dir / "lesson_attendance.csv").write_text(
+        "turma,aula_num,student_name,status\n"
+        "MASTER,1,Jane Doe,absent\n",
+        encoding="utf-8",
+    )
+
+    store = UserStore(db_store=None, json_path=data_dir / "users.json")
+    store.initialize()
+    store.create_teacher("chuck@test.local", "pass1234", "Chuck")
+
+    monkeypatch.setattr(web_app, "DATA_DIR", data_dir)
+    monkeypatch.setattr(web_app, "db_store", None)
+    monkeypatch.setattr(web_app, "OUT_DIR", tmp_path / "output")
+    web_app.OUT_DIR.mkdir()
+    monkeypatch.setattr(web_app, "user_store", store)
+    monkeypatch.setattr(web_app, "_monthly_migration_done", True)
+
+    client = web_app.app.test_client()
+    client.post("/login", data={"email": "chuck@test.local", "password": "pass1234"})
+
+    edit_html = client.get("/lessons/0/edit").get_data(as_text=True)
+    assert "rebuildAttendanceRows" in edit_html
+
+    response = client.post(
+        "/lessons/0/edit",
+        data={
+            "orig_turma": "MASTER",
+            "orig_aula_num": "1",
+            "orig_date": "15/05/2026",
+            "turma": "SPARK",
+            "aula_num": "1",
+            "date_picker": "15/05/2026",
+            "licao_conteudo": "Lesson 1",
+            "attendance_count": "2",
+            "attendance_student_0": "Jane Doe",
+            "attendance_status_0": "absent",
+            "attendance_student_1": "Bob Smith",
+            "attendance_status_1": "present",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    lessons = (data_dir / "lessons.csv").read_text(encoding="utf-8")
+    assert "SPARK,1,15/05/2026" in lessons
+    attendance = (data_dir / "lesson_attendance.csv").read_text(encoding="utf-8")
+    assert "Jane Doe" not in attendance
+    assert "Bob Smith" in attendance
+    assert "MASTER" not in attendance

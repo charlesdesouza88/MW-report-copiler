@@ -322,6 +322,7 @@ On the **web service**, set:
 | `OUT_DIR` | Recommended | Path on a mounted volume for generated reports. Without one, report files are cleared on every deploy and must be regenerated |
 | `MAX_UPLOAD_MB` | Optional | Upload size limit for CSVs and photos (default `5`) |
 | `WEB_CONCURRENCY` | Optional | gunicorn worker count (default `4`) |
+| `RATELIMIT_STORAGE_URI` | Optional | Flask-Limiter storage. Default `memory://` is per-worker. In production set a shared Redis URL (for example `redis://...`) so four gunicorn workers share one login counter |
 | `MW_ALLOW_REMOTE_DB` | Never in production | `1` lets a local maintenance command use a remote database (see below) |
 
 Copy `.env.example` for local development. Leave `DATABASE_URL` unset, or point it at localhost. The app will not open a remote database from a laptop, a test run, or `railway run`. Production connects because the Railway replica sets `RAILWAY_DEPLOYMENT_ID`. Set `MW_ALLOW_REMOTE_DB=1` only for a one-off maintenance command that must use the remote database.

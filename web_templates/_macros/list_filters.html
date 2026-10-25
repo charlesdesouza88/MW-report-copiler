@@ -210,6 +210,20 @@
           history.replaceState(null, '', url.pathname + url.search + url.hash);
         }
 
+        function syncFilterLinks() {
+          document.querySelectorAll('[data-filter-query-href]').forEach(function (el) {
+            var url = new URL(el.getAttribute('data-filter-query-href'), window.location.origin);
+            urlKeys.forEach(function (k) {
+              if (state[k]) {
+                url.searchParams.set(k, state[k]);
+              } else {
+                url.searchParams.delete(k);
+              }
+            });
+            el.setAttribute('href', url.pathname + url.search);
+          });
+        }
+
         function uniqueRowCount(nodeList) {
           var ids = {};
           nodeList.forEach(function (row, idx) {
@@ -258,6 +272,7 @@
           setChipUI();
           persist();
           if (syncUrlFlag) syncUrl();
+          syncFilterLinks();
         }
 
         function clearAll() {

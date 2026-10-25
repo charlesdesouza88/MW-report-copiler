@@ -46,7 +46,8 @@ def school(monkeypatch, tmp_path):
     store.create_teacher("paula@test.local", "paulapass", "Paula")
     for name, value in dict(user_store=store, DATA_DIR=data, OUT_DIR=out, TEACHER_CLASSES_PATH=path,
                             SNAPSHOTS_PATH=data / "student_snapshots.json",
-                            MONTHLY_REVIEWS_PATH=data / "student_monthly_reviews.json", db_store=None).items():
+                            MONTHLY_REVIEWS_PATH=data / "student_monthly_reviews.json", db_store=None,
+                            SUPERADMIN_EMAIL="admin@test.local", SUPERADMIN_PASSWORD="testpass").items():
         monkeypatch.setattr(web_app, name, value)
 
     def login(email, password):
