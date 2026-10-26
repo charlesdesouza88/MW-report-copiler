@@ -600,3 +600,30 @@ def test_swapped_date_helper():
     assert web_app.likely_swapped_date(done, "2026-S1") == ""  # already in its own semester
     assert web_app.likely_swapped_date({**done, "realizado": ""}, "2026-S2") == ""  # open classes show anyway
     assert web_app.likely_swapped_date({"realizado": "OK", "date": "02/11/2026"}, "2027-S1") == ""  # later, not earlier
+
+
+def test_semester_holding_only_a_swapped_class_is_selectable(school, monkeypatch):
+    # 11/02/2025 swapped is 02/11/2025: 2025-S2 has no lessons, yet the class must be reachable there.
+    _freeze_today(monkeypatch)
+    _add_session_rows(school, {"teacher": "Chuck", "student_name": "Jane Doe (MASTER)", "turma": "MASTER",
+                               "session_type": "Reforço", "assigned_teacher": "Chuck", "marcado": "OK",
+                               "realizado": "OK", "date": "11/02/2025", "assuntos": "Aula de 2025"})
+    admin = _client("admin@test.local", "testpass")
+    page = admin.get("/extra-sessions?semester=2025-S2").get_data(as_text=True)
+    assert 'value="2025-S2"' in page
+    assert "Aula de 2025" in page.split('data-stage="concluidas"', 1)[1]
+
+
+def test_teacher_completing_a_class_from_another_semester_is_told_to_ask_the_coordination(school, monkeypatch):
+    _freeze_today(monkeypatch)
+    _add_session_rows(school, {"teacher": "Chuck", "student_name": "Jane Doe (MASTER)", "turma": "MASTER",
+                               "session_type": "Aula extra", "assigned_teacher": "Chuck",
+                               "date": "15/03/2026", "horario": "17:00", "marcado": "OK"})
+    chuck = _client("chuck@test.local", "chuckpass")
+    row = next(r for r in _sessions(school) if r["session_type"] == "Aula extra")
+    page = chuck.get("/extra-sessions").get_data(as_text=True)
+    for i in sorted(set(int(i) for i in re.findall(r'/extra-sessions/(\d+)/outcome', page))):
+        chuck.post(f"/extra-sessions/{i}/outcome", data={**_ident(row), "result": "OK"})
+    page = html_lib.unescape(chuck.get("/extra-sessions").get_data(as_text=True))
+    assert "aparece em Concluídas do 1º semestre 2026" in page
+    assert "avise a coordenação o dia em que a aula aconteceu" in page and "corrija em Editar" not in page

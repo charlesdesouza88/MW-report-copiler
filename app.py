@@ -2206,8 +2206,14 @@ def _available_review_semesters(lessons):
         found.add(month_sid)
     if (request.endpoint or '').startswith('extra_session'):
         # A class dated in a semester with no lessons must still be reachable to fix its date.
-        found.update(filter(None, (semester_for_date(row.get('date', ''))
-                                   for row in _extra_session_rows_unbound())))
+        for row in _extra_session_rows_unbound():
+            sid = semester_for_date(row.get('date', ''))
+            if sid:
+                found.add(sid)
+            # ...and the semester a likely day/month swap really belongs to.
+            swapped_sid = semester_for_date(_swapped_day_month(row.get('date', '')))
+            if swapped_sid and likely_swapped_date(row, swapped_sid):
+                found.add(swapped_sid)
     return sorted(found)
 
 
@@ -2747,15 +2753,17 @@ def _other_semester_note(row):
     view = _get_review_semester()
     if not sid or not view or sid == view:
         return ''
+    user = _current_user()
+    coordination = bool(user and has_full_data_access(user['role']))
     if likely_swapped_date(row, view):
-        user = _current_user()
-        fix = ('Clique em Editar, digite a data da aula como dia/mês/ano e salve.'
-               if user and has_full_data_access(user['role'])
+        fix = ('Clique em Editar, digite a data da aula como dia/mês/ano e salve.' if coordination
                else 'Avise a coordenação o dia em que a aula aconteceu para corrigir a data.')
         return (f' Atenção: a data ficou {row.get("date")} ({semester_label(sid)}); o dia e o mês '
                 f'parecem trocados. {fix}')
+    fix = ('Se a data estiver errada, corrija em Editar (dia/mês/ano).' if coordination
+           else 'Se a data estiver errada, avise a coordenação o dia em que a aula aconteceu.')
     return (f' A data da aula é {row.get("date")}, então ela aparece em Concluídas do '
-            f'{semester_label(sid)}. Se a data estiver errada, corrija em Editar (dia/mês/ano).')
+            f'{semester_label(sid)}. {fix}')
 
 
 def _scoped_extra_sessions(semester_id=None):
