@@ -104,6 +104,7 @@ from extra_sessions import (
     session_sort_key,
     session_stage,
     session_when,
+    parse_session_date,
     school_today,
     short_horario,
     reconcile_flagged_students,
@@ -682,6 +683,7 @@ app.jinja_env.globals.update(
     report_month_from_filename=report_month_from_filename,
     parse_lesson_month=parse_lesson_month,
     semester_for_date=semester_for_date,
+    likely_swapped_date=lambda row, sid: likely_swapped_date(row, sid),
 )
 
 SAVE_CONFLICT_MESSAGE = (
@@ -2204,8 +2206,14 @@ def _available_review_semesters(lessons):
         found.add(month_sid)
     if (request.endpoint or '').startswith('extra_session'):
         # A class dated in a semester with no lessons must still be reachable to fix its date.
-        found.update(filter(None, (semester_for_date(row.get('date', ''))
-                                   for row in _extra_session_rows_unbound())))
+        for row in _extra_session_rows_unbound():
+            sid = semester_for_date(row.get('date', ''))
+            if sid:
+                found.add(sid)
+            # ...and the semester a likely day/month swap really belongs to.
+            swapped_sid = semester_for_date(_swapped_day_month(row.get('date', '')))
+            if swapped_sid and likely_swapped_date(row, swapped_sid):
+                found.add(swapped_sid)
     return sorted(found)
 
 
@@ -2692,23 +2700,40 @@ def _save_lesson_attendance(rows):
     return True
 
 
-def _extra_session_visible_in_semester(row, semester_id):
-    """Keep undated rows, this semester's rows, open classes, and finished
-    classes dated in an earlier semester.
+def _swapped_day_month(date_str):
+    """11/02/2026 -> 02/11/2026; '' when swapping cannot give another real date."""
+    when = parse_session_date(date_str)
+    if not when or when.day > 12 or when.day == when.month:
+        return ''
+    return f'{when.month:02d}/{when.day:02d}/{when.year}'
 
-    A finished class dated in a past semester (Daniel's 11/02 booking) used
-    to vanish from the semester on screen. It stays in Concluídas so the
-    result is visible; the date can still be corrected in Editar.
+
+def likely_swapped_date(row, semester_id):
+    """For a finished class dated in an earlier semester whose day and month look swapped
+    (the swapped date falls in the semester on screen), the swapped date; else ''.
+
+    Daniel's class was saved as 11/02/2026 (1st semester) and vanished from the 2nd. Only
+    such likely typos are pulled into the semester on screen, so real classes from past
+    semesters stay in their own semester.
     """
+    if not semester_id or not is_status_ok(row.get('realizado')):
+        return ''
+    row_sid = semester_for_date(row.get('date', ''))
+    viewed, dated = parse_semester_id(semester_id), parse_semester_id(row_sid)
+    if not viewed or not dated or not dated < viewed:
+        return ''
+    swapped = _swapped_day_month(row.get('date', ''))
+    return swapped if swapped and semester_for_date(swapped) == semester_id else ''
+
+
+def _extra_session_visible_in_semester(row, semester_id):
+    """Keep undated rows, this semester's rows, open classes, and finished classes whose
+    date looks like a day/month swap into this semester (so the date can be fixed)."""
     row_sid = semester_for_date(row.get('date', ''))
     if row_sid is None or row_sid == semester_id:
         return True
     if is_status_ok(row.get('realizado')):
-        viewed = parse_semester_id(semester_id)
-        dated = parse_semester_id(row_sid)
-        if viewed and dated and dated < viewed:
-            return True
-        return False
+        return bool(likely_swapped_date(row, semester_id))
     return True
 
 
@@ -2728,8 +2753,17 @@ def _other_semester_note(row):
     view = _get_review_semester()
     if not sid or not view or sid == view:
         return ''
-    return (f' A data registrada é {row.get("date")} ({semester_label(sid)}). '
-            f'A aula está em Concluídas. Se o dia e o mês estiverem trocados, corrija em Editar.')
+    user = _current_user()
+    coordination = bool(user and has_full_data_access(user['role']))
+    if likely_swapped_date(row, view):
+        fix = ('Clique em Editar, digite a data da aula como dia/mês/ano e salve.' if coordination
+               else 'Avise a coordenação o dia em que a aula aconteceu para corrigir a data.')
+        return (f' Atenção: a data ficou {row.get("date")} ({semester_label(sid)}); o dia e o mês '
+                f'parecem trocados. {fix}')
+    fix = ('Se a data estiver errada, corrija em Editar (dia/mês/ano).' if coordination
+           else 'Se a data estiver errada, avise a coordenação o dia em que a aula aconteceu.')
+    return (f' A data da aula é {row.get("date")}, então ela aparece em Concluídas do '
+            f'{semester_label(sid)}. {fix}')
 
 
 def _scoped_extra_sessions(semester_id=None):

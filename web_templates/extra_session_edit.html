@@ -86,12 +86,22 @@
       <div class="form-group">
         <label>{{ field_labels.date }}</label>
         <input type="text" value="{{ session.date or 'A coordenação define' }}" readonly style="background:#f4f4f4;">
+        {% if likely_swapped_date(session, review_semester) %}
+        <p class="font-sm" style="margin-top:6px; color:#8A5A00;">O dia e o mês desta data parecem trocados. Avise a coordenação o dia em que a aula aconteceu para corrigir.</p>
+        {% endif %}
       </div>
       <div class="form-group">
         <label>{{ field_labels.horario }}</label>
         <input type="text" value="{{ session.horario or '—' }}" readonly style="background:#f4f4f4;">
       </div>
       {% else %}
+      {% set swapped = likely_swapped_date(identity_row or session, review_semester) %}
+      {% if swapped %}
+      <div class="alert" role="note" style="grid-column:1 / -1; background:#FFFBEF; border:1px solid var(--gold-accent); color:var(--text);">
+        <strong>Confira a data.</strong> Esta aula foi salva como {{ (identity_row or session).date }}, mas o dia e o mês parecem trocados
+        (seria {{ swapped }}). Digite abaixo a data em que a aula aconteceu, no formato <b>dia/mês/ano</b>, e clique em Salvar.
+      </div>
+      {% endif %}
       {{ date_picker(session.date, field_labels.date) }}
       {{ time_picker(session.horario, field_labels.horario) }}
       {% endif %}

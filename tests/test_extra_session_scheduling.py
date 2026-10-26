@@ -525,11 +525,24 @@ def test_completed_class_dated_in_another_semester_says_where_it_went(school, mo
     assert any(loc.endswith("#concluidas") for loc in locations)
     page = html_lib.unescape(chuck.get("/extra-sessions").get_data(as_text=True))
     assert "registrada como realizada" in page
-    assert "A data registrada é 11/02/2026" in page and "corrija em Editar" in page
-    # The finished class stays on the semester on screen, under that month's filter.
+    # Chuck is a teacher: dates belong to the coordination, so he is told to ask them.
+    assert "o dia e o mês parecem trocados" in page and "Avise a coordenação" in page
+    # A likely day/month swap stays on the semester on screen, under the month on screen
+    # (so it is not filtered away), with steps for the teacher.
     concluidas = page.split('data-stage="concluidas"', 1)[1]
     assert "Revisão" in concluidas
     assert 'data-month="2026-09"' in concluidas
+    assert "Confira a data desta aula" in concluidas and "talvez a aula tenha sido em 02/11/2026" in concluidas
+    assert "Só a coordenação muda datas" in concluidas
+    # The coordination gets the steps, with a link to the edit form that shows the hint too.
+    admin = _client("admin@test.local", "testpass")
+    admin_done = html_lib.unescape(admin.get("/extra-sessions").get_data(as_text=True)).split('data-stage="concluidas"', 1)[1]
+    assert "dia/mês/ano" in admin_done and "Só a coordenação muda datas" not in admin_done
+    edit_idx = int(re.search(r'/extra-sessions/(\d+)/edit">Editar</a>\.</li>', admin_done).group(1))
+    edit = html_lib.unescape(admin.get(f"/extra-sessions/{edit_idx}/edit").get_data(as_text=True))
+    assert "Confira a data." in edit and "(seria 02/11/2026)" in edit
+    teacher_edit = html_lib.unescape(chuck.get(f"/extra-sessions/{edit_idx}/edit").get_data(as_text=True))
+    assert "parecem trocados. Avise a coordenação" in teacher_edit
     # That semester has no lessons here, but the class is still reachable to fix its date.
     s1 = chuck.get("/extra-sessions?semester=2026-S1").get_data(as_text=True)
     assert 'value="2026-S1"' in s1 and "Revisão" in s1
@@ -557,3 +570,60 @@ def test_edit_refuses_moving_a_class_into_a_past_semester(school, monkeypatch):
     else:
         raise AssertionError("past-semester date was not refused")
     assert _jane_reposicao(school)["date"] == "21/10/2026"
+
+
+def test_real_classes_from_past_semesters_stay_in_their_own_semester(school, monkeypatch):
+    # Only a likely day/month swap is pulled into the semester on screen.
+    _freeze_today(monkeypatch)
+    base = {"teacher": "Chuck", "student_name": "Jane Doe (MASTER)", "turma": "MASTER",
+            "assigned_teacher": "Chuck", "marcado": "OK", "realizado": "OK"}
+    _add_session_rows(school,
+                      {**base, "session_type": "Reforço", "date": "15/03/2026", "assuntos": "Março real"},
+                      {**base, "session_type": "Reforço", "date": "05/03/2026", "assuntos": "Swap fica no S1"},
+                      {**base, "session_type": "Reforço", "date": "10/02/2026", "assuntos": "Talvez outubro"})
+    chuck = _client("chuck@test.local", "chuckpass")
+    s2 = chuck.get("/extra-sessions?semester=2026-S2").get_data(as_text=True)
+    concluidas = s2.split('data-stage="concluidas"', 1)[1]
+    assert "Março real" not in concluidas and "Swap fica no S1" not in concluidas
+    assert "Talvez outubro" in concluidas
+    s1 = chuck.get("/extra-sessions?semester=2026-S1").get_data(as_text=True)
+    assert "Março real" in s1 and "Swap fica no S1" in s1
+    assert "Confira a data desta aula" not in s1.split('data-stage="concluidas"', 1)[1]
+
+
+def test_swapped_date_helper():
+    assert web_app._swapped_day_month("11/02/2026") == "02/11/2026"
+    assert web_app._swapped_day_month("15/03/2026") == ""  # 15 cannot be a month
+    assert web_app._swapped_day_month("05/05/2026") == ""  # same either way
+    done = {"realizado": "OK", "date": "11/02/2026"}
+    assert web_app.likely_swapped_date(done, "2026-S2") == "02/11/2026"
+    assert web_app.likely_swapped_date(done, "2026-S1") == ""  # already in its own semester
+    assert web_app.likely_swapped_date({**done, "realizado": ""}, "2026-S2") == ""  # open classes show anyway
+    assert web_app.likely_swapped_date({"realizado": "OK", "date": "02/11/2026"}, "2027-S1") == ""  # later, not earlier
+
+
+def test_semester_holding_only_a_swapped_class_is_selectable(school, monkeypatch):
+    # 11/02/2025 swapped is 02/11/2025: 2025-S2 has no lessons, yet the class must be reachable there.
+    _freeze_today(monkeypatch)
+    _add_session_rows(school, {"teacher": "Chuck", "student_name": "Jane Doe (MASTER)", "turma": "MASTER",
+                               "session_type": "Reforço", "assigned_teacher": "Chuck", "marcado": "OK",
+                               "realizado": "OK", "date": "11/02/2025", "assuntos": "Aula de 2025"})
+    admin = _client("admin@test.local", "testpass")
+    page = admin.get("/extra-sessions?semester=2025-S2").get_data(as_text=True)
+    assert 'value="2025-S2"' in page
+    assert "Aula de 2025" in page.split('data-stage="concluidas"', 1)[1]
+
+
+def test_teacher_completing_a_class_from_another_semester_is_told_to_ask_the_coordination(school, monkeypatch):
+    _freeze_today(monkeypatch)
+    _add_session_rows(school, {"teacher": "Chuck", "student_name": "Jane Doe (MASTER)", "turma": "MASTER",
+                               "session_type": "Aula extra", "assigned_teacher": "Chuck",
+                               "date": "15/03/2026", "horario": "17:00", "marcado": "OK"})
+    chuck = _client("chuck@test.local", "chuckpass")
+    row = next(r for r in _sessions(school) if r["session_type"] == "Aula extra")
+    page = chuck.get("/extra-sessions").get_data(as_text=True)
+    for i in sorted(set(int(i) for i in re.findall(r'/extra-sessions/(\d+)/outcome', page))):
+        chuck.post(f"/extra-sessions/{i}/outcome", data={**_ident(row), "result": "OK"})
+    page = html_lib.unescape(chuck.get("/extra-sessions").get_data(as_text=True))
+    assert "aparece em Concluídas do 1º semestre 2026" in page
+    assert "avise a coordenação o dia em que a aula aconteceu" in page and "corrija em Editar" not in page
