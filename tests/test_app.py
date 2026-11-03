@@ -2073,8 +2073,14 @@ def test_admin_student_new_teacher_dropdown_and_class_validation(monkeypatch, tm
     html = client.get("/students/new").get_data(as_text=True)
     assert 'id="teacher-select"' in html
     assert 'id="teacher-classes-data"' in html
+    assert 'id="class-choice"' in html
+    assert "Selecione o professor primeiro" in html
     assert "Yasmin" in html
     assert "Chuck" in html
+    # Classes are on the page before any save, so picking a teacher can fill Turma
+    # without a round trip. A failed save used to be the only way the select appeared.
+    assert '"turma": "ROOT"' in html or '"turma":"ROOT"' in html
+    assert '"turma": "MASTER"' in html or '"turma":"MASTER"' in html
 
     bad = client.post(
         "/students/new",

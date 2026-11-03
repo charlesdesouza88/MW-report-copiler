@@ -24,6 +24,8 @@
   /* A select is as wide as its longest option; keep the three feedback columns equal. */
   .form-group:has(> .feedback-select) { min-width: 0; }
   .feedback-select { width: 100%; min-width: 0; text-overflow: ellipsis; }
+  .manual-turma-fields { display: contents; }
+  .manual-turma-fields.is-hidden { display: none !important; }
 </style>
 {% if review_month %}
 <div class="review-banner">
@@ -157,19 +159,19 @@
         <input type="text" name="teacher" value="{{ student.teacher or '' }}">
         {% endif %}
       </div>
-      {% if needs_teacher_first %}
-      <div class="alert alert-info" style="grid-column: 1 / -1;">
-        Selecione o professor para ver as turmas disponíveis.
-      </div>
-      {% elif allow_teacher_class_pick %}
-      <div class="form-group" style="grid-column: 1 / -1;">
-        <label>Turma *</label>
-        <select name="class_choice" id="class-choice" required>
+      {% if (teacher_picker and current_user and current_user.role != 'teacher') or allow_teacher_class_pick %}
+      <div class="form-group" id="class-choice-group" style="grid-column: 1 / -1;" {% if use_manual_turma %}hidden{% endif %}>
+        <label for="class-choice">Turma *</label>
+        <select name="class_choice" id="class-choice" {% if needs_teacher_first or use_manual_turma or not teacher_class_options %}disabled{% else %}required{% endif %}>
+          {% if teacher_class_options and not needs_teacher_first %}
           {% for c in teacher_class_options %}
           <option value="{{ c.turma }}" {% if class_choice == c.turma %}selected{% endif %}>
             {{ c.turma_display }}{% if c.semester_id and c.semester_id != review_semester %} — {{ semester_label(c.semester_id) }}{% endif %}{% if c.horario %} — {{ c.horario }}{% elif c.needs_schedule %} — (complete no Dashboard){% endif %}
           </option>
           {% endfor %}
+          {% else %}
+          <option value="">{{ 'Selecione o professor primeiro' if needs_teacher_first else 'Nenhuma turma cadastrada para este professor' }}</option>
+          {% endif %}
         </select>
         <p class="font-sm text-gray" style="margin-top:6px;">
           {% if current_user and current_user.role == 'teacher' %}
@@ -180,21 +182,24 @@
           {% endif %}
         </p>
       </div>
+      {% if current_user and current_user.role != 'teacher' %}
+      <div id="manual-turma-fields" class="manual-turma-fields{% if not use_manual_turma %} is-hidden{% endif %}">
+        <div class="alert alert-warning" style="grid-column: 1 / -1;">
+          Este professor ainda não tem turmas no Dashboard. Cadastre uma turma ou use os campos abaixo para turmas legadas.
+        </div>
+        <div class="form-group">
+          <label>Turma (ID) *</label>
+          <input type="text" name="turma" value="{{ student.turma or '' }}" placeholder="ex: MASTER" {% if use_manual_turma %}required{% else %}disabled{% endif %}>
+        </div>
+        <div class="form-group">
+          <label>Turma (nome exibido)</label>
+          <input type="text" name="turma_display" value="{{ student.turma_display or '' }}" placeholder="ex: Masters" {% if not use_manual_turma %}disabled{% endif %}>
+        </div>
+      </div>
+      {% endif %}
       {% elif current_user and current_user.role == 'teacher' %}
       <div class="alert alert-warning" style="grid-column: 1 / -1;">
         Nenhuma turma cadastrada. <a href="{{ url_for('dashboard') }}#criar-turma">Crie uma turma no Dashboard</a> antes de salvar.
-      </div>
-      {% elif use_manual_turma %}
-      <div class="alert alert-warning" style="grid-column: 1 / -1;">
-        Este professor ainda não tem turmas no Dashboard. Cadastre uma turma ou use os campos abaixo para turmas legadas.
-      </div>
-      <div class="form-group">
-        <label>Turma (ID) *</label>
-        <input type="text" name="turma" value="{{ student.turma or '' }}" placeholder="ex: MASTER" required>
-      </div>
-      <div class="form-group">
-        <label>Turma (nome exibido)</label>
-        <input type="text" name="turma_display" value="{{ student.turma_display or '' }}" placeholder="ex: Masters">
       </div>
       {% else %}
       <div class="form-group">
@@ -438,20 +443,44 @@
     return label;
   }
 
+  function setManualMode(on) {
+    const manual = document.getElementById('manual-turma-fields');
+    const classGroup = document.getElementById('class-choice-group');
+    if (manual) {
+      manual.classList.toggle('is-hidden', !on);
+      manual.querySelectorAll('input').forEach(function (input) {
+        input.disabled = !on;
+        if (input.name === 'turma') input.required = on;
+      });
+    }
+    if (classGroup) classGroup.hidden = on;
+    if (classSelect && on) {
+      classSelect.disabled = true;
+      classSelect.required = false;
+    }
+  }
+
   function renderClassOptions(teacher, selectedTurma) {
     if (!classSelect || !dataEl) return;
     const classesByTeacher = JSON.parse(dataEl.textContent || '{}');
-    const options = classesByTeacher[teacher] || [];
+    const options = (teacher && classesByTeacher[teacher]) || [];
+    const manual = document.getElementById('manual-turma-fields');
     classSelect.innerHTML = '';
-    if (!options.length) {
+    if (!teacher || !options.length) {
+      if (teacher && manual) {
+        setManualMode(true);
+        return;
+      }
+      setManualMode(false);
       classSelect.disabled = true;
-      classSelect.removeAttribute('required');
+      classSelect.required = false;
       const placeholder = document.createElement('option');
       placeholder.value = '';
       placeholder.textContent = teacher ? 'Nenhuma turma cadastrada para este professor' : 'Selecione o professor primeiro';
       classSelect.appendChild(placeholder);
       return;
     }
+    setManualMode(false);
     classSelect.disabled = false;
     classSelect.required = true;
     options.forEach(function (option) {
