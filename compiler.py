@@ -779,7 +779,7 @@ def build_attendance_calendar(turma_lessons, missed, tardy_aula_nums, report_mon
     weeks = []
     for week in cal_weeks:
         row = []
-        for col_idx, day_num in enumerate(week):
+        for day_num in week:
             if day_num == 0:
                 row.append({'day': None, 'status': None})
             else:
