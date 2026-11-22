@@ -682,7 +682,7 @@ def ensure_semester_ids(data, lessons=None, default_semester=None):
     updated = 0
     if not isinstance(data, dict):
         return 0
-    for teacher_name, bucket in data.items():
+    for bucket in data.values():
         if not isinstance(bucket, list):
             continue
         for row in bucket:
