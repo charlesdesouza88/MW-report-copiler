@@ -2,8 +2,8 @@ from form_ui import turma_code_from_display
 from teacher_classes import (
     add_class,
     apply_registry_to_students,
-    count_students_in_turma,
     collapse_identical_class_copies,
+    count_students_in_turma,
     dedupe_class_options,
     ensure_semester_ids,
     find_class,

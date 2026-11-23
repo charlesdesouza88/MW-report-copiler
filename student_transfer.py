@@ -9,7 +9,7 @@ enrollment path stays traceable back to the first turma.
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from auth import normalize_teacher_name
@@ -180,7 +180,7 @@ def transfer_students(students, selected_names, from_turma, dest,
             + ', '.join(conflicts)
         )
 
-    timestamp = when or datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    timestamp = when or datetime.now(UTC).strftime('%Y-%m-%d')
     transferred = []
     for row in rows:
         name = (row.get('student_name') or '').strip()

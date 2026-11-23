@@ -5,9 +5,10 @@ import html as H
 import io
 import re
 
+from test_app import _init_user_store, _login, _students_csv
+
 import app as web_app
 from extra_sessions import EXTRA_SESSION_FIELDS
-from test_app import _init_user_store, _login, _students_csv
 
 LESSONS = (
     "turma,aula_num,date,licao_conteudo,atividade_extra,habilidades\n"
@@ -57,7 +58,7 @@ def _form(page_html, label, action_part):
     """Action and hidden fields of the first `action_part` form after `label` on the page."""
     start = page_html.index(label)
     match = re.search(r'<form[^>]*action="([^"]*' + re.escape(action_part) + r'[^"]*)".*?</form>',
-                      page_html[start:], re.S)
+                      page_html[start:], re.DOTALL)
     fields = {k: H.unescape(v) for k, v in re.findall(r'name="([^"]+)" value="([^"]*)"', match.group(0))}
     return H.unescape(match.group(1)), fields
 

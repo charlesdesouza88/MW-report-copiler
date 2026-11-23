@@ -8,7 +8,7 @@ import logging
 import os
 import re
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from auth import has_full_data_access, normalize_email
@@ -228,7 +228,7 @@ def upsert_profile(
         'specialty': (specialty or '').strip()[:_MAX_FIELD],
         'photo_mime': current.get('photo_mime') or '',
         'photo_base64': current.get('photo_base64') or '',
-        'updated_at': datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
+        'updated_at': datetime.now(UTC).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
     }
 
     if clear_photo:

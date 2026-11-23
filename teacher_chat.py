@@ -8,7 +8,7 @@ import os
 import re
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from auth import ROLE_ADMIN, ROLE_SUPERADMIN, ROLE_TEACHER, has_full_data_access
@@ -49,7 +49,7 @@ def author_display_name(user):
 
 
 def _utc_now_iso():
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
 
 
 def _new_id():
