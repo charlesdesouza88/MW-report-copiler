@@ -2,8 +2,9 @@
 
 import io
 
-import app as web_app
 from test_app import _init_teacher_store, _login, _students_csv
+
+import app as web_app
 
 
 def _client(monkeypatch, tmp_path):

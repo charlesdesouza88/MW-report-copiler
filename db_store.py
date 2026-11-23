@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 from sqlalchemy import Integer, Text, create_engine, select, text
@@ -303,7 +303,7 @@ def backup_reason(reason: str):
 
 
 def _utcnow():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class UserRow(Base):
@@ -632,9 +632,7 @@ class DatabaseStore:
         days_kept, drop = set(), []
         for i, (backup_id, created_at) in enumerate(rows):
             when = datetime.fromisoformat(created_at)
-            if i < keep_recent:
-                days_kept.add(when.date())
-            elif when >= oldest_daily and when.date() not in days_kept:
+            if i < keep_recent or when >= oldest_daily and when.date() not in days_kept:
                 days_kept.add(when.date())
             else:
                 drop.append(backup_id)

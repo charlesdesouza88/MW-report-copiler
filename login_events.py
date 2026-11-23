@@ -8,7 +8,7 @@ import os
 import re
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote, urlencode
 from zoneinfo import ZoneInfo
@@ -21,7 +21,7 @@ _DIGITS_RE = re.compile(r'\D+')
 
 
 def _utc_now_iso():
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
 
 
 def _new_id():
@@ -173,7 +173,7 @@ def format_logged_at(logged_at, *, empty='Nunca'):
     except ValueError:
         return raw
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     local = dt.astimezone(_SAO_PAULO)
     return local.strftime('%d/%m/%Y %H:%M')
 

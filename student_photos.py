@@ -12,7 +12,7 @@ import json
 import logging
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from report_periods import student_snapshot_id
@@ -98,7 +98,7 @@ def set_photo(rows, turma, student_name, mime, data_b64):
         'student_id': key,
         'photo_mime': mime,
         'photo_base64': data_b64,
-        'updated_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'updated_at': datetime.now(UTC).isoformat(timespec='seconds'),
     })
     return out
 

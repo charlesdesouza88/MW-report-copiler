@@ -3,9 +3,15 @@
 import re
 from html.parser import HTMLParser
 
-import app as web_app
-from feedback_options import FEEDBACK_FIELDS, FEEDBACK_OPTIONS, feedback_phrases, is_legacy_feedback
 from test_app import _init_teacher_store, _login, _students_csv
+
+import app as web_app
+from feedback_options import (
+    FEEDBACK_FIELDS,
+    FEEDBACK_OPTIONS,
+    feedback_phrases,
+    is_legacy_feedback,
+)
 
 
 class _FormValues(HTMLParser):

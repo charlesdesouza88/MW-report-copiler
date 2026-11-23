@@ -7,8 +7,9 @@ throws, and the browser submits the delete without asking. Names with apostrophe
 import json
 from html.parser import HTMLParser
 
-import app as web_app
 from test_app import _init_teacher_store, _login, _students_csv
+
+import app as web_app
 
 TRICKY_NAME = "Ana D'Ávila \"Nina\""
 

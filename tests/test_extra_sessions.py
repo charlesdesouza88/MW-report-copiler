@@ -6,7 +6,6 @@ from extra_sessions import (
     clear_aula_extra_after_completed_session,
     display_status,
     group_handoff_by_teacher,
-    short_horario,
     internal_row_to_csv_row,
     is_auto_aula_extra_row,
     is_status_ok,
@@ -18,6 +17,7 @@ from extra_sessions import (
     parse_turma_from_student_name,
     reconcile_flagged_students,
     row_from_form,
+    short_horario,
     sync_student_extra_sessions,
 )
 

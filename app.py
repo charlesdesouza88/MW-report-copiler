@@ -2,8 +2,8 @@
 """Mister Wiz Report Compiler — Web Dashboard"""
 
 import base64
-import csv
 import contextlib
+import csv
 import functools
 import io
 import json
@@ -15,7 +15,7 @@ import tempfile
 import threading
 import time
 import zipfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 
@@ -83,7 +83,6 @@ from extra_sessions import (
     apply_pending_session_flag_to_students,
     build_atendimentos_template_csv,
     class_teacher,
-    clear_aula_extra_after_completed_session,
     clear_aula_extra_for_students,
     coerce_session_status_fields,
     display_status,
@@ -97,20 +96,20 @@ from extra_sessions import (
     is_status_ok,
     move_open_sessions,
     normalize_aula_extra,
-    realign_open_sessions,
     parse_import_csv,
+    parse_session_date,
+    realign_open_sessions,
+    reconcile_flagged_students,
+    remove_sessions_for_student,
+    row_from_form,
+    schedule_session,
+    school_today,
     session_due_state,
     session_reason,
     session_sort_key,
     session_stage,
     session_when,
-    parse_session_date,
-    school_today,
     short_horario,
-    reconcile_flagged_students,
-    remove_sessions_for_student,
-    row_from_form,
-    schedule_session,
     students_matching_session,
     sync_student_extra_sessions,
 )
@@ -173,15 +172,14 @@ from report_periods import (
     filter_lessons_by_month,
     filter_lessons_by_semester,
     filter_months_by_semester,
-    filter_report_files_by_month,
     individual_report_filename,
     load_snapshots,
     month_in_semester,
     month_label,
     parse_lesson_month,
+    parse_semester_id,
     report_month_from_filename,
     save_snapshots,
-    parse_semester_id,
     semester_for_date,
     semester_for_month,
     semester_label,
@@ -3808,7 +3806,7 @@ def student_autosave(idx):
     _move_student_photo(visible[idx], updated)
     return jsonify({
         'ok': True,
-        'saved_at': datetime.now(timezone.utc).strftime('%H:%M'),
+        'saved_at': datetime.now(UTC).strftime('%H:%M'),
         'review_month': review_month,
     })
 
